@@ -1,0 +1,6 @@
+# cmake
+cmake-*/
+build/
+
+# jetbrains ide
+.idea/
