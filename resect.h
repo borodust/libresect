@@ -12,27 +12,30 @@
 extern "C" {
 #endif
 
+#define resect_bool int
+#define resect_true (1)
+#define resect_false (0)
+
 typedef enum {
-    RESECT_CURSOR_KIND_UNKNOWN = 0,
-    RESECT_CURSOR_KIND_TRANSLATION_UNIT = 1,
-    RESECT_CURSOR_KIND_STRUCT = 2,
-    RESECT_CURSOR_KIND_UNION = 3,
-    RESECT_CURSOR_KIND_CLASS = 4,
-    RESECT_CURSOR_KIND_ENUM = 5,
-    RESECT_CURSOR_KIND_FIELD = 6,
-    RESECT_CURSOR_KIND_FUNCTION = 7,
-    RESECT_CURSOR_KIND_VARIABLE = 8,
-    RESECT_CURSOR_KIND_PARAMETER = 9,
-    RESECT_CURSOR_KIND_TYPEDEF = 10,
-    RESECT_CURSOR_KIND_METHOD = 11,
-    RESECT_CURSOR_KIND_NAMESPACE = 12,
-    RESECT_CURSOR_KIND_CONSTRUCTOR = 13,
-    RESECT_CURSOR_KIND_DESTRUCTOR = 14,
-    RESECT_CURSOR_KIND_CONVERTER = 15,
-    RESECT_CURSOR_KIND_TYPE_REFERENCE = 16,
-    RESECT_CURSOR_KIND_TEMPLATE_REFERENCE = 17,
-    RESECT_CURSOR_KIND_ENUM_CONSTANT = 18
-} resect_cursor_kind;
+    RESECT_DECL_KIND_UNKNOWN = 0,
+    RESECT_DECL_KIND_STRUCT = 1,
+    RESECT_DECL_KIND_UNION = 2,
+    RESECT_DECL_KIND_CLASS = 3,
+    RESECT_DECL_KIND_ENUM = 4,
+    RESECT_DECL_KIND_FIELD = 5,
+    RESECT_DECL_KIND_FUNCTION = 6,
+    RESECT_DECL_KIND_VARIABLE = 7,
+    RESECT_DECL_KIND_PARAMETER = 8,
+    RESECT_DECL_KIND_TYPEDEF = 9,
+    RESECT_DECL_KIND_METHOD = 10,
+    RESECT_DECL_KIND_NAMESPACE = 11,
+    RESECT_DECL_KIND_CONSTRUCTOR = 12,
+    RESECT_DECL_KIND_DESTRUCTOR = 13,
+    RESECT_DECL_KIND_CONVERTER = 14,
+    RESECT_DECL_KIND_TYPE_REFERENCE = 15,
+    RESECT_DECL_KIND_TEMPLATE_REFERENCE = 16,
+    RESECT_DECL_KIND_ENUM_CONSTANT = 17
+} resect_decl_kind;
 
 
 typedef enum {
@@ -91,53 +94,83 @@ typedef enum {
     RESECT_TYPE_KIND_EXTVECTOR = 178
 } resect_type_kind;
 
+typedef enum {
+    RESECT_TYPE_CATEGORY_UNKNOWN = 0,
+    RESECT_TYPE_CATEGORY_ARITHMETIC = 1,
+    RESECT_TYPE_CATEGORY_POINTER = 2,
+    RESECT_TYPE_CATEGORY_REFERENCE = 3,
+    RESECT_TYPE_CATEGORY_ARRAY = 4,
+    RESECT_TYPE_CATEGORY_UNIQUE = 5,
+    RESECT_TYPE_CATEGORY_AUX = 6
+} resect_type_category;
 
 typedef enum {
-    RESECT_VISIT_RESULT_RECURSE = 0,
-    RESECT_VISIT_RESULT_BREAK = 1,
-    RESECT_VISIT_RESULT_CONTINUE = 2
-} resect_visit_result;
+    RESECT_FUNCTION_CALLING_CONVENTION_UNKNOWN = 0,
+    RESECT_FUNCTION_CALLING_CONVENTION_DEFAULT = 1,
+    RESECT_FUNCTION_CALLING_CONVENTION_C = 2,
+    RESECT_FUNCTION_CALLING_CONVENTION_X86_STDCALL = 3,
+    RESECT_FUNCTION_CALLING_CONVENTION_X86_FASTCALL = 4,
+    RESECT_FUNCTION_CALLING_CONVENTION_X86_THISCALL = 5,
+    RESECT_FUNCTION_CALLING_CONVENTION_X86_REGCALL = 6,
+    RESECT_FUNCTION_CALLING_CONVENTION_X86_VECTORCALL = 7,
+    RESECT_FUNCTION_CALLING_CONVENTION_X86_PASCAL = 8,
+    RESECT_FUNCTION_CALLING_CONVENTION_X86_64_WIN64 = 9,
+    RESECT_FUNCTION_CALLING_CONVENTION_X86_64_SYSV = 10,
+    RESECT_FUNCTION_CALLING_CONVENTION_AARCH64_VECTORCALL = 11,
+    RESECT_FUNCTION_CALLING_CONVENTION_AAPCS = 12,
+    RESECT_FUNCTION_CALLING_CONVENTION_AAPCS_VFP = 13,
+    RESECT_FUNCTION_CALLING_CONVENTION_INTEL_OCL_BICC = 14,
+    RESECT_FUNCTION_CALLING_CONVENTION_SWIFT = 15,
+    RESECT_FUNCTION_CALLING_CONVENTION_PRESERVE_MOST = 16,
+    RESECT_FUNCTION_CALLING_CONVENTION_PRESERVE_ALL = 17,
+} resect_function_calling_convention;
+
 
 typedef enum {
-    RESECT_EVALUATION_RESULT_KIND_UNKNOWN = 0,
-    RESECT_EVALUATION_RESULT_KIND_INT = 1,
-    RESECT_EVALUATION_RESULT_KIND_FLOAT = 2,
-    RESECT_EVALUATION_RESULT_KIND_STRING = 3,
-} resect_evaluation_result_kind;
+    RESECT_FUNCTION_STORAGE_CLASS_UNKNOWN = 0,
+    RESECT_FUNCTION_STORAGE_CLASS_NONE = 1,
+    RESECT_FUNCTION_STORAGE_CLASS_EXTERN = 2,
+    RESECT_FUNCTION_STORAGE_CLASS_STATIC = 3,
+    RESECT_FUNCTION_STORAGE_CLASS_PRIVATE_EXTERN = 4,
+    RESECT_FUNCTION_STORAGE_CLASS_OPENCL_WORKGROUP_LOCAL = 5,
+    RESECT_FUNCTION_STORAGE_CLASS_AUTO = 6,
+    RESECT_FUNCTION_STORAGE_CLASS_REGISTER = 7,
+} resect_function_storage_class;
 
-typedef struct resect_cursor *resect_cursor;
 
-typedef struct resect_parse_options *resect_parse_options;
-
-typedef struct resect_cursor_location *resect_cursor_location;
-
+typedef struct resect_translation_context *resect_translation_context;
+typedef struct resect_collection *resect_collection;
+typedef struct resect_iterator *resect_iterator;
+typedef struct resect_location *resect_location;
+typedef struct resect_decl *resect_decl;
 typedef struct resect_type *resect_type;
 
-typedef struct resect_string *resect_string;
+/*
+ * COLLECTION
+ */
+RESECT_API resect_iterator resect_collection_iterator(resect_collection collection);
 
-typedef struct resect_evaluation_result *resect_evaluation_result;
+RESECT_API resect_bool resect_iterator_next(resect_iterator iter);
 
-typedef resect_visit_result (*resect_visitor)(resect_cursor current_cursor, resect_cursor parent_cursor);
+RESECT_API void *resect_iterator_value(resect_iterator iter);
+
+RESECT_API void resect_iterator_free(resect_iterator iter);
 
 /*
- * STRING
+ * LOCATION
  */
-RESECT_API resect_string resect_allocate_string(unsigned int initial_capacity);
+RESECT_API unsigned int resect_location_line(resect_location location);
 
-RESECT_API const char *resect_string_to_c(resect_string string);
+RESECT_API unsigned int resect_location_column(resect_location location);
 
-RESECT_API void resect_free_string(resect_string string);
+RESECT_API const char *resect_location_name(resect_location location);
 
 /*
  * TYPE
  */
-RESECT_API resect_type resect_allocate_type();
-
-RESECT_API void resect_free_type(resect_type type);
-
 RESECT_API resect_type_kind resect_type_get_kind(resect_type type);
 
-RESECT_API resect_string resect_type_get_name(resect_string result, resect_type type);
+RESECT_API const char *resect_type_get_name(resect_type type);
 
 RESECT_API long long resect_type_sizeof(resect_type type);
 
@@ -145,53 +178,113 @@ RESECT_API long long resect_type_alignof(resect_type type);
 
 RESECT_API long long resect_type_offsetof(resect_type type, const char *field_name);
 
+RESECT_API resect_collection resect_type_fields(resect_type type);
+
+RESECT_API resect_decl resect_type_get_declaration(resect_type type);
+
+RESECT_API resect_type_category resect_type_get_category(resect_type type);
+
 /*
- * CURSOR
+ * ARRAY
  */
-RESECT_API resect_cursor resect_allocate_cursor();
+RESECT_API long long resect_array_get_size(resect_type type);
 
-RESECT_API void resect_free_cursor(resect_cursor cursor);
+RESECT_API resect_type resect_array_get_element_type(resect_type type);
 
-RESECT_API int resect_cursor_equal(resect_cursor this, resect_cursor that);
+/*
+ * POINTER
+ */
+RESECT_API resect_type resect_pointer_get_pointee_type(resect_type type);
 
-RESECT_API resect_string resect_cursor_get_name(resect_string result, resect_cursor cursor);
+/*
+ * DECLARATION
+ */
 
-RESECT_API resect_cursor_location resect_allocate_cursor_location();
+RESECT_API resect_decl_kind resect_decl_get_kind(resect_decl decl);
 
-RESECT_API void resect_free_cursor_location(resect_cursor_location location);
+RESECT_API const char *resect_decl_get_id(resect_decl decl);
 
-RESECT_API unsigned int resect_cursor_location_line(resect_cursor_location location);
+RESECT_API const char *resect_decl_get_name(resect_decl decl);
 
-RESECT_API unsigned int resect_cursor_location_column(resect_cursor_location location);
+RESECT_API resect_location resect_decl_get_location(resect_decl decl);
 
-RESECT_API const char *resect_cursor_location_name(resect_cursor_location location);
+RESECT_API const char *resect_decl_get_comment(resect_decl decl);
 
-RESECT_API resect_cursor_kind resect_cursor_get_kind(resect_cursor cursor);
+RESECT_API resect_type resect_decl_get_type(resect_decl decl);
 
-RESECT_API resect_string resect_cursor_get_id(resect_string provided, resect_cursor cursor);
+/*
+ * TRANSLATION CONTEXT
+ */
 
-RESECT_API resect_cursor_location resect_cursor_get_location(resect_cursor_location result, resect_cursor cursor);
+RESECT_API resect_collection resect_context_declarations(resect_translation_context decl);
 
-RESECT_API resect_string resect_cursor_get_comment(resect_string result, resect_cursor cursor);
+/*
+ * STRUCT
+ */
+RESECT_API long long resect_field_get_offset(resect_decl decl);
 
-RESECT_API resect_cursor resect_type_get_declaration(resect_cursor provided_result, resect_type type);
+RESECT_API resect_bool resect_field_is_bitfield(resect_decl decl);
 
-RESECT_API resect_type resect_cursor_get_type(resect_type result, resect_cursor cursor);
+RESECT_API long long resect_field_get_width(resect_decl decl);
 
-RESECT_API resect_string resect_cursor_get_debug_info(resect_string result, resect_cursor cursor);
+RESECT_API resect_collection resect_struct_fields(resect_decl decl);
+
+/*
+ * UNION
+ */
+RESECT_API resect_collection resect_union_fields(resect_decl decl);
+
+/*
+ * ENUM
+ */
+RESECT_API long long resect_enum_constant_value(resect_decl decl);
+
+RESECT_API resect_collection resect_enum_constants(resect_decl decl);
+
+/*
+ * FUNCTION
+ */
+RESECT_API resect_collection resect_function_parameters(resect_decl decl);
+
+RESECT_API resect_type resect_function_get_return_type(resect_decl decl);
+
+RESECT_API resect_function_storage_class resect_function_get_storage_class(resect_decl decl);
+
+RESECT_API resect_bool resect_function_is_variadic(resect_decl decl);
+
+
+/*
+ * VARIABLE
+ */
 
 /*
  * TYPEDEF
  */
-RESECT_API resect_type resect_cursor_get_aliased_type(resect_type provided, resect_cursor cursor);
+RESECT_API resect_type resect_typedef_get_aliased_type(resect_decl decl);
+
 /*
- * ENUM
+ * PARSE OPTIONS
  */
-RESECT_API long long resect_cursor_get_enum_value(resect_cursor cursor);
+typedef struct resect_parse_options *resect_parse_options;
+
+RESECT_API resect_parse_options resect_options_create();
+
+RESECT_API void resect_options_add_include_path(resect_parse_options opts, const char *path);
+
+RESECT_API void resect_options_add_framework_path(resect_parse_options opts, const char *framework);
+
+RESECT_API void resect_options_add_language(resect_parse_options opts, const char *lang);
+
+RESECT_API void resect_options_add_standard(resect_parse_options opts, const char *standard);
+
+RESECT_API void resect_options_free(resect_parse_options opts);
+
 /*
  * PARSER
  */
-RESECT_API void resect_parse(const char *filename, resect_visitor visitor, resect_parse_options options);
+RESECT_API resect_translation_context resect_parse(const char *filename, resect_parse_options options);
+
+RESECT_API void resect_free(resect_translation_context result);
 
 #ifdef __csplusplus
 }

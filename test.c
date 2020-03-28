@@ -4,50 +4,75 @@
 #include "resect.h"
 #include <stdio.h>
 
-struct {
-    resect_cursor_location location;
-    resect_string id;
-    resect_string comment;
-    resect_string debug_info;
-    resect_type type;
-} visitor_data;
 
-resect_visit_result print_cursor(resect_cursor cursor, resect_cursor parent) {
-    resect_cursor_get_id(visitor_data.id, cursor);
-    resect_cursor_location location = resect_cursor_get_location(visitor_data.location, cursor);
-    resect_string comment = resect_cursor_get_comment(visitor_data.comment, cursor);
-    resect_type type = resect_cursor_get_type(visitor_data.type, cursor);
-    resect_string debug_info = resect_cursor_get_debug_info(visitor_data.debug_info, cursor);
+void print_record_fields(resect_type type, resect_collection fields) {
+    resect_iterator field_iter = resect_collection_iterator(fields);
+    while (resect_iterator_next(field_iter)) {
+        resect_decl field = resect_iterator_value(field_iter);
+        printf(" FIELD: %s {offset: %lld} \n", resect_decl_get_name(field), resect_field_get_offset(field));
+    }
+}
 
-    printf("\n\nCursor %d: \"%s:%d:%d\"\nID: %s\nComment: \"%s\"\nSize: %d, Alignment: %d\nDebug: %s",
-           resect_cursor_get_kind(cursor),
-           resect_cursor_location_name(location),
-           resect_cursor_location_line(location),
-           resect_cursor_location_column(location),
-           resect_string_to_c(visitor_data.id),
-           resect_string_to_c(comment),
-           (int) resect_type_sizeof(type),
-           (int) resect_type_alignof(type),
-           resect_string_to_c(debug_info));
+void print_enum_constants(resect_decl decl) {
+    resect_collection constants = resect_enum_constants(decl);
+    resect_iterator constant_iter = resect_collection_iterator(constants);
+    while (resect_iterator_next(constant_iter)) {
+        resect_decl constant = resect_iterator_value(constant_iter);
+        printf(" CONSTANT: %s = %lld\n", resect_decl_get_name(constant), resect_enum_constant_value(constant));
+    }
+}
 
-    return RESECT_VISIT_RESULT_RECURSE;
+void print_parameters(resect_decl decl) {
+    resect_collection params = resect_function_parameters(decl);
+    resect_iterator param_iter = resect_collection_iterator(params);
+    while (resect_iterator_next(param_iter)) {
+        resect_decl param = resect_iterator_value(param_iter);
+        printf(" PARAMETER: %s\n", resect_decl_get_name(param));
+    }
 }
 
 int main(int argc, char **argv) {
     char *filename = argc > 1 ? argv[1] : "/usr/include/stdlib.h";
 
-    visitor_data.location = resect_allocate_cursor_location();
-    visitor_data.id = resect_allocate_string(256);
-    visitor_data.comment = resect_allocate_string(256);
-    visitor_data.type = resect_allocate_type();
-    visitor_data.debug_info = resect_allocate_string(256);
+    resect_parse_options options = resect_options_create();
+    resect_options_add_include_path(options, "/usr/local/include/");
 
-    resect_parse(filename, print_cursor, NULL);
+    resect_translation_context context = resect_parse(filename, options);
 
-    resect_free_cursor_location(visitor_data.location);
-    resect_free_string(visitor_data.comment);
-    resect_free_string(visitor_data.debug_info);
-    resect_free_type(visitor_data.type);
+    resect_options_free(options);
 
+    resect_collection decls = resect_context_declarations(context);
+    resect_iterator decl_iter = resect_collection_iterator(decls);
+    while (resect_iterator_next(decl_iter)) {
+        resect_decl decl = resect_iterator_value(decl_iter);
+
+        switch (resect_decl_get_kind(decl)) {
+            case RESECT_DECL_KIND_STRUCT:
+                printf("STRUCT: %s\n", resect_decl_get_name(decl));
+                print_record_fields(resect_decl_get_type(decl), resect_struct_fields(decl));
+                break;
+            case RESECT_DECL_KIND_UNION:
+                printf("UNION: %s\n", resect_decl_get_name(decl));
+                print_record_fields(resect_decl_get_type(decl), resect_union_fields(decl));
+                break;
+            case RESECT_DECL_KIND_ENUM:
+                printf("ENUM: %s\n", resect_decl_get_name(decl));
+                print_enum_constants(decl);
+                break;
+            case RESECT_DECL_KIND_FUNCTION:
+                printf("FUNCTION: %s\n", resect_decl_get_name(decl));
+                print_parameters(decl);
+                break;
+            case RESECT_DECL_KIND_VARIABLE:
+                printf("VARIABLE: %s\n", resect_decl_get_name(decl));
+                break;
+            case RESECT_DECL_KIND_TYPEDEF:
+                printf("TYPEDEF: %s\n", resect_decl_get_name(decl));
+                break;
+        }
+    }
+
+    resect_free(context);
     return 0;
 }
+
