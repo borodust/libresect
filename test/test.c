@@ -1,7 +1,7 @@
 //
 // Created by borodust on 12/27/19.
 //
-#include "resect.h"
+#include "../resect.h"
 #include <stdio.h>
 
 
