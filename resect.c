@@ -55,14 +55,14 @@ resect_set resect_set_create() {
 }
 
 resect_bool resect_set_contains(resect_set set, void *value) {
-    struct resect_set_item *entry;
-    HASH_FIND_PTR(set->head, value, entry);
+    resect_set_item entry;
+    HASH_FIND_PTR(set->head, &value, entry);
     return entry != NULL ? resect_true : resect_false;
 }
 
 resect_bool resect_set_add(resect_set set, void *value) {
     if (!resect_set_contains(set, value)) {
-        struct resect_set_item *entry = malloc(sizeof(struct resect_set_item));
+        resect_set_item entry = malloc(sizeof(struct resect_set_item));
         entry->key = value;
         HASH_ADD_PTR(set->head, key, entry);
         return resect_true;
@@ -531,19 +531,14 @@ void resect_type_free(resect_type type, resect_set deallocated) {
         return;
     }
 
-    resect_string_free(type->name);
-    resect_iterator iter = resect_collection_iterator(type->fields);
-    while (resect_iterator_next(iter)) {
-        free(resect_iterator_value(iter));
-    }
-    resect_iterator_free(iter);
-    resect_collection_free(type->fields);
-
-    resect_decl_free(type->decl, deallocated);
-
     if (type->data_deallocator) {
         type->data_deallocator(type->data, deallocated);
     }
+
+    resect_string_free(type->name);
+    resect_decl_collection_free(type->fields, deallocated);
+    resect_decl_free(type->decl, deallocated);
+
     free(type);
 }
 
@@ -647,6 +642,7 @@ resect_type resect_type_create(resect_translation_context context, CXType clangT
     type->size = filter_valid_value(clang_Type_getSizeOf(clangType));
     type->alignment = filter_valid_value(clang_Type_getAlignOf(clangType));
     type->fields = resect_collection_create();
+    type->data_deallocator = NULL;
     type->data = NULL;
 
     type->decl = resect_parse_decl(context, clang_getTypeDeclaration(clangType));
@@ -1134,10 +1130,11 @@ void resect_context_free(resect_translation_context context, resect_set dealloca
     struct resect_decl_table *element, *tmp;
     HASH_ITER(hh, context->decl_table, element, tmp) {
         HASH_DEL(context->decl_table, element);
-        resect_decl_free(element->value, deallocated);
+        free((void *) element->key);
         free(element);
     }
-    resect_collection_free(context->declarations);
+
+    resect_decl_collection_free(context->declarations, deallocated);
     free(context);
 }
 
@@ -1148,7 +1145,13 @@ resect_collection resect_context_declarations(resect_translation_context decl) {
 
 void resect_register_decl(resect_translation_context context, const char *id, resect_decl decl) {
     struct resect_decl_table *entry = malloc(sizeof(struct resect_decl_table));
-    entry->key = id;
+
+    size_t len = strlen(id);
+    char *key = malloc(sizeof(char) * (len + 1));
+    strncpy(key, id, len);
+    key[len] = 0;
+
+    entry->key = key;
     entry->value = decl;
     HASH_ADD_STR(context->decl_table, key, entry);
 }
@@ -1189,7 +1192,6 @@ void resect_options_add(resect_parse_options opts, const char *key, const char *
     resect_collection_add(opts->args, resect_string_from_c(value));
 }
 
-
 void resect_options_add_concat(resect_parse_options opts, const char *key, const char *value) {
     resect_collection_add(opts->args, resect_string_format("%s%s", key, value));
 }
@@ -1216,6 +1218,7 @@ void resect_options_free(resect_parse_options opts) {
         resect_string_free(resect_iterator_value(arg_iter));
     }
     resect_iterator_free(arg_iter);
+    resect_collection_free(opts->args);
     free(opts);
 }
 
@@ -1247,6 +1250,8 @@ resect_translation_context resect_parse(const char *filename, resect_parse_optio
                                                              0, CXTranslationUnit_DetailedPreprocessingRecord |
                                                                 CXTranslationUnit_KeepGoing |
                                                                 CXTranslationUnit_SkipFunctionBodies);
+
+    free(argv);
 
 
     CXCursor cursor = clang_getTranslationUnitCursor(clangUnit);

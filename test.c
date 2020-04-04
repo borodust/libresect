@@ -71,8 +71,10 @@ int main(int argc, char **argv) {
                 break;
         }
     }
+    resect_iterator_free(decl_iter);
 
     resect_free(context);
+
     return 0;
 }
 
