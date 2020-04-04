@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 
-void print_record_fields(resect_type type, resect_collection fields) {
+void print_record_fields(resect_collection fields) {
     resect_iterator field_iter = resect_collection_iterator(fields);
     while (resect_iterator_next(field_iter)) {
         resect_decl field = resect_iterator_value(field_iter);
@@ -34,17 +34,30 @@ void print_parameters(resect_decl decl) {
     resect_iterator_free(param_iter);
 }
 
+
+void print_methods(resect_decl decl) {
+    resect_collection methods = resect_class_methods(decl);
+    resect_iterator param_iter = resect_collection_iterator(methods);
+    while (resect_iterator_next(param_iter)) {
+        resect_decl param = resect_iterator_value(param_iter);
+        printf(" METHOD: %s\n", resect_decl_get_name(param));
+    }
+    resect_iterator_free(param_iter);
+}
+
 int main(int argc, char **argv) {
     char *filename = argc > 1 ? argv[1] : "/usr/include/stdlib.h";
 
     resect_parse_options options = resect_options_create();
     resect_options_add_include_path(options, "/usr/local/include/");
+    resect_options_add_include_path(options, "/usr/include/linux/");
 
-    resect_translation_context context = resect_parse(filename, options);
+
+    resect_translation_unit context = resect_parse(filename, options);
 
     resect_options_free(options);
 
-    resect_collection decls = resect_context_declarations(context);
+    resect_collection decls = resect_unit_declarations(context);
     resect_iterator decl_iter = resect_collection_iterator(decls);
     while (resect_iterator_next(decl_iter)) {
         resect_decl decl = resect_iterator_value(decl_iter);
@@ -52,11 +65,11 @@ int main(int argc, char **argv) {
         switch (resect_decl_get_kind(decl)) {
             case RESECT_DECL_KIND_STRUCT:
                 printf("STRUCT: %s\n", resect_decl_get_name(decl));
-                print_record_fields(resect_decl_get_type(decl), resect_struct_fields(decl));
+                print_record_fields(resect_struct_fields(decl));
                 break;
             case RESECT_DECL_KIND_UNION:
                 printf("UNION: %s\n", resect_decl_get_name(decl));
-                print_record_fields(resect_decl_get_type(decl), resect_union_fields(decl));
+                print_record_fields(resect_union_fields(decl));
                 break;
             case RESECT_DECL_KIND_ENUM:
                 printf("ENUM: %s\n", resect_decl_get_name(decl));
@@ -71,6 +84,10 @@ int main(int argc, char **argv) {
                 break;
             case RESECT_DECL_KIND_TYPEDEF:
                 printf("TYPEDEF: %s\n", resect_decl_get_name(decl));
+                break;
+            case RESECT_DECL_KIND_CLASS:
+                printf("CLASS: %s\n", resect_decl_get_name(decl));
+                print_methods(decl);
                 break;
         }
     }

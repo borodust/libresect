@@ -3,7 +3,7 @@ project(resect)
 
 set(CMAKE_C_STANDARD 99)
 
-add_library(resect SHARED src/decl.c src/type.c src/context.c src/util.c resect.h src/resect_private.h)
+add_library(resect SHARED src/parser.c src/decl.c src/type.c src/context.c src/util.c resect.h src/resect_private.h)
 target_link_libraries(resect clang)
 
 add_executable(resect-test test/test.c)

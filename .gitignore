@@ -4,3 +4,6 @@ build/
 
 # jetbrains ide
 .idea/
+
+# local
+local/

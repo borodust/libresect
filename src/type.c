@@ -7,8 +7,6 @@
 
 #include <clang-c/Index.h>
 
-#include "uthash.h"
-
 /*
  * TYPE
  */
@@ -52,10 +50,15 @@ resect_type_kind convert_type_kind(enum CXTypeKind kind) {
     }
 }
 
+typedef struct resect_type_visit_data {
+    resect_type type;
+    resect_translation_context context;
+} *resect_type_visit_data;
+
 enum CXVisitorResult visit_type_fields(CXCursor cursor, CXClientData data) {
-    resect_type type = data;
-    resect_decl field_decl = resect_parse_decl(resect_decl_get_context(type->decl), cursor);
-    resect_collection_add(type->fields, field_decl);
+    resect_type_visit_data visit_data = data;
+    resect_decl field_decl = resect_decl_create(visit_data->context, cursor);
+    resect_collection_add(visit_data->type->fields, field_decl);
     return CXVisit_Continue;
 }
 
@@ -71,12 +74,15 @@ void resect_array_data_free(void *data, resect_set deallocated) {
     if (data == NULL || !resect_set_add(deallocated, data)) {
         return;
     }
+
+    resect_array_data array_data = data;
+    resect_type_free(array_data->type, deallocated);
     free(data);
 }
 
-void resect_array_init(resect_type type, CXType clangType) {
+void resect_array_init(resect_translation_context context, resect_type type, CXType clangType) {
     resect_array_data data = malloc(sizeof(struct resect_array_data));
-    data->type = resect_type_create(resect_decl_get_context(type->decl), clang_getArrayElementType(clangType));
+    data->type = resect_type_create(context, clang_getArrayElementType(clangType));
     data->size = clang_getArraySize(clangType);
 
     type->data_deallocator = resect_array_data_free;
@@ -112,33 +118,89 @@ void resect_pointer_data_free(void *data, resect_set deallocated) {
     free(data);
 }
 
-void resect_pointer_init(resect_type type, CXType clangType) {
+void resect_pointer_init(resect_translation_context context, resect_type type, CXType clangType) {
     resect_pointer_data data = malloc(sizeof(struct resect_pointer_data));
-    data->type = resect_type_create(resect_decl_get_context(type->decl), clang_getPointeeType(clangType));
+    data->type = resect_type_create(context, clang_getPointeeType(clangType));
 
     type->data_deallocator = resect_pointer_data_free;
     type->data = data;
 }
 
-RESECT_API resect_type resect_pointer_get_pointee_type(resect_type type) {
+resect_type resect_pointer_get_pointee_type(resect_type type) {
     assert(type->category == RESECT_TYPE_CATEGORY_POINTER);
     resect_pointer_data data = type->data;
     return data->type;
 }
 
-resect_type resect_type_create(resect_translation_context context, CXType clangType) {
+
+/*
+ * REFERENCE
+ */
+typedef struct resect_reference_data {
+    resect_bool is_lvalue;
+    resect_type type;
+} *resect_reference_data;
+
+void resect_reference_data_free(void *data, resect_set deallocated) {
+    if (data == NULL || !resect_set_add(deallocated, data)) {
+        return;
+    }
+    resect_reference_data pointer = data;
+    resect_type_free(pointer->type, deallocated);
+    free(data);
+}
+
+void resect_reference_init(resect_translation_context context, resect_type type, CXType clangType) {
+    resect_reference_data data = malloc(sizeof(struct resect_reference_data));
+
+    data->type = resect_type_create(context, clang_getPointeeType(clangType));
+    data->is_lvalue = clangType.kind == CXType_LValueReference;
+
+    type->data_deallocator = resect_reference_data_free;
+    type->data = data;
+}
+
+resect_type resect_reference_get_pointee_type(resect_type type) {
+    assert(type->category == RESECT_TYPE_CATEGORY_REFERENCE);
+    resect_reference_data data = type->data;
+    return data->type;
+}
+
+resect_bool resect_reference_is_lvalue(resect_type type) {
+    assert(type->category == RESECT_TYPE_CATEGORY_REFERENCE);
+    resect_reference_data data = type->data;
+    return data->is_lvalue;
+}
+
+/*
+ * TYPE CONSTRUCTOR
+ */
+resect_type resect_type_create(resect_translation_context context, CXType clang_type) {
+    switch (clang_type.kind) {
+        case CXType_Elaborated:
+            return resect_type_create(context, clang_Type_getNamedType(clang_type));
+        case CXType_Unexposed: {
+            CXType canonical_type = clang_getCanonicalType(clang_type);
+            if (CXType_Unexposed != canonical_type.kind) {
+                return resect_type_create(context, canonical_type);
+            }
+        }
+            break;
+    }
+
     resect_type type = malloc(sizeof(struct resect_type));
 
-    type->kind = convert_type_kind(clangType.kind);
-    type->name = resect_string_from_clang(clang_getTypeSpelling(clangType));
-    type->size = filter_valid_value(clang_Type_getSizeOf(clangType));
-    type->alignment = filter_valid_value(clang_Type_getAlignOf(clangType));
+    type->kind = convert_type_kind(clang_type.kind);
+    type->name = resect_string_from_clang(clang_getTypeSpelling(clang_type));
+    type->size = filter_valid_value(clang_Type_getSizeOf(clang_type));
+    type->alignment = filter_valid_value(clang_Type_getAlignOf(clang_type));
     type->fields = resect_collection_create();
     type->data_deallocator = NULL;
     type->data = NULL;
 
-    type->decl = resect_parse_decl(context, clang_getTypeDeclaration(clangType));
-    clang_Type_visitFields(clangType, visit_type_fields, type);
+    type->decl = resect_decl_create(context, clang_getTypeDeclaration(clang_type));
+    struct resect_type_visit_data visit_data = {type = type, context = context};
+    clang_Type_visitFields(clang_type, visit_type_fields, &visit_data);
 
     switch (type->kind) {
         case RESECT_TYPE_KIND_BOOL:
@@ -174,17 +236,17 @@ resect_type resect_type_create(resect_translation_context context, CXType clangT
         case RESECT_TYPE_KIND_DEPENDENT:
         case RESECT_TYPE_KIND_AUTO:
         case RESECT_TYPE_KIND_ATTRIBUTED:
-        case RESECT_TYPE_KIND_ELABORATED:
             type->category = RESECT_TYPE_CATEGORY_AUX;
             break;
         case RESECT_TYPE_KIND_POINTER:
         case RESECT_TYPE_KIND_MEMBERPOINTER:
         case RESECT_TYPE_KIND_BLOCKPOINTER:
             type->category = RESECT_TYPE_CATEGORY_POINTER;
-            resect_pointer_init(type, clangType);
+            resect_pointer_init(context, type, clang_type);
             break;
         case RESECT_TYPE_KIND_LVALUEREFERENCE:
         case RESECT_TYPE_KIND_RVALUEREFERENCE:
+            resect_reference_init(context, type, clang_type);
             type->category = RESECT_TYPE_CATEGORY_REFERENCE;
             break;
         case RESECT_TYPE_KIND_RECORD:
@@ -201,7 +263,7 @@ resect_type resect_type_create(resect_translation_context context, CXType clangT
         case RESECT_TYPE_KIND_DEPENDENTSIZEDARRAY:
         case RESECT_TYPE_KIND_EXTVECTOR:
             type->category = RESECT_TYPE_CATEGORY_ARRAY;
-            resect_array_init(type, clangType);
+            resect_array_init(context, type, clang_type);
             break;
         default:
             type->category = RESECT_TYPE_CATEGORY_UNKNOWN;
@@ -209,7 +271,6 @@ resect_type resect_type_create(resect_translation_context context, CXType clangT
 
     return type;
 }
-
 
 resect_type_kind resect_type_get_kind(resect_type type) {
     return type->kind;

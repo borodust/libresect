@@ -6,11 +6,3 @@
    obj:*/libLLVM*.so*
    ...
 }
-{
-   libresect/libclang
-   Memcheck:Leak
-   match-leak-kinds: all
-   ...
-   obj:*/libclang*.so*
-   ...
-}
