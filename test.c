@@ -11,6 +11,7 @@ void print_record_fields(resect_type type, resect_collection fields) {
         resect_decl field = resect_iterator_value(field_iter);
         printf(" FIELD: %s {offset: %lld} \n", resect_decl_get_name(field), resect_field_get_offset(field));
     }
+    resect_iterator_free(field_iter);
 }
 
 void print_enum_constants(resect_decl decl) {
@@ -20,6 +21,7 @@ void print_enum_constants(resect_decl decl) {
         resect_decl constant = resect_iterator_value(constant_iter);
         printf(" CONSTANT: %s = %lld\n", resect_decl_get_name(constant), resect_enum_constant_value(constant));
     }
+    resect_iterator_free(constant_iter);
 }
 
 void print_parameters(resect_decl decl) {
@@ -29,6 +31,7 @@ void print_parameters(resect_decl decl) {
         resect_decl param = resect_iterator_value(param_iter);
         printf(" PARAMETER: %s\n", resect_decl_get_name(param));
     }
+    resect_iterator_free(param_iter);
 }
 
 int main(int argc, char **argv) {
