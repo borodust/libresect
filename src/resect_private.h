@@ -85,6 +85,10 @@ typedef struct resect_translation_context *resect_translation_context;
 
 void resect_register_decl(resect_translation_context context, resect_string id, resect_decl decl);
 
+void resect_register_decl_language(resect_translation_context context, resect_language language);
+
+resect_language resect_get_assumed_language(resect_translation_context context);
+
 void resect_expose_decl(resect_translation_context context, resect_decl decl);
 
 resect_decl resect_find_decl(resect_translation_context context, resect_string decl_id);

@@ -20,6 +20,8 @@ typedef struct resect_translation_context {
     resect_collection namespace_queue;
     resect_string current_namespace;
     struct resect_decl_table_entry *decl_table;
+
+    resect_language language;
 } *resect_translation_context;
 
 resect_translation_context resect_context_create() {
@@ -28,6 +30,7 @@ resect_translation_context resect_context_create() {
     context->decl_table = NULL;
     context->namespace_queue = resect_collection_create();
     context->current_namespace = resect_string_from_c("");
+    context->language = RESECT_LANGUAGE_UNKNOWN;
 
     return context;
 }
@@ -53,6 +56,18 @@ void resect_context_free(resect_translation_context context, resect_set dealloca
 
 void resect_expose_decl(resect_translation_context context, resect_decl decl) {
     resect_set_add(context->exposed_decls, decl);
+}
+
+void resect_register_decl_language(resect_translation_context context, resect_language language) {
+    if (context->language == RESECT_LANGUAGE_UNKNOWN) {
+        context->language = language;
+    } else if (context->language == RESECT_LANGUAGE_C && language != RESECT_LANGUAGE_C) {
+        context->language = language;
+    }
+}
+
+resect_language resect_get_assumed_language(resect_translation_context context) {
+    return context->language;
 }
 
 void resect_register_decl(resect_translation_context context, resect_string decl_id, resect_decl decl) {

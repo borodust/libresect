@@ -169,6 +169,19 @@ void resect_macro_init(resect_translation_context context, resect_decl decl, CXC
 
 void resect_parse_namespace(resect_translation_context, CXCursor cursor);
 
+resect_language convert_language(enum CXLanguageKind language) {
+    switch (language) {
+        case CXLanguage_C:
+            return RESECT_LANGUAGE_C;
+        case CXLanguage_ObjC:
+            return RESECT_LANGUAGE_OBJC;
+        case CXLanguage_CPlusPlus:
+            return RESECT_LANGUAGE_CXX;
+        default:
+            return RESECT_LANGUAGE_UNKNOWN;
+    }
+}
+
 resect_decl resect_decl_create(resect_translation_context context, CXCursor cursor) {
     switch (clang_getCursorKind(cursor)) {
         case CXCursor_Namespace:
@@ -188,6 +201,7 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
     memset(decl, 0, sizeof(struct resect_decl));
 
     resect_register_decl(context, decl_id, decl);
+    resect_register_decl_language(context, convert_language(clang_getCursorLanguage(cursor)));
 
     resect_decl_init_from_cursor(decl, context, cursor);
 

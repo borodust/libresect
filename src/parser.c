@@ -80,6 +80,10 @@ resect_collection resect_unit_declarations(resect_translation_unit unit) {
     return unit->declarations;
 }
 
+resect_language resect_unit_get_language(resect_translation_unit unit) {
+    return resect_get_assumed_language(unit->context);
+}
+
 enum CXChildVisitResult resect_visit_context_declarations(CXCursor cursor,
                                                           CXCursor parent,
                                                           CXClientData data) {
@@ -129,6 +133,7 @@ resect_translation_unit resect_parse(const char *filename, resect_parse_options 
     resect_translation_unit result = malloc(sizeof(struct resect_translation_unit));
     result->context = context;
     result->declarations = resect_create_decl_collection(context);
+
 
     return result;
 }

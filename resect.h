@@ -145,11 +145,20 @@ typedef enum {
 
 
 typedef enum {
-    RESECT_VARIABLE_TYPE_UNKNOWN,
+    RESECT_VARIABLE_TYPE_UNKNOWN = 0,
     RESECT_VARIABLE_TYPE_INT,
     RESECT_VARIABLE_TYPE_FLOAT,
     RESECT_VARIABLE_TYPE_STRING,
 } resect_variable_type;
+
+typedef enum {
+    RESECT_LANGUAGE_UNKNOWN = 0,
+    RESECT_LANGUAGE_C,
+    RESECT_LANGUAGE_CXX,
+    RESECT_LANGUAGE_OBJC,
+
+    RESECT_LANGUAGE__LAST = RESECT_LANGUAGE_OBJC,
+} resect_language;
 
 typedef struct resect_translation_unit *resect_translation_unit;
 typedef struct resect_collection *resect_collection;
@@ -240,8 +249,9 @@ RESECT_API resect_type resect_decl_get_type(resect_decl decl);
 /*
  * TRANSLATION UNIT
  */
-
 RESECT_API resect_collection resect_unit_declarations(resect_translation_unit unit);
+
+RESECT_API resect_language resect_unit_get_language(resect_translation_unit unit);
 
 /*
  * STRUCT
