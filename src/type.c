@@ -192,8 +192,8 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
 
     type->kind = convert_type_kind(clang_type.kind);
     type->name = resect_string_from_clang(clang_getTypeSpelling(clang_type));
-    type->size = filter_valid_value(clang_Type_getSizeOf(clang_type));
-    type->alignment = filter_valid_value(clang_Type_getAlignOf(clang_type));
+    type->size = 8 * filter_valid_value(clang_Type_getSizeOf(clang_type));
+    type->alignment = 8 * filter_valid_value(clang_Type_getAlignOf(clang_type));
     type->fields = resect_collection_create();
     type->data_deallocator = NULL;
     type->data = NULL;
