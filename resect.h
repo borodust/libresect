@@ -276,6 +276,8 @@ RESECT_API long long resect_enum_constant_value(resect_decl decl);
 
 RESECT_API resect_collection resect_enum_constants(resect_decl decl);
 
+RESECT_API resect_type resect_enum_get_type(resect_decl decl);
+
 /*
  * FUNCTION
  */

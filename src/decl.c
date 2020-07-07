@@ -612,6 +612,7 @@ void resect_enum_constant_free(void *data, resect_set deallocated) {
     if (data == NULL || !resect_set_add(deallocated, data)) {
         return;
     }
+
     free(data);
 }
 
@@ -624,14 +625,21 @@ void resect_enum_constant_init(resect_translation_context context, resect_decl d
 
 typedef struct resect_enum_data {
     resect_collection constants;
+    resect_type type;
 } *resect_enum_data;
-
 
 resect_collection resect_enum_constants(resect_decl decl) {
     assert(decl->kind == RESECT_DECL_KIND_ENUM);
     resect_enum_data data = decl->data;
 
     return data->constants;
+}
+
+resect_type resect_enum_get_type(resect_decl decl) {
+    assert(decl->kind == RESECT_DECL_KIND_ENUM);
+    resect_enum_data data = decl->data;
+
+    return data->type;
 }
 
 enum CXChildVisitResult resect_visit_enum_constants(CXCursor cursor, CXCursor parent, CXClientData data) {
@@ -651,6 +659,7 @@ void resect_enum_data_free(void *data, resect_set deallocated) {
         return;
     }
     resect_enum_data enum_data = data;
+    resect_type_free(enum_data->type, deallocated);
     resect_decl_collection_free(enum_data->constants, deallocated);
     free(enum_data);
 }
@@ -658,6 +667,7 @@ void resect_enum_data_free(void *data, resect_set deallocated) {
 void resect_enum_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
     resect_enum_data data = malloc(sizeof(struct resect_enum_data));
     data->constants = resect_collection_create();
+    data->type = resect_type_create(context, clang_getEnumDeclIntegerType(cursor));
 
     decl->data_deallocator = resect_enum_data_free;
     decl->data = data;
