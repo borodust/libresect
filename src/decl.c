@@ -577,18 +577,22 @@ void resect_function_data_free(void *data, resect_set deallocated) {
     free(function);
 }
 
-void resect_function_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
-    CXType functionType = clang_getCursorType(cursor);
-
+resect_function_data resect_function_data_create(resect_translation_context context, CXCursor cursor) {
     resect_function_data data = malloc(sizeof(struct resect_function_data));
+
+    CXType functionType = clang_getCursorType(cursor);
     data->parameters = resect_collection_create();
     data->storage_class = convert_storage_class(clang_Cursor_getStorageClass(cursor));
     data->calling_convention = convert_calling_convention(clang_getFunctionTypeCallingConv(functionType));
     data->variadic = clang_isFunctionTypeVariadic(functionType) != 0 ? resect_true : resect_false;
     data->return_type = resect_type_create(context, clang_getResultType(functionType));
 
+    return data;
+}
+
+void resect_function_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
     decl->data_deallocator = resect_function_data_free;
-    decl->data = data;
+    decl->data = resect_function_data_create(context, cursor);
 
     struct resect_decl_child_visit_data visit_data = {.context = context, .parent =  decl};
     clang_visitChildren(cursor, resect_visit_parameters, &visit_data);
@@ -785,19 +789,49 @@ void resect_macro_init(resect_translation_context context, resect_decl decl, CXC
  * METHOD
  */
 typedef struct resect_method_data {
+    resect_function_data function_data;
 } *resect_method_data;
 
+
+resect_type resect_method_get_return_type(resect_decl decl) {
+    assert(decl->kind == RESECT_DECL_KIND_METHOD);
+    resect_method_data data = decl->data;
+    return data->function_data->return_type;
+}
+
+resect_function_storage_class resect_method_get_storage_class(resect_decl decl) {
+    assert(decl->kind == RESECT_DECL_KIND_METHOD);
+    resect_method_data data = decl->data;
+    return data->function_data->storage_class;
+}
+
+resect_bool resect_method_is_variadic(resect_decl decl) {
+    assert(decl->kind == RESECT_DECL_KIND_METHOD);
+    resect_method_data data = decl->data;
+    
+    return data->function_data->variadic;
+}
+
+resect_collection resect_method_parameters(resect_decl decl) {
+    assert(decl->kind == RESECT_DECL_KIND_METHOD);
+    resect_method_data data = decl->data;
+    return data->function_data->parameters;
+}
 
 void resect_method_data_free(void *data, resect_set deallocated) {
     if (data == NULL || !resect_set_add(deallocated, data)) {
         return;
     }
 
+    resect_method_data method_data = data;
+    resect_function_data_free(method_data->function_data, deallocated);
+
     free(data);
 }
 
 void resect_method_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
     resect_method_data data = malloc(sizeof(struct resect_method_data));
+    data->function_data = resect_function_data_create(context, cursor);
 
     decl->data_deallocator = resect_method_data_free;
     decl->data = data;

@@ -314,6 +314,17 @@ RESECT_API resect_collection resect_class_methods(resect_decl decl);
 RESECT_API resect_collection resect_class_fields(resect_decl decl);
 
 /*
+ * METHOD
+ */
+RESECT_API resect_collection resect_method_parameters(resect_decl decl);
+
+RESECT_API resect_type resect_method_get_return_type(resect_decl decl);
+
+RESECT_API resect_function_storage_class resect_method_get_storage_class(resect_decl decl);
+
+RESECT_API resect_bool resect_method_is_variadic(resect_decl decl);
+
+/*
  * MACRO
  */
 RESECT_API resect_bool resect_macro_is_function_like(resect_decl decl);
