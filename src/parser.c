@@ -84,14 +84,6 @@ resect_language resect_unit_get_language(resect_translation_unit unit) {
     return resect_get_assumed_language(unit->context);
 }
 
-enum CXChildVisitResult resect_visit_context_declarations(CXCursor cursor,
-                                                          CXCursor parent,
-                                                          CXClientData data) {
-    resect_translation_context context = data;
-    resect_decl_create(context, cursor);
-    return CXChildVisit_Continue;
-}
-
 resect_translation_unit resect_parse(const char *filename, resect_parse_options options) {
     const char **clang_argv;
     int clang_argc;
@@ -119,13 +111,15 @@ resect_translation_unit resect_parse(const char *filename, resect_parse_options 
                                                              NULL,
                                                              0, CXTranslationUnit_DetailedPreprocessingRecord |
                                                                 CXTranslationUnit_KeepGoing |
-                                                                CXTranslationUnit_SkipFunctionBodies);
+                                                                CXTranslationUnit_SkipFunctionBodies |
+                                                                CXTranslationUnit_IncludeAttributedTypes |
+                                                                CXTranslationUnit_VisitImplicitAttributes);
 
     free(clang_argv);
 
     CXCursor cursor = clang_getTranslationUnitCursor(clangUnit);
 
-    clang_visitChildren(cursor, resect_visit_context_declarations, context);
+    clang_visitChildren(cursor, resect_visit_child_declarations, context);
 
     clang_disposeTranslationUnit(clangUnit);
     clang_disposeIndex(index);

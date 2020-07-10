@@ -182,10 +182,22 @@ resect_language convert_language(enum CXLanguageKind language) {
     }
 }
 
+enum CXChildVisitResult resect_visit_child_declarations(CXCursor cursor,
+                                                        CXCursor parent,
+                                                        CXClientData data) {
+    resect_translation_context context = data;
+    resect_decl_create(context, cursor);
+    return CXChildVisit_Continue;
+}
+
 resect_decl resect_decl_create(resect_translation_context context, CXCursor cursor) {
     switch (clang_getCursorKind(cursor)) {
         case CXCursor_Namespace:
             resect_parse_namespace(context, cursor);
+            return NULL;
+        case CXCursor_UnexposedDecl:
+            /* we might encounter exposed declarations within unexposed one, e.g. inside extern "C"/"C++" block */
+            clang_visitChildren(cursor, resect_visit_child_declarations, context);
             return NULL;
     }
 

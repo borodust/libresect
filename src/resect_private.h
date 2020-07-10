@@ -117,6 +117,10 @@ void resect_decl_free(resect_decl decl, resect_set deallocated);
 
 void resect_decl_collection_free(resect_collection decls, resect_set deallocated);
 
+enum CXChildVisitResult resect_visit_child_declarations(CXCursor cursor,
+                                                        CXCursor parent,
+                                                        CXClientData data);
+
 /*
  * CONTEXT
  */
