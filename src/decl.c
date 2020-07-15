@@ -820,7 +820,6 @@ resect_function_storage_class resect_method_get_storage_class(resect_decl decl) 
 resect_bool resect_method_is_variadic(resect_decl decl) {
     assert(decl->kind == RESECT_DECL_KIND_METHOD);
     resect_method_data data = decl->data;
-    
     return data->function_data->variadic;
 }
 
@@ -855,6 +854,7 @@ void resect_method_init(resect_translation_context context, resect_decl decl, CX
 typedef struct resect_class_data {
     resect_collection methods;
     resect_collection fields;
+    resect_collection parents;
 } *resect_class_data;
 
 resect_collection resect_class_methods(resect_decl decl) {
@@ -869,6 +869,12 @@ resect_collection resect_class_fields(resect_decl decl) {
     return data->fields;
 }
 
+resect_collection resect_class_parents(resect_decl decl) {
+    assert(decl->kind == RESECT_DECL_KIND_CLASS);
+    resect_class_data data = decl->data;
+    return data->parents;
+}
+
 void resect_class_data_free(void *data, resect_set deallocated) {
     if (data == NULL || !resect_set_add(deallocated, data)) {
         return;
@@ -876,6 +882,7 @@ void resect_class_data_free(void *data, resect_set deallocated) {
     resect_class_data class_data = data;
     resect_decl_collection_free(class_data->methods, deallocated);
     resect_decl_collection_free(class_data->fields, deallocated);
+    resect_decl_collection_free(class_data->parents, deallocated);
     free(data);
 }
 
@@ -884,6 +891,12 @@ enum CXChildVisitResult resect_visit_class_child(CXCursor cursor,
                                                  CXClientData data) {
     resect_decl_child_visit_data visit_data = data;
     resect_class_data class_data = visit_data->parent->data;
+
+    if (cursor.kind == CXCursor_CXXBaseSpecifier) {
+        CXCursor base_type = clang_getTypeDeclaration(clang_getCursorType(cursor));
+        resect_collection_add(class_data->parents, resect_decl_create(visit_data->context, base_type));
+        return CXChildVisit_Continue;
+    }
 
     resect_decl decl = resect_decl_create(visit_data->context, cursor);
     if (decl) {
@@ -903,6 +916,7 @@ void resect_class_init(resect_translation_context context, resect_decl decl, CXC
     resect_class_data data = malloc(sizeof(struct resect_class_data));
     data->methods = resect_collection_create();
     data->fields = resect_collection_create();
+    data->parents = resect_collection_create();
 
     decl->data_deallocator = resect_class_data_free;
     decl->data = data;

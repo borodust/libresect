@@ -313,6 +313,8 @@ RESECT_API resect_collection resect_class_methods(resect_decl decl);
 
 RESECT_API resect_collection resect_class_fields(resect_decl decl);
 
+RESECT_API resect_collection resect_class_parents(resect_decl decl);
+
 /*
  * METHOD
  */
