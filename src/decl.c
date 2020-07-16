@@ -119,6 +119,13 @@ resect_access_specifier convert_access_specifier(enum CX_CXXAccessSpecifier spec
     }
 }
 
+resect_bool resect_is_forward_declaration(CXCursor cursor) {
+    CXCursor definition = clang_getCursorDefinition(cursor);
+
+    return clang_equalCursors(definition, clang_getNullCursor())
+           || !clang_equalCursors(cursor, definition);
+}
+
 void resect_decl_init_from_cursor(resect_decl decl, resect_translation_context context, CXCursor cursor) {
     decl->kind = convert_cursor_kind(clang_getCursorKind(cursor));
     decl->id = resect_string_from_clang(clang_getCursorUSR(cursor));
@@ -191,6 +198,10 @@ enum CXChildVisitResult resect_visit_child_declarations(CXCursor cursor,
 }
 
 resect_decl resect_decl_create(resect_translation_context context, CXCursor cursor) {
+    if (resect_is_forward_declaration(cursor) && !clang_equalCursors(cursor, clang_getCursorDefinition(cursor))) {
+        return resect_decl_create(context, clang_getCursorDefinition(cursor));
+    }
+
     switch (clang_getCursorKind(cursor)) {
         case CXCursor_Namespace:
             resect_parse_namespace(context, cursor);
@@ -263,7 +274,6 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
 
     return decl;
 }
-
 
 void resect_decl_free(resect_decl decl, resect_set deallocated) {
     if (!resect_set_add(deallocated, decl)) {

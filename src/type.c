@@ -35,7 +35,9 @@ void resect_type_free(resect_type type, resect_set deallocated) {
 
     resect_string_free(type->name);
     resect_decl_collection_free(type->fields, deallocated);
-    resect_decl_free(type->decl, deallocated);
+    if (type->decl != NULL) {
+        resect_decl_free(type->decl, deallocated);
+    }
 
     free(type);
 }
@@ -198,7 +200,8 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
     type->data_deallocator = NULL;
     type->data = NULL;
 
-    type->decl = resect_decl_create(context, clang_getTypeDeclaration(clang_type));
+    CXCursor cursor = clang_getTypeDeclaration(clang_type);
+    type->decl = (cursor.kind == CXCursor_NoDeclFound) ? NULL : resect_decl_create(context, cursor);
     struct resect_type_visit_data visit_data = {type = type, context = context};
     clang_Type_visitFields(clang_type, visit_type_fields, &visit_data);
 
