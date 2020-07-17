@@ -91,10 +91,15 @@ resect_decl_kind convert_cursor_kind(enum CXCursorKind kind) {
             return RESECT_DECL_KIND_VARIABLE;
         case CXCursor_ParmDecl:
             return RESECT_DECL_KIND_PARAMETER;
+        case CXCursor_TypeAliasTemplateDecl:
         case CXCursor_TypedefDecl:
         case CXCursor_TypeAliasDecl:
             return RESECT_DECL_KIND_TYPEDEF;
-
+        case CXCursor_TemplateRef:
+        case CXCursor_ClassTemplate:
+        case CXCursor_FunctionTemplate:
+        case CXCursor_ClassTemplatePartialSpecialization:
+            return RESECT_DECL_KIND_TEMPLATE;
         case CXCursor_ClassDecl:
             return RESECT_DECL_KIND_CLASS;
         case CXCursor_CXXMethod:
@@ -174,6 +179,8 @@ void resect_method_init(resect_translation_context context, resect_decl decl, CX
 
 void resect_macro_init(resect_translation_context context, resect_decl decl, CXCursor cursor);
 
+void resect_template_init(resect_translation_context context, resect_decl decl, CXCursor cursor);
+
 void resect_parse_namespace(resect_translation_context, CXCursor cursor);
 
 resect_language convert_language(enum CXLanguageKind language) {
@@ -198,8 +205,17 @@ enum CXChildVisitResult resect_visit_child_declarations(CXCursor cursor,
 }
 
 resect_decl resect_decl_create(resect_translation_context context, CXCursor cursor) {
-    if (resect_is_forward_declaration(cursor) && !clang_equalCursors(cursor, clang_getCursorDefinition(cursor))) {
-        return resect_decl_create(context, clang_getCursorDefinition(cursor));
+    if (resect_is_forward_declaration(cursor)) {
+        CXCursor definition = clang_getCursorDefinition(cursor);
+        if ((definition.kind < CXCursor_FirstInvalid || definition.kind > CXCursor_LastInvalid)
+            && !clang_equalCursors(cursor, definition)) {
+            return resect_decl_create(context, definition);
+        }
+    }
+
+    CXCursor specializedCursor = clang_getSpecializedCursorTemplate(cursor);
+    if (!clang_equalCursors(specializedCursor, clang_getNullCursor())) {
+        return resect_decl_create(context, specializedCursor);
     }
 
     switch (clang_getCursorKind(cursor)) {
@@ -264,7 +280,13 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
             resect_class_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_METHOD:
+        case RESECT_DECL_KIND_CONSTRUCTOR:
+        case RESECT_DECL_KIND_DESTRUCTOR:
+        case RESECT_DECL_KIND_CONVERTER:
             resect_method_init(context, decl, cursor);
+            break;
+        case RESECT_DECL_KIND_TEMPLATE:
+            resect_template_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_MACRO:
             resect_macro_init(context, decl, cursor);
@@ -467,8 +489,8 @@ void resect_typedef_data_free(void *data, resect_set deallocated) {
 void resect_typedef_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
     resect_typedef_data data = malloc(sizeof(struct resect_typedef_data));
 
-    data->aliased_type =
-            resect_type_create(context, clang_getCanonicalType(clang_getTypedefDeclUnderlyingType(cursor)));
+    CXType canonical_type = clang_getCanonicalType(clang_getTypedefDeclUnderlyingType(cursor));
+    data->aliased_type = resect_type_create(context, canonical_type);
 
     decl->data_deallocator = resect_typedef_data_free;
     decl->data = data;
@@ -954,4 +976,45 @@ void resect_parse_namespace(resect_translation_context context, CXCursor cursor)
     resect_pop_namespace(context);
 
     resect_string_free(namespace);
+}
+
+/*
+ * TEMPLATE
+ */
+
+typedef struct resect_template_data {
+} *resect_template_data;
+
+
+void resect_template_data_free(void *data, resect_set deallocated) {
+    if (data == NULL || !resect_set_add(deallocated, data)) {
+        return;
+    }
+    resect_template_data template_data = data;
+
+    free(data);
+}
+
+enum CXChildVisitResult resect_visit_template_child(CXCursor cursor,
+                                                    CXCursor parent,
+                                                    CXClientData data) {
+    resect_decl_child_visit_data visit_data = data;
+    
+    if (cursor.kind == CXCursor_TemplateTypeParameter) {
+        resect_string debug = resect_string_from_clang(clang_getTypeSpelling(clang_getCursorType(cursor)));
+        resect_string_free(debug);
+    }
+
+    return CXChildVisit_Continue;
+}
+
+void resect_template_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
+    resect_template_data data = malloc(sizeof(struct resect_template_data));
+
+    decl->data_deallocator = resect_template_data_free;
+    decl->data = data;
+
+    struct resect_decl_child_visit_data visit_data = {.context = context, .parent = decl};
+    clang_visitChildren(cursor, resect_visit_template_child, &visit_data);
+
 }

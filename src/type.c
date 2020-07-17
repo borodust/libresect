@@ -17,12 +17,34 @@ struct resect_type {
     unsigned int alignment;
     resect_type_category category;
     resect_collection fields;
+    resect_collection template_arguments;
 
     resect_decl decl;
 
     data_deallocator data_deallocator;
     void *data;
 };
+
+typedef struct resect_template_argument {
+
+} *resect_template_argument;
+
+resect_template_argument resect_template_argument_create() {
+    return malloc(sizeof(struct resect_template_argument));
+}
+
+void resect_template_argument_free(resect_template_argument arg) {
+    free(arg);
+}
+
+void resect_init_template_args(resect_collection args, CXType type) {
+    int arg_count = clang_Type_getNumTemplateArguments(type);
+    if (arg_count > 0) {
+        for (int i = 0; i < arg_count; ++i) {
+            resect_collection_add(args, resect_template_argument_create());
+        }
+    }
+}
 
 void resect_type_free(resect_type type, resect_set deallocated) {
     if (!resect_set_add(deallocated, type)) {
@@ -35,6 +57,14 @@ void resect_type_free(resect_type type, resect_set deallocated) {
 
     resect_string_free(type->name);
     resect_decl_collection_free(type->fields, deallocated);
+
+    resect_iterator template_arg_iter = resect_collection_iterator(type->template_arguments);
+    while (resect_iterator_next(template_arg_iter)) {
+        resect_template_argument_free(resect_iterator_value(template_arg_iter));
+    }
+    resect_iterator_free(template_arg_iter);
+    resect_collection_free(type->template_arguments);
+
     if (type->decl != NULL) {
         resect_decl_free(type->decl, deallocated);
     }
@@ -197,8 +227,12 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
     type->size = 8 * filter_valid_value(clang_Type_getSizeOf(clang_type));
     type->alignment = 8 * filter_valid_value(clang_Type_getAlignOf(clang_type));
     type->fields = resect_collection_create();
+    type->template_arguments = resect_collection_create();
+
     type->data_deallocator = NULL;
     type->data = NULL;
+
+    resect_init_template_args(type->template_arguments, clang_type);
 
     CXCursor cursor = clang_getTypeDeclaration(clang_type);
     type->decl = (cursor.kind == CXCursor_NoDeclFound) ? NULL : resect_decl_create(context, cursor);
