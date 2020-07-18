@@ -28,12 +28,8 @@ typedef enum {
     RESECT_DECL_KIND_PARAMETER = 8,
     RESECT_DECL_KIND_TYPEDEF = 9,
     RESECT_DECL_KIND_METHOD = 10,
-    RESECT_DECL_KIND_CONSTRUCTOR = 11,
-    RESECT_DECL_KIND_DESTRUCTOR = 12,
-    RESECT_DECL_KIND_CONVERTER = 13,
-    RESECT_DECL_KIND_TEMPLATE = 14,
-    RESECT_DECL_KIND_ENUM_CONSTANT = 15,
-    RESECT_DECL_KIND_MACRO = 16
+    RESECT_DECL_KIND_ENUM_CONSTANT = 11,
+    RESECT_DECL_KIND_MACRO = 12
 } resect_decl_kind;
 
 typedef enum {
@@ -205,6 +201,8 @@ RESECT_API resect_decl resect_type_get_declaration(resect_type type);
 
 RESECT_API resect_type_category resect_type_get_category(resect_type type);
 
+RESECT_API resect_collection resect_decl_template_arguments(resect_type decl);
+
 /*
  * ARRAY
  */
@@ -243,6 +241,8 @@ RESECT_API const char *resect_decl_get_comment(resect_decl decl);
 
 RESECT_API resect_access_specifier resect_decl_get_access_specifier(resect_decl decl);
 
+RESECT_API resect_collection resect_decl_template_parameters(resect_decl decl);
+
 RESECT_API resect_type resect_decl_get_type(resect_decl decl);
 
 /*
@@ -253,7 +253,7 @@ RESECT_API resect_collection resect_unit_declarations(resect_translation_unit un
 RESECT_API resect_language resect_unit_get_language(resect_translation_unit unit);
 
 /*
- * STRUCT
+ * RECORD
  */
 RESECT_API long long resect_field_get_offset(resect_decl decl);
 
@@ -261,12 +261,11 @@ RESECT_API resect_bool resect_field_is_bitfield(resect_decl decl);
 
 RESECT_API long long resect_field_get_width(resect_decl decl);
 
-RESECT_API resect_collection resect_struct_fields(resect_decl decl);
+RESECT_API resect_collection resect_record_fields(resect_decl decl);
 
-/*
- * UNION
- */
-RESECT_API resect_collection resect_union_fields(resect_decl decl);
+RESECT_API resect_collection resect_record_methods(resect_decl decl);
+
+RESECT_API resect_collection resect_record_parents(resect_decl decl);
 
 /*
  * ENUM
@@ -304,15 +303,6 @@ RESECT_API const char *resect_variable_get_value_as_string(resect_decl decl);
  * TYPEDEF
  */
 RESECT_API resect_type resect_typedef_get_aliased_type(resect_decl decl);
-
-/*
- * CLASS
- */
-RESECT_API resect_collection resect_class_methods(resect_decl decl);
-
-RESECT_API resect_collection resect_class_fields(resect_decl decl);
-
-RESECT_API resect_collection resect_class_parents(resect_decl decl);
 
 /*
  * METHOD

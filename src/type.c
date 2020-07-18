@@ -25,6 +25,9 @@ struct resect_type {
     void *data;
 };
 
+/*
+ * TEMPLATE ARGUMENT
+ */
 typedef struct resect_template_argument {
 
 } *resect_template_argument;
@@ -46,6 +49,14 @@ void resect_init_template_args(resect_collection args, CXType type) {
     }
 }
 
+void resect_free_template_args(resect_collection args) {
+    resect_iterator template_arg_iter = resect_collection_iterator(args);
+    while (resect_iterator_next(template_arg_iter)) {
+        resect_template_argument_free(resect_iterator_value(template_arg_iter));
+    }
+    resect_iterator_free(template_arg_iter);
+}
+
 void resect_type_free(resect_type type, resect_set deallocated) {
     if (!resect_set_add(deallocated, type)) {
         return;
@@ -58,11 +69,7 @@ void resect_type_free(resect_type type, resect_set deallocated) {
     resect_string_free(type->name);
     resect_decl_collection_free(type->fields, deallocated);
 
-    resect_iterator template_arg_iter = resect_collection_iterator(type->template_arguments);
-    while (resect_iterator_next(template_arg_iter)) {
-        resect_template_argument_free(resect_iterator_value(template_arg_iter));
-    }
-    resect_iterator_free(template_arg_iter);
+    resect_free_template_args(type->template_arguments);
     resect_collection_free(type->template_arguments);
 
     if (type->decl != NULL) {
