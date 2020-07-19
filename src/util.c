@@ -332,6 +332,76 @@ void resect_memory_file_free(resect_memory_file file) {
 }
 
 /*
+ * STRING HASH TABLE
+ */
+struct resect_table_entry {
+    char *key;
+    void *value;
+
+    UT_hash_handle hh;
+};
+
+struct resect_table {
+    struct resect_table_entry *head;
+};
+
+resect_table resect_table_create() {
+    resect_table table = malloc(sizeof(struct resect_table));
+    table->head = NULL;
+    return table;
+}
+
+resect_bool resect_table_put_if_absent(resect_table table, const char *key, void *value) {
+    struct resect_table_entry *entry = NULL;
+    HASH_FIND_STR(table->head, key, entry);
+    if (entry != NULL) {
+        return resect_false;
+    }
+
+    entry = malloc(sizeof(struct resect_table_entry));
+    entry->value = value;
+
+    size_t key_len = strlen(key);
+    entry->key = malloc(sizeof(char) * (key_len + 1));
+    strcpy(entry->key, key);
+
+    HASH_ADD_STR(table->head, key, entry);
+    return resect_true;
+}
+
+void *resect_table_get(resect_table table, const char *key) {
+    struct resect_table_entry *entry = NULL;
+    HASH_FIND_STR(table->head, key, entry);
+
+    return entry != NULL ? entry->value : NULL;
+}
+
+void resect_visit_table(resect_table table,
+                        resect_bool (*entry_visitor)(void *, const char *, void *),
+                        void *context) {
+    assert(entry_visitor != NULL);
+    struct resect_table_entry *entry, *tmp;
+    HASH_ITER(hh, table->head, entry, tmp) {
+        if (!entry_visitor(context, entry->key, entry->value)) {
+            break;
+        }
+    }
+}
+
+void resect_table_free(resect_table table, void (*value_destructor)(void *, void *), void *context) {
+    struct resect_table_entry *entry, *tmp;
+    HASH_ITER(hh, table->head, entry, tmp) {
+        HASH_DEL(table->head, entry);
+        if (value_destructor != NULL) {
+            value_destructor(context, entry->value);
+        }
+        free(entry->key);
+        free(entry);
+    }
+    free(table);
+}
+
+/*
  * UTIL
  */
 long long filter_valid_value(long long value) {

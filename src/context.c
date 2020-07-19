@@ -8,26 +8,21 @@
 /*
  * TRANSLATION CONTEXT
  */
-struct resect_decl_table_entry {
-    const char *key;
-    resect_decl value;
-
-    UT_hash_handle hh;
-};
-
-typedef struct resect_translation_context {
+struct resect_translation_context {
     resect_set exposed_decls;
     resect_collection namespace_queue;
     resect_string current_namespace;
-    struct resect_decl_table_entry *decl_table;
+    resect_table decl_table;
+    resect_table template_parameter_table;
 
     resect_language language;
-} *resect_translation_context;
+};
 
 resect_translation_context resect_context_create() {
     resect_translation_context context = malloc(sizeof(struct resect_translation_context));
     context->exposed_decls = resect_set_create();
-    context->decl_table = NULL;
+    context->decl_table = resect_table_create();
+    context->template_parameter_table = resect_table_create();
     context->namespace_queue = resect_collection_create();
     context->current_namespace = resect_string_from_c("");
     context->language = RESECT_LANGUAGE_UNKNOWN;
@@ -35,18 +30,20 @@ resect_translation_context resect_context_create() {
     return context;
 }
 
+void resect_decl_table_free(void *context, void *value) {
+    resect_set deallocated = context;
+    resect_decl decl = value;
+
+    resect_decl_free(decl, deallocated);
+}
+
 void resect_context_free(resect_translation_context context, resect_set deallocated) {
     if (!resect_set_add(deallocated, context)) {
         return;
     }
 
-    struct resect_decl_table_entry *element, *tmp;
-    HASH_ITER(hh, context->decl_table, element, tmp) {
-        HASH_DEL(context->decl_table, element);
-        resect_decl_free(element->value, deallocated);
-        free((void *) element->key);
-        free(element);
-    }
+    resect_table_free(context->decl_table, resect_decl_table_free, deallocated);
+    resect_table_free(context->template_parameter_table, NULL, NULL);
 
     resect_set_free(context->exposed_decls);
     resect_string_free(context->current_namespace);
@@ -71,34 +68,11 @@ resect_language resect_get_assumed_language(resect_translation_context context) 
 }
 
 void resect_register_decl(resect_translation_context context, resect_string decl_id, resect_decl decl) {
-    const char *id = resect_string_to_c(decl_id);
-
-    struct resect_decl_table_entry *entry = NULL;
-
-    HASH_FIND_STR(context->decl_table, id, entry);
-    if (entry != NULL) {
-        return;
-    }
-
-    entry = malloc(sizeof(struct resect_decl_table_entry));
-
-    size_t len = strlen(id);
-    char *key = malloc(sizeof(char) * (len + 1));
-    strncpy(key, id, len);
-    key[len] = 0;
-
-    entry->key = key;
-    entry->value = decl;
-    HASH_ADD_STR(context->decl_table, key, entry);
+    resect_table_put_if_absent(context->decl_table, resect_string_to_c(decl_id), decl);
 }
 
 resect_decl resect_find_decl(resect_translation_context context, resect_string decl_id) {
-    struct resect_decl_table_entry *entry = NULL;
-    HASH_FIND_STR(context->decl_table, resect_string_to_c(decl_id), entry);
-    if (entry == NULL) {
-        return NULL;
-    }
-    return entry->value;
+    return resect_table_get(context->decl_table, resect_string_to_c(decl_id));
 }
 
 resect_collection resect_create_decl_collection(resect_translation_context context) {

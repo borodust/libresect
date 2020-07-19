@@ -66,6 +66,23 @@ void *resect_iterator_value(resect_iterator iter);
 void resect_iterator_free(resect_iterator iter);
 
 /*
+ * HASH TABLE
+ */
+typedef struct resect_table *resect_table;
+
+resect_table resect_table_create();
+
+resect_bool resect_table_put_if_absent(resect_table table, const char *key, void *value);
+
+void *resect_table_get(resect_table table, const char *key);
+
+void resect_visit_table(resect_table table,
+                        resect_bool (*entry_visitor)(void *, const char *, void *),
+                        void *context);
+
+void resect_table_free(resect_table table, void (*value_destructor)(void *, void *), void *context);
+
+/*
  * MEMORY FILE
  */
 typedef struct resect_memory_file *resect_memory_file;

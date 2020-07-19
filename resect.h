@@ -29,7 +29,8 @@ typedef enum {
     RESECT_DECL_KIND_TYPEDEF = 9,
     RESECT_DECL_KIND_METHOD = 10,
     RESECT_DECL_KIND_ENUM_CONSTANT = 11,
-    RESECT_DECL_KIND_MACRO = 12
+    RESECT_DECL_KIND_MACRO = 12,
+    RESECT_DECL_KIND_TEMPLATE_PARAMETER = 13,
 } resect_decl_kind;
 
 typedef enum {
@@ -155,12 +156,21 @@ typedef enum {
     RESECT_LANGUAGE__LAST = RESECT_LANGUAGE_OBJC,
 } resect_language;
 
+typedef enum {
+    RESECT_TEMPLATE_PARAMETER_KIND_UNKNOWN = 0,
+    RESECT_TEMPLATE_PARAMETER_KIND_TEMPLATE,
+    RESECT_TEMPLATE_PARAMETER_KIND_TYPE,
+    RESECT_TEMPLATE_PARAMETER_KIND_NONE_TYPE,
+} resect_template_parameter_kind;
+
 typedef struct resect_translation_unit *resect_translation_unit;
 typedef struct resect_collection *resect_collection;
 typedef struct resect_iterator *resect_iterator;
 typedef struct resect_location *resect_location;
 typedef struct resect_decl *resect_decl;
 typedef struct resect_type *resect_type;
+typedef struct resect_template_parameter *resect_template_parameter;
+typedef struct resect_template_argument *resect_template_argument;
 
 /*
  * COLLECTION
@@ -201,7 +211,7 @@ RESECT_API resect_decl resect_type_get_declaration(resect_type type);
 
 RESECT_API resect_type_category resect_type_get_category(resect_type type);
 
-RESECT_API resect_collection resect_decl_template_arguments(resect_type decl);
+RESECT_API resect_collection resect_type_template_arguments(resect_type decl);
 
 /*
  * ARRAY
@@ -281,7 +291,7 @@ RESECT_API resect_type resect_enum_get_type(resect_decl decl);
  */
 RESECT_API resect_collection resect_function_parameters(resect_decl decl);
 
-RESECT_API resect_type resect_function_get_return_type(resect_decl decl);
+RESECT_API resect_type resect_function_get_result_type(resect_decl decl);
 
 RESECT_API resect_function_storage_class resect_function_get_storage_class(resect_decl decl);
 
@@ -309,7 +319,7 @@ RESECT_API resect_type resect_typedef_get_aliased_type(resect_decl decl);
  */
 RESECT_API resect_collection resect_method_parameters(resect_decl decl);
 
-RESECT_API resect_type resect_method_get_return_type(resect_decl decl);
+RESECT_API resect_type resect_method_get_result_type(resect_decl decl);
 
 RESECT_API resect_function_storage_class resect_method_get_storage_class(resect_decl decl);
 

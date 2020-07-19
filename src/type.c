@@ -28,9 +28,9 @@ struct resect_type {
 /*
  * TEMPLATE ARGUMENT
  */
-typedef struct resect_template_argument {
+struct resect_template_argument {
 
-} *resect_template_argument;
+};
 
 resect_template_argument resect_template_argument_create() {
     return malloc(sizeof(struct resect_template_argument));
@@ -357,4 +357,8 @@ resect_decl resect_type_get_declaration(resect_type type) {
 
 resect_type_category resect_type_get_category(resect_type type) {
     return type->category;
+}
+
+resect_collection resect_type_template_arguments(resect_type type) {
+    return type->template_arguments;
 }
