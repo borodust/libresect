@@ -69,7 +69,7 @@ struct resect_decl {
     resect_type type;
 
     void *data;
-    data_deallocator data_deallocator;
+    resect_data_deallocator data_deallocator;
 };
 
 resect_decl_kind convert_cursor_kind(CXCursor cursor) {
@@ -206,9 +206,9 @@ resect_language convert_language(enum CXLanguageKind language) {
     }
 }
 
-enum CXChildVisitResult resect_visit_child_declarations(CXCursor cursor,
-                                                        CXCursor parent,
-                                                        CXClientData data) {
+enum CXChildVisitResult resect_visit_child_declaration(CXCursor cursor,
+                                                       CXCursor parent,
+                                                       CXClientData data) {
     resect_translation_context context = data;
     resect_decl_create(context, cursor);
     return CXChildVisit_Continue;
@@ -234,7 +234,7 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
             return NULL;
         case CXCursor_UnexposedDecl:
             /* we might encounter exposed declarations within unexposed one, e.g. inside extern "C"/"C++" block */
-            clang_visitChildren(cursor, resect_visit_child_declarations, context);
+            clang_visitChildren(cursor, resect_visit_child_declaration, context);
             return NULL;
     }
 
@@ -569,10 +569,19 @@ resect_collection resect_function_parameters(resect_decl decl) {
     return data->parameters;
 }
 
-void resect_visit_parameter(resect_translation_context context, CXCursor cursor, resect_function_data data) {
-    resect_decl decl = resect_decl_create(context, cursor);
-    if (decl != NULL && decl->kind == RESECT_DECL_KIND_PARAMETER) {
-        resect_collection_add(data->parameters, decl);
+void resect_visit_function_child(resect_decl_child_visit_data visit_data,
+                                 CXCursor cursor,
+                                 resect_function_data data) {
+    resect_decl decl = resect_decl_create(visit_data->context, cursor);
+    if (decl != NULL) {
+        switch (decl->kind) {
+            case RESECT_DECL_KIND_PARAMETER:
+                resect_collection_add(data->parameters, decl);
+                break;
+            case RESECT_DECL_KIND_TEMPLATE_PARAMETER:
+                resect_collection_add(visit_data->parent->template_parameters, decl);
+                break;
+        }
     }
 }
 
@@ -580,7 +589,7 @@ enum CXChildVisitResult resect_visit_function_parameter(CXCursor cursor, CXCurso
     resect_decl_child_visit_data visit_data = data;
     resect_function_data function_data = visit_data->parent->data;
 
-    resect_visit_parameter(visit_data->context, cursor, function_data);
+    resect_visit_function_child(visit_data, cursor, function_data);
 
     return CXChildVisit_Continue;
 }
@@ -667,7 +676,6 @@ resect_function_data resect_function_data_create(resect_translation_context cont
     data->variadic = clang_isFunctionTypeVariadic(functionType) != 0 ? resect_true : resect_false;
     data->result_type = resect_type_create(context, clang_getResultType(functionType));
 
-
     return data;
 }
 
@@ -727,7 +735,7 @@ resect_type resect_enum_get_type(resect_decl decl) {
     return data->type;
 }
 
-enum CXChildVisitResult resect_visit_enum_constants(CXCursor cursor, CXCursor parent, CXClientData data) {
+enum CXChildVisitResult resect_visit_enum_constant(CXCursor cursor, CXCursor parent, CXClientData data) {
     resect_decl_child_visit_data visit_data = data;
     resect_enum_data enum_data = visit_data->parent->data;
 
@@ -757,7 +765,7 @@ void resect_enum_init(resect_translation_context context, resect_decl decl, CXCu
     decl->data_deallocator = resect_enum_data_free;
     decl->data = data;
     struct resect_decl_child_visit_data visit_data = {.context = context, .parent = decl};
-    clang_visitChildren(cursor, resect_visit_enum_constants, &visit_data);
+    clang_visitChildren(cursor, resect_visit_enum_constant, &visit_data);
 }
 
 /*
@@ -897,11 +905,11 @@ resect_collection resect_method_parameters(resect_decl decl) {
     return data->function_data->parameters;
 }
 
-enum CXChildVisitResult resect_visit_method_parameters(CXCursor cursor, CXCursor parent, CXClientData data) {
+enum CXChildVisitResult resect_visit_method_parameter(CXCursor cursor, CXCursor parent, CXClientData data) {
     resect_decl_child_visit_data visit_data = data;
     resect_method_data method_data = visit_data->parent->data;
 
-    resect_visit_parameter(visit_data->context, cursor, method_data->function_data);
+    resect_visit_function_child(visit_data, cursor, method_data->function_data);
 
     return CXChildVisit_Continue;
 }
@@ -925,7 +933,7 @@ void resect_method_init(resect_translation_context context, resect_decl decl, CX
     decl->data = data;
 
     struct resect_decl_child_visit_data visit_data = {.context = context, .parent =  decl};
-    clang_visitChildren(cursor, resect_visit_method_parameters, &visit_data);
+    clang_visitChildren(cursor, resect_visit_method_parameter, &visit_data);
 }
 
 /*
@@ -962,6 +970,8 @@ void resect_template_parameter_init(resect_translation_context context, resect_d
 
     decl->data_deallocator = resect_template_parameter_data_free;
     decl->data = data;
+
+    resect_register_template_parameter(context, decl->name, decl);
 }
 
 /*

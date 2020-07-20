@@ -12,9 +12,10 @@
 extern "C" {
 #endif
 
-#define resect_bool int
 #define resect_true (1)
 #define resect_false (0)
+
+typedef int resect_bool;
 
 typedef enum {
     RESECT_DECL_KIND_UNKNOWN = 0,
@@ -93,7 +94,9 @@ typedef enum {
 
     RESECT_TYPE_KIND_ATTRIBUTED = 163,
 
-    RESECT_TYPE_KIND_EXTVECTOR = 178
+    RESECT_TYPE_KIND_EXTVECTOR = 178,
+
+    RESECT_TYPE_KIND_TEMPLATE_PARAMETER = 10000
 } resect_type_kind;
 
 typedef enum {

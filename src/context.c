@@ -3,7 +3,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "uthash.h"
 
 /*
  * TRANSLATION CONTEXT
@@ -75,6 +74,19 @@ resect_decl resect_find_decl(resect_translation_context context, resect_string d
     return resect_table_get(context->decl_table, resect_string_to_c(decl_id));
 }
 
+void resect_register_template_parameter(resect_translation_context context, resect_string name, resect_decl decl) {
+    resect_table_put_if_absent(context->template_parameter_table, resect_string_to_c(name), decl);
+}
+
+resect_decl resect_find_template_parameter(resect_translation_context context, resect_string name) {
+    return resect_table_get(context->template_parameter_table, resect_string_to_c(name));
+}
+
+void resect_context_flush_template_parameters(resect_translation_context context) {
+    resect_table_free(context->template_parameter_table, NULL, NULL);
+    context->template_parameter_table = resect_table_create();
+}
+
 resect_collection resect_create_decl_collection(resect_translation_context context) {
     resect_collection collection = resect_collection_create();
     resect_set_add_to_collection(context->exposed_decls, collection);
@@ -110,4 +122,13 @@ void resect_pop_namespace(resect_translation_context context) {
 
 resect_string resect_namespace(resect_translation_context context) {
     return context->current_namespace;
+}
+
+enum CXChildVisitResult resect_visit_context_child(CXCursor cursor,
+                                                   CXCursor parent,
+                                                   CXClientData data) {
+    resect_translation_context context = data;
+    resect_visit_child_declaration(cursor, parent, context);
+    resect_context_flush_template_parameters(context);
+    return CXChildVisit_Continue;
 }

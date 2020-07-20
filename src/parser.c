@@ -119,7 +119,7 @@ resect_translation_unit resect_parse(const char *filename, resect_parse_options 
 
     CXCursor cursor = clang_getTranslationUnitCursor(clangUnit);
 
-    clang_visitChildren(cursor, resect_visit_child_declarations, context);
+    clang_visitChildren(cursor, resect_visit_context_child, context);
 
     clang_disposeTranslationUnit(clangUnit);
     clang_disposeIndex(index);
@@ -127,7 +127,6 @@ resect_translation_unit resect_parse(const char *filename, resect_parse_options 
     resect_translation_unit result = malloc(sizeof(struct resect_translation_unit));
     result->context = context;
     result->declarations = resect_create_decl_collection(context);
-
 
     return result;
 }

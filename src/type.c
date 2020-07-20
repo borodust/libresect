@@ -7,6 +7,7 @@
 
 #include <clang-c/Index.h>
 
+#define CONST_QUALIFIER_LENGTH (6)
 /*
  * TYPE
  */
@@ -21,7 +22,7 @@ struct resect_type {
 
     resect_decl decl;
 
-    data_deallocator data_deallocator;
+    resect_data_deallocator data_deallocator;
     void *data;
 };
 
@@ -313,6 +314,23 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
             type->category = RESECT_TYPE_CATEGORY_UNKNOWN;
     }
 
+    if (type->kind == RESECT_TYPE_KIND_UNKNOWN && type->decl == NULL) {
+        resect_decl param = NULL;
+        if (clang_isConstQualifiedType(clang_type)
+            && strlen(resect_string_to_c(type->name)) > CONST_QUALIFIER_LENGTH) {
+
+            resect_string unqualified_name = resect_substring(type->name, CONST_QUALIFIER_LENGTH, -1);
+            param = resect_find_template_parameter(context, unqualified_name);
+            resect_string_free(unqualified_name);
+        } else {
+            param = resect_find_template_parameter(context, type->name);
+        }
+        if (param != NULL) {
+            type->kind = RESECT_TYPE_KIND_TEMPLATE_PARAMETER;
+            type->category = RESECT_TYPE_CATEGORY_UNIQUE;
+            type->decl = param;
+        }
+    }
     return type;
 }
 

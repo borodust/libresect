@@ -22,6 +22,9 @@ resect_string resect_string_update(resect_string string, const char *new);
 
 resect_string resect_string_append(resect_string string, const char *postfix);
 
+resect_string resect_substring(resect_string string, long long start, long long end);
+
+
 void resect_string_free(resect_string string);
 
 const char *resect_string_to_c(resect_string string);
@@ -98,7 +101,18 @@ void resect_memory_file_free(resect_memory_file file);
 /*
  * CONTEXT
  */
+
 typedef struct resect_translation_context *resect_translation_context;
+
+resect_translation_context resect_context_create();
+
+resect_collection resect_create_decl_collection(resect_translation_context context);
+
+void resect_context_free(resect_translation_context context, resect_set deallocated);
+
+enum CXChildVisitResult resect_visit_context_child(CXCursor cursor,
+                                                   CXCursor parent,
+                                                   CXClientData data);
 
 void resect_register_decl(resect_translation_context context, resect_string id, resect_decl decl);
 
@@ -116,6 +130,10 @@ void resect_pop_namespace(resect_translation_context context);
 
 resect_string resect_namespace(resect_translation_context context);
 
+void resect_register_template_parameter(resect_translation_context context, resect_string name, resect_decl decl);
+
+resect_decl resect_find_template_parameter(resect_translation_context context, resect_string name);
+
 /*
  * TYPE
  */
@@ -126,7 +144,7 @@ void resect_type_free(resect_type type, resect_set deallocated);
 /*
  * DECLARATION
  */
-typedef void (*data_deallocator)(void *data, resect_set deallocated);
+typedef void (*resect_data_deallocator)(void *data, resect_set deallocated);
 
 resect_decl resect_decl_create(resect_translation_context context, CXCursor cursor);
 
@@ -134,18 +152,9 @@ void resect_decl_free(resect_decl decl, resect_set deallocated);
 
 void resect_decl_collection_free(resect_collection decls, resect_set deallocated);
 
-enum CXChildVisitResult resect_visit_child_declarations(CXCursor cursor,
-                                                        CXCursor parent,
-                                                        CXClientData data);
-
-/*
- * CONTEXT
- */
-resect_translation_context resect_context_create();
-
-resect_collection resect_create_decl_collection(resect_translation_context context);
-
-void resect_context_free(resect_translation_context context, resect_set deallocated);
+enum CXChildVisitResult resect_visit_child_declaration(CXCursor cursor,
+                                                       CXCursor parent,
+                                                       CXClientData data);
 
 /*
  * UTIL

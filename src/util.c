@@ -52,10 +52,14 @@ void resect_ensure_string_capacity(resect_string string, unsigned long new_capac
     string->value[string->capacity - 1] = 0;
 }
 
-resect_string resect_string_update(resect_string string, const char *new_value) {
+resect_string resect_string_update_by_length(resect_string string, const char *new_value, long long length) {
     assert(string != NULL);
     const char *ensured_new_value = new_value == NULL ? "" : new_value;
+
     size_t new_string_size = strlen(ensured_new_value);
+    if (length >= 0 && new_string_size >= length) {
+        new_string_size = length;
+    }
 
     resect_ensure_string_capacity(string, new_string_size + 1);
 
@@ -63,6 +67,11 @@ resect_string resect_string_update(resect_string string, const char *new_value) 
     string->value[new_string_size] = 0;
     return string;
 }
+
+resect_string resect_string_update(resect_string string, const char *new_value) {
+    return resect_string_update_by_length(string, new_value, -1);
+}
+
 
 resect_string resect_string_append(resect_string string, const char *postfix) {
     assert(string != NULL);
@@ -79,6 +88,15 @@ resect_string resect_string_append(resect_string string, const char *postfix) {
 resect_string resect_string_copy(resect_string string) {
     assert(string != NULL);
     return resect_string_from_c(resect_string_to_c(string));
+}
+
+resect_string resect_substring(resect_string string, long long start, long long end) {
+    assert(string != NULL);
+    assert(start > 0);
+    assert(end < 0 || start <= end);
+    const char *c_str = resect_string_to_c(string);
+    long long len = end < 0 ? -1 : end - start;
+    return resect_string_update_by_length(resect_string_create(len), c_str + start, len);
 }
 
 resect_string resect_ensure_string(resect_string string) {
