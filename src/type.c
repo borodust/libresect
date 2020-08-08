@@ -19,6 +19,7 @@ struct resect_type {
     resect_type_category category;
     resect_collection fields;
     resect_collection template_arguments;
+    resect_bool const_qualified;
 
     resect_decl decl;
 
@@ -43,10 +44,8 @@ void resect_template_argument_free(resect_template_argument arg) {
 
 void resect_init_template_args(resect_collection args, CXType type) {
     int arg_count = clang_Type_getNumTemplateArguments(type);
-    if (arg_count > 0) {
-        for (int i = 0; i < arg_count; ++i) {
-            resect_collection_add(args, resect_template_argument_create());
-        }
+    for (int i = 0; i < arg_count; ++i) {
+        resect_collection_add(args, resect_template_argument_create());
     }
 }
 
@@ -78,6 +77,15 @@ void resect_type_free(resect_type type, resect_set deallocated) {
     }
 
     free(type);
+}
+
+void resect_type_collection_free(resect_collection types, resect_set deallocated) {
+    resect_iterator iter = resect_collection_iterator(types);
+    while (resect_iterator_next(iter)) {
+        resect_type_free(resect_iterator_value(iter), deallocated);
+    }
+    resect_iterator_free(iter);
+    resect_collection_free(types);
 }
 
 resect_type_kind convert_type_kind(enum CXTypeKind kind) {
@@ -140,7 +148,6 @@ resect_type resect_array_get_element_type(resect_type type) {
     resect_array_data data = type->data;
     return data->type;
 }
-
 
 /*
  * POINTER
@@ -213,6 +220,63 @@ resect_bool resect_reference_is_lvalue(resect_type type) {
 }
 
 /*
+ * FUNCTION PROTO
+ */
+typedef struct resect_function_proto_data {
+    resect_type result_type;
+    resect_bool variadic;
+    resect_collection parameters;
+} *resect_function_proto_data;
+
+void resect_function_proto_free(void *data, resect_set deallocated) {
+    if (data == NULL || !resect_set_add(deallocated, data)) {
+        return;
+    }
+    resect_function_proto_data function_proto = data;
+    resect_type_free(function_proto->result_type, deallocated);
+    resect_type_collection_free(function_proto->parameters, deallocated);
+
+    free(data);
+}
+
+void resect_function_proto_init(resect_translation_context context, resect_type type, CXType clangType) {
+    resect_function_proto_data data = malloc(sizeof(struct resect_function_proto_data));
+    data->result_type = resect_type_create(context, clang_getResultType(clangType));
+    data->variadic = clang_isFunctionTypeVariadic(clangType);
+    data->parameters = resect_collection_create();
+
+    int arg_count = clang_getNumArgTypes(clangType);
+    for (int i = 0; i < arg_count; ++i) {
+        CXType arg_type = clang_getArgType(clangType, i);
+        resect_collection_add(data->parameters, resect_type_create(context, arg_type));
+    }
+
+    type->data_deallocator = resect_function_proto_free;
+    type->data = data;
+}
+
+resect_type resect_function_proto_get_result_type(resect_type type) {
+    assert(type->kind == RESECT_TYPE_KIND_FUNCTIONPROTO);
+
+    resect_function_proto_data data = type->data;
+    return data->result_type;
+}
+
+resect_bool resect_function_proto_is_variadic(resect_type type) {
+    assert(type->kind == RESECT_TYPE_KIND_FUNCTIONPROTO);
+
+    resect_function_proto_data data = type->data;
+    return data->variadic;
+}
+
+resect_collection resect_function_proto_parameters(resect_type type) {
+    assert(type->kind == RESECT_TYPE_KIND_FUNCTIONPROTO);
+
+    resect_function_proto_data data = type->data;
+    return data->parameters;
+}
+
+/*
  * TYPE CONSTRUCTOR
  */
 resect_type resect_type_create(resect_translation_context context, CXType clang_type) {
@@ -236,6 +300,7 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
     type->alignment = 8 * filter_valid_value(clang_Type_getAlignOf(clang_type));
     type->fields = resect_collection_create();
     type->template_arguments = resect_collection_create();
+    type->const_qualified = clang_isConstQualifiedType(clang_type);
 
     type->data_deallocator = NULL;
     type->data = NULL;
@@ -291,15 +356,18 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
             break;
         case RESECT_TYPE_KIND_LVALUEREFERENCE:
         case RESECT_TYPE_KIND_RVALUEREFERENCE:
-            resect_reference_init(context, type, clang_type);
             type->category = RESECT_TYPE_CATEGORY_REFERENCE;
+            resect_reference_init(context, type, clang_type);
             break;
         case RESECT_TYPE_KIND_RECORD:
         case RESECT_TYPE_KIND_ENUM:
         case RESECT_TYPE_KIND_TYPEDEF:
         case RESECT_TYPE_KIND_FUNCTIONNOPROTO:
+            type->category = RESECT_TYPE_CATEGORY_UNIQUE;
+            break;
         case RESECT_TYPE_KIND_FUNCTIONPROTO:
             type->category = RESECT_TYPE_CATEGORY_UNIQUE;
+            resect_function_proto_init(context, type, clang_type);
             break;
         case RESECT_TYPE_KIND_CONSTANTARRAY:
         case RESECT_TYPE_KIND_VECTOR:
@@ -367,6 +435,10 @@ long long resect_type_offsetof(resect_type type, const char *field_name) {
 
 resect_collection resect_type_fields(resect_type type) {
     return type->fields;
+}
+
+resect_bool resect_type_is_const_qualified(resect_type type) {
+    return type->const_qualified;
 }
 
 resect_decl resect_type_get_declaration(resect_type type) {

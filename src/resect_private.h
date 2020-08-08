@@ -22,6 +22,8 @@ resect_string resect_string_update(resect_string string, const char *new);
 
 resect_string resect_string_append(resect_string string, const char *postfix);
 
+size_t resect_string_length(resect_string string);
+
 resect_string resect_substring(resect_string string, long long start, long long end);
 
 
@@ -40,9 +42,9 @@ void resect_collection_add(resect_collection collection, void *value);
 
 void *resect_collection_pop_last(resect_collection collection);
 
-unsigned int resect_collection_size(resect_collection collection);
+void *resect_collection_peek_last(resect_collection collection);
 
-resect_iterator resect_collection_iterator(resect_collection collection);
+unsigned int resect_collection_size(resect_collection collection);
 
 /*
  * SET

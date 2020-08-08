@@ -216,6 +216,8 @@ RESECT_API resect_type_category resect_type_get_category(resect_type type);
 
 RESECT_API resect_collection resect_type_template_arguments(resect_type decl);
 
+RESECT_API resect_bool resect_type_is_const_qualified(resect_type decl);
+
 /*
  * ARRAY
  */
@@ -234,6 +236,15 @@ RESECT_API resect_type resect_pointer_get_pointee_type(resect_type type);
 RESECT_API resect_type resect_reference_get_pointee_type(resect_type type);
 
 RESECT_API resect_bool resect_reference_is_lvalue(resect_type type);
+
+/*
+ * FUNCTION PROTO
+ */
+RESECT_API resect_type resect_function_proto_get_result_type(resect_type type);
+
+RESECT_API resect_collection resect_function_proto_parameters(resect_type type);
+
+RESECT_API resect_bool resect_function_proto_is_variadic(resect_type type);
 
 /*
  * DECLARATION
@@ -257,6 +268,8 @@ RESECT_API resect_access_specifier resect_decl_get_access_specifier(resect_decl 
 RESECT_API resect_collection resect_decl_template_parameters(resect_decl decl);
 
 RESECT_API resect_type resect_decl_get_type(resect_decl decl);
+
+RESECT_API resect_decl resect_decl_get_owner(resect_decl decl);
 
 /*
  * TRANSLATION UNIT

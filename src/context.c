@@ -13,7 +13,6 @@ struct resect_translation_context {
     resect_string current_namespace;
     resect_table decl_table;
     resect_table template_parameter_table;
-
     resect_language language;
 };
 
@@ -116,7 +115,6 @@ void resect_push_namespace(resect_translation_context context, resect_string nam
 
 void resect_pop_namespace(resect_translation_context context) {
     resect_string_free(resect_collection_pop_last(context->namespace_queue));
-
     resect_update_current_namespace(context);
 }
 

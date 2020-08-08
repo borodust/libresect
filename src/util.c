@@ -85,6 +85,10 @@ resect_string resect_string_append(resect_string string, const char *postfix) {
     string->value[required_capacity - 1] = 0;
 }
 
+size_t resect_string_length(resect_string string) {
+    return strlen(string->value);
+}
+
 resect_string resect_string_copy(resect_string string) {
     assert(string != NULL);
     return resect_string_from_c(resect_string_to_c(string));
@@ -146,7 +150,7 @@ resect_string resect_string_format(const char *format, ...) {
 
     resect_string result = resect_ensure_string_default_length(NULL, len);
     va_start(args, format);
-    vsnprintf(result->value, len, format, args);
+    vsnprintf(result->value, len + 1, format, args);
     va_end(args);
 
     return result;
@@ -222,6 +226,13 @@ void *resect_collection_pop_last(resect_collection collection) {
     }
     collection->size -= 1;
     return result;
+}
+
+void *resect_collection_peek_last(resect_collection collection) {
+    if (collection->tail == NULL) {
+        return NULL;
+    }
+    return collection->tail->value;
 }
 
 unsigned int resect_collection_size(resect_collection collection) {
