@@ -413,6 +413,7 @@ typedef struct resect_record_data {
     resect_collection fields;
     resect_collection methods;
     resect_collection parents;
+    resect_bool abstract;
 } *resect_record_data;
 
 resect_bool resect_is_struct(resect_decl decl) {
@@ -431,6 +432,12 @@ resect_collection resect_record_fields(resect_decl decl) {
     assert(resect_is_struct(decl));
     resect_record_data data = decl->data;
     return data->fields;
+}
+
+resect_bool resect_record_is_abstract(resect_decl decl) {
+    assert(resect_is_struct(decl));
+    resect_record_data data = decl->data;
+    return data->abstract;
 }
 
 resect_collection resect_record_parents(resect_decl decl) {
@@ -535,6 +542,7 @@ void resect_record_init(resect_translation_context context, resect_decl decl, CX
     data->methods = resect_collection_create();
     data->fields = resect_collection_create();
     data->parents = resect_collection_create();
+    data->abstract = clang_CXXRecord_isAbstract(cursor);
 
     decl->data_deallocator = resect_record_data_free;
     decl->data = data;

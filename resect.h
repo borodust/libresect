@@ -293,6 +293,8 @@ RESECT_API resect_collection resect_record_methods(resect_decl decl);
 
 RESECT_API resect_collection resect_record_parents(resect_decl decl);
 
+RESECT_API resect_bool resect_record_is_abstract(resect_decl decl);
+
 /*
  * ENUM
  */
