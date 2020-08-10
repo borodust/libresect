@@ -175,13 +175,61 @@ resect_string extract_decl_id(CXCursor cursor) {
     return result;
 }
 
+void resect_extract_decl_namespace(resect_collection namespace_queue, CXCursor cursor) {
+    CXCursor parent = clang_getCursorSemanticParent(cursor);
+    if (!clang_Cursor_isNull(parent)) {
+        resect_extract_decl_namespace(namespace_queue, parent);
+    }
+    if (clang_getCursorKind(cursor) == CXCursor_Namespace) {
+        resect_collection_add(namespace_queue, resect_string_from_clang(clang_getCursorSpelling(cursor)));
+    }
+}
+
+resect_string resect_format_cursor_namespace(CXCursor cursor) {
+    resect_collection namespace_queue = resect_collection_create();
+    resect_extract_decl_namespace(namespace_queue, cursor);
+
+    resect_string result = resect_string_from_c("");
+
+    int i = 0;
+    resect_iterator iter = resect_collection_iterator(namespace_queue);
+    while (resect_iterator_next(iter)) {
+        resect_string namespace = resect_iterator_value(iter);
+        if (i > 0) {
+            resect_string_append(result, "::");
+        }
+        resect_string_append(result, resect_string_to_c(namespace));
+        ++i;
+    }
+    resect_iterator_free(iter);
+    resect_string_collection_free(namespace_queue);
+    return result;
+}
+
+resect_decl resect_find_owner(resect_translation_context context, CXCursor cursor) {
+    if (clang_Cursor_isNull(cursor)) {
+        return NULL;
+    }
+
+    CXCursor parent = clang_getCursorSemanticParent(cursor);
+    switch (clang_getCursorKind(parent)) {
+        case CXCursor_StructDecl:
+        case CXCursor_UnionDecl:
+        case CXCursor_ClassDecl:
+            return resect_decl_create(context, parent);
+    }
+
+    return resect_find_owner(context, parent);
+}
+
 void resect_decl_init_from_cursor(resect_decl decl, resect_translation_context context, CXCursor cursor) {
     decl->kind = convert_cursor_kind(cursor);
     decl->id = extract_decl_id(cursor);
     decl->name = resect_string_from_clang(clang_getCursorSpelling(cursor));
     decl->comment = resect_string_from_clang(clang_Cursor_getRawCommentText(cursor));
     decl->location = resect_location_from_cursor(cursor);
-    decl->namespace = resect_string_copy(resect_namespace(context));
+
+    decl->namespace = resect_format_cursor_namespace(cursor);
     decl->access = convert_access_specifier(clang_getCXXAccessSpecifier(cursor));
     if (resect_string_length(decl->name) == 0) {
         decl->mangled_name = resect_string_from_c("");
@@ -189,6 +237,7 @@ void resect_decl_init_from_cursor(resect_decl decl, resect_translation_context c
         decl->mangled_name = resect_string_from_clang(clang_Cursor_getMangling(cursor));
     }
     decl->template_parameters = resect_collection_create();
+
     decl->owner = NULL;
 
     decl->data_deallocator = NULL;
@@ -216,8 +265,6 @@ void resect_method_init(resect_translation_context context, resect_decl decl, CX
 void resect_macro_init(resect_translation_context context, resect_decl decl, CXCursor cursor);
 
 void resect_template_parameter_init(resect_translation_context context, resect_decl decl, CXCursor cursor);
-
-void resect_parse_namespace(resect_translation_context, CXCursor cursor);
 
 resect_language convert_language(enum CXLanguageKind language) {
     switch (language) {
@@ -256,8 +303,6 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
 
     switch (clang_getCursorKind(cursor)) {
         case CXCursor_Namespace:
-            resect_parse_namespace(context, cursor);
-            return NULL;
         case CXCursor_UnexposedDecl:
             /* we might encounter exposed declarations within unexposed one, e.g. inside extern "C"/"C++" block */
             clang_visitChildren(cursor, resect_visit_child_declaration, context);
@@ -285,10 +330,12 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
         case RESECT_DECL_KIND_CLASS:
         case RESECT_DECL_KIND_UNION:
             resect_expose_decl(context, decl);
+            decl->owner = resect_find_owner(context, cursor);
             resect_record_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_ENUM:
             resect_expose_decl(context, decl);
+            decl->owner = resect_find_owner(context, cursor);
             resect_enum_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_ENUM_CONSTANT:
@@ -300,10 +347,12 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
             break;
         case RESECT_DECL_KIND_VARIABLE:
             resect_expose_decl(context, decl);
+            decl->owner = resect_find_owner(context, cursor);
             resect_variable_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_TYPEDEF:
             resect_expose_decl(context, decl);
+            decl->owner = resect_find_owner(context, cursor);
             resect_typedef_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_FIELD:
@@ -508,15 +557,6 @@ enum CXChildVisitResult resect_visit_record_child(CXCursor cursor, CXCursor pare
                 break;
             case RESECT_DECL_KIND_TEMPLATE_PARAMETER:
                 resect_collection_add(visit_data->parent->template_parameters, decl);
-                break;
-
-            case RESECT_DECL_KIND_STRUCT:
-            case RESECT_DECL_KIND_UNION:
-            case RESECT_DECL_KIND_CLASS:
-            case RESECT_DECL_KIND_ENUM:
-            case RESECT_DECL_KIND_TYPEDEF:
-            case RESECT_DECL_KIND_VARIABLE:
-                decl->owner = visit_data->parent;
                 break;
         }
     }
@@ -1023,25 +1063,4 @@ void resect_template_parameter_init(resect_translation_context context, resect_d
     decl->data = data;
 
     resect_register_template_parameter(context, decl->name, decl);
-}
-
-/*
- * NAMESPACE
- */
-enum CXChildVisitResult resect_visit_namespace_child(CXCursor cursor,
-                                                     CXCursor parent,
-                                                     CXClientData data) {
-    resect_translation_context context = data;
-    resect_decl_create(context, cursor);
-    return CXChildVisit_Continue;
-}
-
-void resect_parse_namespace(resect_translation_context context, CXCursor cursor) {
-    resect_string namespace = resect_string_from_clang(clang_getCursorSpelling(cursor));
-
-    resect_push_namespace(context, namespace);
-    clang_visitChildren(cursor, resect_visit_namespace_child, context);
-    resect_pop_namespace(context);
-
-    resect_string_free(namespace);
 }

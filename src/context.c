@@ -9,8 +9,6 @@
  */
 struct resect_translation_context {
     resect_set exposed_decls;
-    resect_collection namespace_queue;
-    resect_string current_namespace;
     resect_table decl_table;
     resect_table template_parameter_table;
     resect_language language;
@@ -21,8 +19,6 @@ resect_translation_context resect_context_create() {
     context->exposed_decls = resect_set_create();
     context->decl_table = resect_table_create();
     context->template_parameter_table = resect_table_create();
-    context->namespace_queue = resect_collection_create();
-    context->current_namespace = resect_string_from_c("");
     context->language = RESECT_LANGUAGE_UNKNOWN;
 
     return context;
@@ -44,8 +40,6 @@ void resect_context_free(resect_translation_context context, resect_set dealloca
     resect_table_free(context->template_parameter_table, NULL, NULL);
 
     resect_set_free(context->exposed_decls);
-    resect_string_free(context->current_namespace);
-    resect_string_collection_free(context->namespace_queue);
     free(context);
 }
 
@@ -54,9 +48,8 @@ void resect_expose_decl(resect_translation_context context, resect_decl decl) {
 }
 
 void resect_register_decl_language(resect_translation_context context, resect_language language) {
-    if (context->language == RESECT_LANGUAGE_UNKNOWN) {
-        context->language = language;
-    } else if (context->language == RESECT_LANGUAGE_C && language != RESECT_LANGUAGE_C) {
+    if (context->language == RESECT_LANGUAGE_UNKNOWN
+        || context->language == RESECT_LANGUAGE_C && language != RESECT_LANGUAGE_C) {
         context->language = language;
     }
 }
@@ -90,36 +83,6 @@ resect_collection resect_create_decl_collection(resect_translation_context conte
     resect_collection collection = resect_collection_create();
     resect_set_add_to_collection(context->exposed_decls, collection);
     return collection;
-}
-
-void resect_update_current_namespace(resect_translation_context context) {
-    resect_string_update(context->current_namespace, "");
-
-    int i = 0;
-    resect_iterator iter = resect_collection_iterator(context->namespace_queue);
-    while (resect_iterator_next(iter)) {
-        resect_string namespace = resect_iterator_value(iter);
-        if (i > 0) {
-            resect_string_append(context->current_namespace, "::");
-        }
-        resect_string_append(context->current_namespace, resect_string_to_c(namespace));
-        ++i;
-    }
-    resect_iterator_free(iter);
-}
-
-void resect_push_namespace(resect_translation_context context, resect_string namespace) {
-    resect_collection_add(context->namespace_queue, resect_string_copy(namespace));
-    resect_update_current_namespace(context);
-}
-
-void resect_pop_namespace(resect_translation_context context) {
-    resect_string_free(resect_collection_pop_last(context->namespace_queue));
-    resect_update_current_namespace(context);
-}
-
-resect_string resect_namespace(resect_translation_context context) {
-    return context->current_namespace;
 }
 
 enum CXChildVisitResult resect_visit_context_child(CXCursor cursor,

@@ -126,12 +126,6 @@ void resect_expose_decl(resect_translation_context context, resect_decl decl);
 
 resect_decl resect_find_decl(resect_translation_context context, resect_string decl_id);
 
-void resect_push_namespace(resect_translation_context context, resect_string namespace);
-
-void resect_pop_namespace(resect_translation_context context);
-
-resect_string resect_namespace(resect_translation_context context);
-
 void resect_register_template_parameter(resect_translation_context context, resect_string name, resect_decl decl);
 
 resect_decl resect_find_template_parameter(resect_translation_context context, resect_string name);

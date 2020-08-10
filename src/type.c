@@ -20,6 +20,7 @@ struct resect_type {
     resect_collection fields;
     resect_collection template_arguments;
     resect_bool const_qualified;
+    resect_bool pod;
 
     resect_decl decl;
 
@@ -301,6 +302,7 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
     type->fields = resect_collection_create();
     type->template_arguments = resect_collection_create();
     type->const_qualified = clang_isConstQualifiedType(clang_type);
+    type->pod = clang_isPODType(clang_type);
 
     type->data_deallocator = NULL;
     type->data = NULL;
@@ -439,6 +441,10 @@ resect_collection resect_type_fields(resect_type type) {
 
 resect_bool resect_type_is_const_qualified(resect_type type) {
     return type->const_qualified;
+}
+
+resect_bool resect_type_is_pod(resect_type type) {
+    return type->pod;
 }
 
 resect_decl resect_type_get_declaration(resect_type type) {
