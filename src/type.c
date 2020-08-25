@@ -32,30 +32,51 @@ struct resect_type {
  * TEMPLATE ARGUMENT
  */
 struct resect_template_argument {
-
+    int position;
+    resect_type type;
 };
 
-resect_template_argument resect_template_argument_create() {
-    return malloc(sizeof(struct resect_template_argument));
+resect_template_argument resect_template_argument_create(resect_translation_context context,
+                                                         CXType type,
+                                                         int arg_number) {
+    resect_template_argument arg = malloc(sizeof(struct resect_template_argument));
+
+    arg->position = arg_number;
+    arg->type = resect_type_create(context, clang_Type_getTemplateArgumentAsType(type, arg_number));
+
+    return arg;
 }
 
-void resect_template_argument_free(resect_template_argument arg) {
+void resect_template_argument_free(resect_template_argument arg, resect_set deallocated) {
+    if (!resect_set_add(deallocated, arg)) {
+        return;
+    }
+    resect_type_free(arg->type, deallocated);
+
     free(arg);
 }
 
-void resect_init_template_args(resect_collection args, CXType type) {
+void resect_init_template_args(resect_translation_context context, resect_collection args, CXType type) {
     int arg_count = clang_Type_getNumTemplateArguments(type);
     for (int i = 0; i < arg_count; ++i) {
-        resect_collection_add(args, resect_template_argument_create());
+        resect_collection_add(args, resect_template_argument_create(context, type, i));
     }
 }
 
-void resect_free_template_args(resect_collection args) {
+void resect_free_template_args(resect_collection args, resect_set deallocated) {
     resect_iterator template_arg_iter = resect_collection_iterator(args);
     while (resect_iterator_next(template_arg_iter)) {
-        resect_template_argument_free(resect_iterator_value(template_arg_iter));
+        resect_template_argument_free(resect_iterator_value(template_arg_iter), deallocated);
     }
     resect_iterator_free(template_arg_iter);
+}
+
+resect_type resect_template_argument_get_type(resect_template_argument arg) {
+    return arg->type;
+}
+
+int resect_template_argument_get_position(resect_template_argument arg) {
+    return arg->position;
 }
 
 void resect_type_free(resect_type type, resect_set deallocated) {
@@ -70,7 +91,7 @@ void resect_type_free(resect_type type, resect_set deallocated) {
     resect_string_free(type->name);
     resect_decl_collection_free(type->fields, deallocated);
 
-    resect_free_template_args(type->template_arguments);
+    resect_free_template_args(type->template_arguments, deallocated);
     resect_collection_free(type->template_arguments);
 
     if (type->decl != NULL) {
@@ -307,7 +328,7 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
     type->data_deallocator = NULL;
     type->data = NULL;
 
-    resect_init_template_args(type->template_arguments, clang_type);
+    resect_init_template_args(context, type->template_arguments, clang_type);
 
     CXCursor cursor = clang_getTypeDeclaration(clang_type);
     type->decl = (cursor.kind == CXCursor_NoDeclFound) ? NULL : resect_decl_create(context, cursor);

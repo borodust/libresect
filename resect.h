@@ -214,11 +214,18 @@ RESECT_API resect_decl resect_type_get_declaration(resect_type type);
 
 RESECT_API resect_type_category resect_type_get_category(resect_type type);
 
-RESECT_API resect_collection resect_type_template_arguments(resect_type decl);
-
 RESECT_API resect_bool resect_type_is_const_qualified(resect_type decl);
 
 RESECT_API resect_bool resect_type_is_pod(resect_type decl);
+
+RESECT_API resect_collection resect_type_template_arguments(resect_type decl);
+
+/*
+ * TEMPLATE ARGUMENT
+ */
+RESECT_API resect_type resect_template_argument_get_type(resect_template_argument arg);
+
+RESECT_API int resect_template_argument_get_position(resect_template_argument arg);
 
 /*
  * ARRAY
