@@ -243,7 +243,7 @@ void resect_decl_init_from_cursor(resect_decl decl, resect_translation_context c
     decl->data_deallocator = NULL;
     decl->data = NULL;
 
-    decl->type = resect_type_create(context, clang_getCursorType(cursor));
+    decl->type = resect_type_create(context, clang_getCursorType(cursor), cursor);
 }
 
 void resect_record_init(resect_translation_context context, resect_decl decl, CXCursor cursor);
@@ -613,7 +613,7 @@ void resect_typedef_init(resect_translation_context context, resect_decl decl, C
     resect_typedef_data data = malloc(sizeof(struct resect_typedef_data));
 
     CXType canonical_type = clang_getCanonicalType(clang_getTypedefDeclUnderlyingType(cursor));
-    data->aliased_type = resect_type_create(context, canonical_type);
+    data->aliased_type = resect_type_create(context, canonical_type, cursor);
 
     decl->data_deallocator = resect_typedef_data_free;
     decl->data = data;
@@ -765,7 +765,7 @@ resect_function_data resect_function_data_create(resect_translation_context cont
     data->storage_class = convert_storage_class(clang_Cursor_getStorageClass(cursor));
     data->calling_convention = convert_calling_convention(clang_getFunctionTypeCallingConv(functionType));
     data->variadic = clang_isFunctionTypeVariadic(functionType) != 0 ? resect_true : resect_false;
-    data->result_type = resect_type_create(context, clang_getResultType(functionType));
+    data->result_type = resect_type_create(context, clang_getResultType(functionType), cursor);
 
     return data;
 }
@@ -851,7 +851,7 @@ void resect_enum_data_free(void *data, resect_set deallocated) {
 void resect_enum_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
     resect_enum_data data = malloc(sizeof(struct resect_enum_data));
     data->constants = resect_collection_create();
-    data->type = resect_type_create(context, clang_getEnumDeclIntegerType(cursor));
+    data->type = resect_type_create(context, clang_getEnumDeclIntegerType(cursor), cursor);
 
     decl->data_deallocator = resect_enum_data_free;
     decl->data = data;
@@ -970,6 +970,7 @@ void resect_macro_init(resect_translation_context context, resect_decl decl, CXC
  */
 typedef struct resect_method_data {
     resect_function_data function_data;
+    resect_bool pure_virtual;
 } *resect_method_data;
 
 resect_type resect_method_get_result_type(resect_decl decl) {
@@ -988,6 +989,12 @@ resect_bool resect_method_is_variadic(resect_decl decl) {
     assert(decl->kind == RESECT_DECL_KIND_METHOD);
     resect_method_data data = decl->data;
     return data->function_data->variadic;
+}
+
+RESECT_API resect_bool resect_method_is_pure_virtual(resect_decl decl) {
+    assert(decl->kind == RESECT_DECL_KIND_METHOD);
+    resect_method_data data = decl->data;
+    return data->pure_virtual;
 }
 
 resect_collection resect_method_parameters(resect_decl decl) {
@@ -1022,6 +1029,8 @@ void resect_method_init(resect_translation_context context, resect_decl decl, CX
 
     decl->data_deallocator = resect_method_data_free;
     decl->data = data;
+
+    data->pure_virtual = clang_CXXMethod_isPureVirtual(cursor);
 
     struct resect_decl_child_visit_data visit_data = {.context = context, .parent =  decl};
     clang_visitChildren(cursor, resect_visit_method_parameter, &visit_data);

@@ -166,6 +166,19 @@ typedef enum {
     RESECT_TEMPLATE_PARAMETER_KIND_NONE_TYPE,
 } resect_template_parameter_kind;
 
+typedef enum {
+    RESECT_TEMPLATE_ARGUMENT_KIND_UNKNOWN = 0,
+    RESECT_TEMPLATE_ARGUMENT_KIND_NULL,
+    RESECT_TEMPLATE_ARGUMENT_KIND_TYPE,
+    RESECT_TEMPLATE_ARGUMENT_KIND_DECLARATION,
+    RESECT_TEMPLATE_ARGUMENT_KIND_NULL_PTR,
+    RESECT_TEMPLATE_ARGUMENT_KIND_INTEGRAL,
+    RESECT_TEMPLATE_ARGUMENT_KIND_TEMPLATE,
+    RESECT_TEMPLATE_ARGUMENT_KIND_TEMPLATE_EXPANSION,
+    RESECT_TEMPLATE_ARGUMENT_KIND_EXPRESSION,
+    RESECT_TEMPLATE_ARGUMENT_KIND_PACK
+} resect_template_argument_kind;
+
 typedef struct resect_translation_unit *resect_translation_unit;
 typedef struct resect_collection *resect_collection;
 typedef struct resect_iterator *resect_iterator;
@@ -223,7 +236,11 @@ RESECT_API resect_collection resect_type_template_arguments(resect_type decl);
 /*
  * TEMPLATE ARGUMENT
  */
+RESECT_API resect_template_argument_kind resect_template_argument_get_kind(resect_template_argument arg);
+
 RESECT_API resect_type resect_template_argument_get_type(resect_template_argument arg);
+
+RESECT_API long long resect_template_argument_get_value(resect_template_argument arg);
 
 RESECT_API int resect_template_argument_get_position(resect_template_argument arg);
 
@@ -351,6 +368,8 @@ RESECT_API resect_type resect_method_get_result_type(resect_decl decl);
 RESECT_API resect_function_storage_class resect_method_get_storage_class(resect_decl decl);
 
 RESECT_API resect_bool resect_method_is_variadic(resect_decl decl);
+
+RESECT_API resect_bool resect_method_is_pure_virtual(resect_decl decl);
 
 /*
  * MACRO

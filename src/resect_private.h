@@ -133,7 +133,7 @@ resect_decl resect_find_template_parameter(resect_translation_context context, r
 /*
  * TYPE
  */
-resect_type resect_type_create(resect_translation_context context, CXType canonical_type);
+resect_type resect_type_create(resect_translation_context context, CXType canonical_type, CXCursor cursor);
 
 void resect_type_free(resect_type type, resect_set deallocated);
 
