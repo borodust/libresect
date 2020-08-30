@@ -5,7 +5,6 @@
 #include <string.h>
 
 #include <clang-c/Index.h>
-#include <stdio.h>
 
 /*
  * LOCATION
@@ -56,6 +55,123 @@ void resect_location_free(resect_location location) {
 }
 
 /*
+ * TEMPLATE ARGUMENT
+ */
+struct resect_template_argument {
+    int position;
+    resect_template_argument_kind kind;
+    resect_type type;
+    long long int value;
+};
+
+
+resect_template_argument_kind convert_template_argument_kind(enum CXTemplateArgumentKind kind) {
+    switch (kind) {
+        case CXTemplateArgumentKind_Null:
+            return RESECT_TEMPLATE_ARGUMENT_KIND_NULL;
+        case CXTemplateArgumentKind_Type:
+            return RESECT_TEMPLATE_ARGUMENT_KIND_TYPE;
+        case CXTemplateArgumentKind_Declaration:
+            return RESECT_TEMPLATE_ARGUMENT_KIND_DECLARATION;
+        case CXTemplateArgumentKind_NullPtr:
+            return RESECT_TEMPLATE_ARGUMENT_KIND_NULL_PTR;
+        case CXTemplateArgumentKind_Integral:
+            return RESECT_TEMPLATE_ARGUMENT_KIND_INTEGRAL;
+        case CXTemplateArgumentKind_Template:
+            return RESECT_TEMPLATE_ARGUMENT_KIND_TEMPLATE;
+        case CXTemplateArgumentKind_TemplateExpansion:
+            return RESECT_TEMPLATE_ARGUMENT_KIND_TEMPLATE_EXPANSION;
+        case CXTemplateArgumentKind_Expression:
+            return RESECT_TEMPLATE_ARGUMENT_KIND_EXPRESSION;
+        case CXTemplateArgumentKind_Pack:
+            return RESECT_TEMPLATE_ARGUMENT_KIND_PACK;
+        default:
+            return RESECT_TEMPLATE_ARGUMENT_KIND_UNKNOWN;
+    }
+}
+
+resect_template_argument resect_template_argument_create(resect_template_argument_kind kind,
+                                                         resect_type type,
+                                                         long long int value,
+                                                         int arg_number) {
+    resect_template_argument arg = malloc(sizeof(struct resect_template_argument));
+
+    arg->position = arg_number;
+    arg->kind = kind;
+    arg->type = type;
+    arg->value = value;
+
+    return arg;
+}
+
+void resect_template_argument_free(resect_template_argument arg, resect_set deallocated) {
+    if (!resect_set_add(deallocated, arg)) {
+        return;
+    }
+    if (arg->type != NULL) {
+        resect_type_free(arg->type, deallocated);
+    }
+
+    free(arg);
+}
+
+void resect_init_template_args_from_cursor(resect_translation_context context,
+                                           resect_collection args,
+                                           CXCursor cursor) {
+    int arg_count = clang_Cursor_getNumTemplateArguments(cursor);
+
+    for (int i = 0; i < arg_count; ++i) {
+        resect_template_argument_kind arg_kind =
+                convert_template_argument_kind(clang_Cursor_getTemplateArgumentKind(cursor, i));
+
+        resect_type arg_type = NULL;
+        long long int arg_value = 0;
+
+        switch (arg_kind) {
+            case RESECT_TEMPLATE_ARGUMENT_KIND_TEMPLATE_EXPANSION:
+            case RESECT_TEMPLATE_ARGUMENT_KIND_TEMPLATE:
+            case RESECT_TEMPLATE_ARGUMENT_KIND_TYPE:
+            case RESECT_TEMPLATE_ARGUMENT_KIND_DECLARATION:
+                arg_type = resect_type_create(context,
+                                              clang_Cursor_getTemplateArgumentType(cursor, i));
+                break;
+            case RESECT_TEMPLATE_ARGUMENT_KIND_PACK:
+            case RESECT_TEMPLATE_ARGUMENT_KIND_EXPRESSION:
+            case RESECT_TEMPLATE_ARGUMENT_KIND_INTEGRAL:
+                arg_value = clang_Cursor_getTemplateArgumentValue(cursor, i);
+                break;
+        }
+
+        resect_collection_add(args, resect_template_argument_create(arg_kind, arg_type, arg_value, i));
+    }
+}
+
+void resect_template_argument_collection_free(resect_collection args, resect_set deallocated) {
+    resect_iterator template_arg_iter = resect_collection_iterator(args);
+    while (resect_iterator_next(template_arg_iter)) {
+        resect_template_argument_free(resect_iterator_value(template_arg_iter), deallocated);
+    }
+    resect_iterator_free(template_arg_iter);
+    resect_collection_free(args);
+}
+
+resect_template_argument_kind resect_template_argument_get_kind(resect_template_argument arg) {
+    return arg->kind;
+}
+
+resect_type resect_template_argument_get_type(resect_template_argument arg) {
+    return arg->type;
+}
+
+long long resect_template_argument_get_value(resect_template_argument arg) {
+    return arg->value;
+}
+
+int resect_template_argument_get_position(resect_template_argument arg) {
+    return arg->position;
+}
+
+/*
  * DECLARATION
  */
 typedef struct resect_decl_child_visit_data {
@@ -73,6 +189,7 @@ struct resect_decl {
     resect_string comment;
     resect_access_specifier access;
     resect_collection template_parameters;
+    resect_collection template_arguments;
 
     resect_decl owner;
     resect_type type;
@@ -154,7 +271,7 @@ resect_bool resect_is_forward_declaration(CXCursor cursor) {
            || !clang_equalCursors(cursor, definition);
 }
 
-resect_bool resect_is_specializable(CXCursor cursor) {
+resect_bool resect_is_specialized(CXCursor cursor) {
     if (clang_equalCursors(clang_getSpecializedCursorTemplate(cursor), clang_getNullCursor())) {
         return resect_false;
     } else {
@@ -237,13 +354,16 @@ void resect_decl_init_from_cursor(resect_decl decl, resect_translation_context c
         decl->mangled_name = resect_string_from_clang(clang_Cursor_getMangling(cursor));
     }
     decl->template_parameters = resect_collection_create();
+    decl->template_arguments = resect_collection_create();
+
+    resect_init_template_args_from_cursor(context, decl->template_arguments, cursor);
 
     decl->owner = NULL;
 
     decl->data_deallocator = NULL;
     decl->data = NULL;
 
-    decl->type = resect_type_create(context, clang_getCursorType(cursor), cursor);
+    decl->type = resect_type_create(context, clang_getCursorType(cursor));
 }
 
 void resect_record_init(resect_translation_context context, resect_decl decl, CXCursor cursor);
@@ -297,7 +417,7 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
         }
     }
 
-    if (resect_is_specializable(cursor)) {
+    if (resect_is_specialized(cursor)) {
         return resect_decl_create(context, clang_getSpecializedCursorTemplate(cursor));
     }
 
@@ -329,12 +449,12 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
         case RESECT_DECL_KIND_STRUCT:
         case RESECT_DECL_KIND_CLASS:
         case RESECT_DECL_KIND_UNION:
-            resect_expose_decl(context, decl);
+            resect_export_decl(context, decl);
             decl->owner = resect_find_owner(context, cursor);
             resect_record_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_ENUM:
-            resect_expose_decl(context, decl);
+            resect_export_decl(context, decl);
             decl->owner = resect_find_owner(context, cursor);
             resect_enum_init(context, decl, cursor);
             break;
@@ -342,16 +462,16 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
             resect_enum_constant_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_FUNCTION:
-            resect_expose_decl(context, decl);
+            resect_export_decl(context, decl);
             resect_function_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_VARIABLE:
-            resect_expose_decl(context, decl);
+            resect_export_decl(context, decl);
             decl->owner = resect_find_owner(context, cursor);
             resect_variable_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_TYPEDEF:
-            resect_expose_decl(context, decl);
+            resect_export_decl(context, decl);
             decl->owner = resect_find_owner(context, cursor);
             resect_typedef_init(context, decl, cursor);
             break;
@@ -391,6 +511,7 @@ void resect_decl_free(resect_decl decl, resect_set deallocated) {
     resect_type_free(decl->type, deallocated);
 
     resect_decl_collection_free(decl->template_parameters, deallocated);
+    resect_template_argument_collection_free(decl->template_arguments, deallocated);
 
     free(decl);
 }
@@ -437,6 +558,10 @@ resect_decl resect_decl_get_owner(resect_decl decl) {
 
 resect_collection resect_decl_template_parameters(resect_decl decl) {
     return decl->template_parameters;
+}
+
+resect_collection resect_decl_template_arguments(resect_decl decl) {
+    return decl->template_arguments;
 }
 
 void resect_decl_collection_free(resect_collection decls, resect_set deallocated) {
@@ -613,7 +738,7 @@ void resect_typedef_init(resect_translation_context context, resect_decl decl, C
     resect_typedef_data data = malloc(sizeof(struct resect_typedef_data));
 
     CXType canonical_type = clang_getCanonicalType(clang_getTypedefDeclUnderlyingType(cursor));
-    data->aliased_type = resect_type_create(context, canonical_type, cursor);
+    data->aliased_type = resect_type_create(context, canonical_type);
 
     decl->data_deallocator = resect_typedef_data_free;
     decl->data = data;
@@ -765,7 +890,7 @@ resect_function_data resect_function_data_create(resect_translation_context cont
     data->storage_class = convert_storage_class(clang_Cursor_getStorageClass(cursor));
     data->calling_convention = convert_calling_convention(clang_getFunctionTypeCallingConv(functionType));
     data->variadic = clang_isFunctionTypeVariadic(functionType) != 0 ? resect_true : resect_false;
-    data->result_type = resect_type_create(context, clang_getResultType(functionType), cursor);
+    data->result_type = resect_type_create(context, clang_getResultType(functionType));
 
     return data;
 }
@@ -851,7 +976,7 @@ void resect_enum_data_free(void *data, resect_set deallocated) {
 void resect_enum_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
     resect_enum_data data = malloc(sizeof(struct resect_enum_data));
     data->constants = resect_collection_create();
-    data->type = resect_type_create(context, clang_getEnumDeclIntegerType(cursor), cursor);
+    data->type = resect_type_create(context, clang_getEnumDeclIntegerType(cursor));
 
     decl->data_deallocator = resect_enum_data_free;
     decl->data = data;

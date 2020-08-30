@@ -4,6 +4,7 @@
 #include "../resect.h"
 #include <clang-c/Index.h>
 #include <bits/types/FILE.h>
+#include <stdio.h>
 
 /*
  * STRING
@@ -122,7 +123,7 @@ void resect_register_decl_language(resect_translation_context context, resect_la
 
 resect_language resect_get_assumed_language(resect_translation_context context);
 
-void resect_expose_decl(resect_translation_context context, resect_decl decl);
+void resect_export_decl(resect_translation_context context, resect_decl decl);
 
 resect_decl resect_find_decl(resect_translation_context context, resect_string decl_id);
 
@@ -133,7 +134,7 @@ resect_decl resect_find_template_parameter(resect_translation_context context, r
 /*
  * TYPE
  */
-resect_type resect_type_create(resect_translation_context context, CXType canonical_type, CXCursor cursor);
+resect_type resect_type_create(resect_translation_context context, CXType canonical_type);
 
 void resect_type_free(resect_type type, resect_set deallocated);
 
@@ -151,6 +152,22 @@ void resect_decl_collection_free(resect_collection decls, resect_set deallocated
 enum CXChildVisitResult resect_visit_child_declaration(CXCursor cursor,
                                                        CXCursor parent,
                                                        CXClientData data);
+
+resect_string resect_location_to_string(resect_location location);
+
+/*
+ * TEMPLATE ARGUMENT
+ */
+resect_template_argument resect_template_argument_create(resect_template_argument_kind kind,
+                                                         resect_type type,
+                                                         long long int value,
+                                                         int arg_number);
+
+void resect_template_argument_free(resect_template_argument arg, resect_set deallocated);
+
+void resect_template_argument_collection_free(resect_collection args, resect_set deallocated);
+
+resect_template_argument_kind convert_template_argument_kind(enum CXTemplateArgumentKind kind);
 
 /*
  * UTIL

@@ -43,7 +43,7 @@ void resect_context_free(resect_translation_context context, resect_set dealloca
     free(context);
 }
 
-void resect_expose_decl(resect_translation_context context, resect_decl decl) {
+void resect_export_decl(resect_translation_context context, resect_decl decl) {
     resect_set_add(context->exposed_decls, decl);
 }
 

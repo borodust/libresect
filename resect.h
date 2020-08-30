@@ -186,6 +186,7 @@ typedef struct resect_location *resect_location;
 typedef struct resect_decl *resect_decl;
 typedef struct resect_type *resect_type;
 typedef struct resect_template_parameter *resect_template_parameter;
+
 typedef struct resect_template_argument *resect_template_argument;
 
 /*
@@ -231,7 +232,7 @@ RESECT_API resect_bool resect_type_is_const_qualified(resect_type decl);
 
 RESECT_API resect_bool resect_type_is_pod(resect_type decl);
 
-RESECT_API resect_collection resect_type_template_arguments(resect_type decl);
+RESECT_API resect_collection resect_type_template_arguments(resect_type type);
 
 /*
  * TEMPLATE ARGUMENT
@@ -296,6 +297,8 @@ RESECT_API resect_collection resect_decl_template_parameters(resect_decl decl);
 RESECT_API resect_type resect_decl_get_type(resect_decl decl);
 
 RESECT_API resect_decl resect_decl_get_owner(resect_decl decl);
+
+RESECT_API resect_collection resect_decl_template_arguments(resect_decl decl);
 
 /*
  * TRANSLATION UNIT
