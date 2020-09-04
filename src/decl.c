@@ -1165,7 +1165,7 @@ void resect_method_init(resect_translation_context context, resect_decl decl, CX
  * TEMPLATE PARAMETER
  */
 typedef struct resect_template_parameter_data {
-    resect_template_parameter_kind type;
+    resect_template_parameter_kind kind;
 } *resect_template_parameter_data;
 
 void resect_template_parameter_data_free(void *data, resect_set deallocated) {
@@ -1175,7 +1175,7 @@ void resect_template_parameter_data_free(void *data, resect_set deallocated) {
     free(data);
 }
 
-resect_template_parameter_kind convert_template_parameter_type(enum CXCursorKind kind) {
+resect_template_parameter_kind convert_template_parameter_kind(enum CXCursorKind kind) {
     switch (kind) {
         case CXCursor_TemplateTemplateParameter:
             return RESECT_TEMPLATE_PARAMETER_KIND_TEMPLATE;
@@ -1191,7 +1191,7 @@ resect_template_parameter_kind convert_template_parameter_type(enum CXCursorKind
 void resect_template_parameter_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
     resect_template_parameter_data data = malloc(sizeof(struct resect_template_parameter_data));
 
-    data->type = convert_template_parameter_type(clang_getCursorKind(cursor));
+    data->kind = convert_template_parameter_kind(clang_getCursorKind(cursor));
 
     decl->data_deallocator = resect_template_parameter_data_free;
     decl->data = data;

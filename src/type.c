@@ -265,6 +265,8 @@ void resect_init_template_args_from_type(resect_translation_context context,
         switch (clang_arg_type.kind) {
             case CXType_Invalid:
             case CXType_Unexposed:
+                arg_kind = RESECT_TEMPLATE_ARGUMENT_KIND_INTEGRAL;
+                arg_value = -1;
                 break;
             default:
                 arg_kind = RESECT_TEMPLATE_ARGUMENT_KIND_TYPE;

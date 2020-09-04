@@ -186,7 +186,6 @@ typedef struct resect_location *resect_location;
 typedef struct resect_decl *resect_decl;
 typedef struct resect_type *resect_type;
 typedef struct resect_template_parameter *resect_template_parameter;
-
 typedef struct resect_template_argument *resect_template_argument;
 
 /*
