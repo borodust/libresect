@@ -482,6 +482,7 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
             resect_method_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_MACRO:
+            resect_export_decl(context, decl);
             resect_macro_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_TEMPLATE_PARAMETER:
