@@ -989,17 +989,23 @@ void resect_enum_init(resect_translation_context context, resect_decl decl, CXCu
  * VARIABLE
  */
 typedef struct resect_variable_data {
-    resect_variable_type type;
+    resect_variable_kind kind;
+    resect_type type;
     resect_string string_value;
     long long int_value;
     double float_value;
 } *resect_variable_data;
 
-
-resect_variable_type resect_variable_get_type(resect_decl decl) {
+resect_type resect_variable_get_type(resect_decl decl) {
     assert(decl->kind == RESECT_DECL_KIND_VARIABLE);
     resect_variable_data data = decl->data;
     return data->type;
+}
+
+resect_variable_kind resect_variable_get_kind(resect_decl decl) {
+    assert(decl->kind == RESECT_DECL_KIND_VARIABLE);
+    resect_variable_data data = decl->data;
+    return data->kind;
 }
 
 long long resect_variable_get_value_as_int(resect_decl decl) {
@@ -1028,30 +1034,34 @@ void resect_variable_data_free(void *data, resect_set deallocated) {
     resect_variable_data var_data = data;
     resect_string_free(var_data->string_value);
 
+    resect_type_free(var_data->type, deallocated);
+
     free(data);
 }
 
 void resect_variable_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
     CXEvalResult value = clang_Cursor_Evaluate(cursor);
     resect_variable_data data = malloc(sizeof(struct resect_variable_data));
-    data->string_value = resect_string_from_c("");
 
+    data->type = resect_type_create(context, clang_getCursorType(cursor));
+
+    data->string_value = resect_string_from_c("");
 
     switch (clang_EvalResult_getKind(value)) {
         case CXEval_Int:
-            data->type = RESECT_VARIABLE_TYPE_INT;
+            data->kind = RESECT_VARIABLE_TYPE_INT;
             data->int_value = clang_EvalResult_getAsLongLong(value);
             break;
         case CXEval_Float:
-            data->type = RESECT_VARIABLE_TYPE_FLOAT;
+            data->kind = RESECT_VARIABLE_TYPE_FLOAT;
             data->float_value = clang_EvalResult_getAsDouble(value);
             break;
         case CXEval_StrLiteral:
-            data->type = RESECT_VARIABLE_TYPE_STRING;
+            data->kind = RESECT_VARIABLE_TYPE_STRING;
             resect_string_update(data->string_value, clang_EvalResult_getAsStr(value));
             break;
         default:
-            data->type = RESECT_VARIABLE_TYPE_UNKNOWN;
+            data->kind = RESECT_VARIABLE_TYPE_UNKNOWN;
     }
 
     decl->data = data;

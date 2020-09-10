@@ -148,7 +148,7 @@ typedef enum {
     RESECT_VARIABLE_TYPE_INT,
     RESECT_VARIABLE_TYPE_FLOAT,
     RESECT_VARIABLE_TYPE_STRING,
-} resect_variable_type;
+} resect_variable_kind;
 
 typedef enum {
     RESECT_LANGUAGE_UNKNOWN = 0,
@@ -347,7 +347,9 @@ RESECT_API resect_bool resect_function_is_variadic(resect_decl decl);
 /*
  * VARIABLE
  */
-RESECT_API resect_variable_type resect_variable_get_type(resect_decl decl);
+RESECT_API resect_variable_kind resect_variable_get_kind(resect_decl decl);
+
+RESECT_API resect_type resect_variable_get_type(resect_decl decl);
 
 RESECT_API long long resect_variable_get_value_as_int(resect_decl decl);
 
