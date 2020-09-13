@@ -188,8 +188,11 @@ struct resect_decl {
     resect_string mangled_name;
     resect_string comment;
     resect_access_specifier access;
+
     resect_collection template_parameters;
     resect_collection template_arguments;
+    resect_decl template;
+    resect_bool partial;
 
     resect_decl owner;
     resect_type type;
@@ -353,10 +356,17 @@ void resect_decl_init_from_cursor(resect_decl decl, resect_translation_context c
     } else {
         decl->mangled_name = resect_string_from_clang(clang_Cursor_getMangling(cursor));
     }
+
+    decl->template = NULL;
     decl->template_parameters = resect_collection_create();
     decl->template_arguments = resect_collection_create();
+    decl->partial = cursor.kind == CXCursor_ClassTemplatePartialSpecialization;
 
     resect_init_template_args_from_cursor(context, decl->template_arguments, cursor);
+
+    if (resect_is_specialized(cursor)) {
+        decl->template = resect_decl_create(context, clang_getSpecializedCursorTemplate(cursor));
+    }
 
     decl->owner = NULL;
 
@@ -415,10 +425,6 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
             && !clang_equalCursors(cursor, definition)) {
             return resect_decl_create(context, definition);
         }
-    }
-
-    if (resect_is_specialized(cursor)) {
-        return resect_decl_create(context, clang_getSpecializedCursorTemplate(cursor));
     }
 
     switch (clang_getCursorKind(cursor)) {
@@ -514,6 +520,13 @@ void resect_decl_free(resect_decl decl, resect_set deallocated) {
     resect_decl_collection_free(decl->template_parameters, deallocated);
     resect_template_argument_collection_free(decl->template_arguments, deallocated);
 
+    if (decl->template != NULL) {
+        resect_decl_free(decl->template, deallocated);
+    }
+    if (decl->owner != NULL) {
+        resect_decl_free(decl->owner, deallocated);
+    }
+
     free(decl);
 }
 
@@ -555,6 +568,14 @@ resect_type resect_decl_get_type(resect_decl decl) {
 
 resect_decl resect_decl_get_owner(resect_decl decl) {
     return decl->owner;
+}
+
+resect_decl resect_decl_get_template(resect_decl decl) {
+    return decl->template;
+}
+
+resect_bool resect_decl_is_partially_specialized(resect_decl decl) {
+    return decl->partial;
 }
 
 resect_collection resect_decl_template_parameters(resect_decl decl) {

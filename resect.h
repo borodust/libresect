@@ -291,6 +291,10 @@ RESECT_API const char *resect_decl_get_comment(resect_decl decl);
 
 RESECT_API resect_access_specifier resect_decl_get_access_specifier(resect_decl decl);
 
+RESECT_API resect_decl resect_decl_get_template(resect_decl decl);
+
+RESECT_API resect_bool resect_decl_is_partially_specialized(resect_decl decl);
+
 RESECT_API resect_collection resect_decl_template_parameters(resect_decl decl);
 
 RESECT_API resect_type resect_decl_get_type(resect_decl decl);
