@@ -148,6 +148,7 @@ typedef enum {
     RESECT_VARIABLE_TYPE_INT,
     RESECT_VARIABLE_TYPE_FLOAT,
     RESECT_VARIABLE_TYPE_STRING,
+    RESECT_VARIABLE_TYPE_OTHER,
 } resect_variable_kind;
 
 typedef enum {
@@ -406,6 +407,8 @@ RESECT_API void resect_options_add_arch(resect_parse_options opts, const char *v
 RESECT_API void resect_options_add_cpu(resect_parse_options opts, const char *value);
 
 RESECT_API void resect_options_add_target(resect_parse_options opts, const char *target);
+
+RESECT_API void resect_options_single_header(resect_parse_options opts);
 
 RESECT_API void resect_options_free(resect_parse_options opts);
 

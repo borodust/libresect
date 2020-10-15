@@ -1080,10 +1080,15 @@ void resect_variable_init(resect_translation_context context, resect_decl decl, 
             data->kind = RESECT_VARIABLE_TYPE_FLOAT;
             data->float_value = clang_EvalResult_getAsDouble(value);
             break;
+        case CXEval_CFStr:
+        case CXEval_ObjCStrLiteral:
         case CXEval_StrLiteral:
             data->kind = RESECT_VARIABLE_TYPE_STRING;
             resect_string_update(data->string_value, clang_EvalResult_getAsStr(value));
             break;
+        case CXEval_Other:
+            data->kind = RESECT_VARIABLE_TYPE_OTHER;
+            resect_string_update(data->string_value, clang_EvalResult_getAsStr(value));
         default:
             data->kind = RESECT_VARIABLE_TYPE_UNKNOWN;
     }

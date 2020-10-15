@@ -11,6 +11,7 @@
  */
 struct resect_parse_options {
     resect_collection args;
+    resect_bool single;
 };
 
 void resect_options_add(resect_parse_options opts, const char *key, const char *value) {
@@ -25,6 +26,7 @@ void resect_options_add_concat(resect_parse_options opts, const char *key, const
 resect_parse_options resect_options_create() {
     resect_parse_options opts = malloc(sizeof(struct resect_parse_options));
     opts->args = resect_collection_create();
+    opts->single = resect_false;
 
     resect_collection_add(opts->args, resect_string_from_c("-ferror-limit=0"));
 
@@ -61,6 +63,10 @@ void resect_options_add_standard(resect_parse_options opts, const char *standard
 
 void resect_options_add_target(resect_parse_options opts, const char *target) {
     resect_options_add(opts, "-target", target);
+}
+
+void resect_options_single_header(resect_parse_options opts) {
+    opts->single = resect_true;
 }
 
 void resect_options_free(resect_parse_options opts) {
@@ -107,13 +113,19 @@ resect_translation_unit resect_parse(const char *filename, resect_parse_options 
 
     CXIndex index = clang_createIndex(0, 1);
 
+    enum CXTranslationUnit_Flags unitFlags = CXTranslationUnit_DetailedPreprocessingRecord |
+                                             CXTranslationUnit_KeepGoing |
+                                             CXTranslationUnit_SkipFunctionBodies |
+                                             CXTranslationUnit_IncludeAttributedTypes |
+                                             CXTranslationUnit_VisitImplicitAttributes;
+
+    if (options->single) {
+        unitFlags |= CXTranslationUnit_SingleFileParse;
+    }
+
     CXTranslationUnit clangUnit = clang_parseTranslationUnit(index, filename, clang_argv, clang_argc,
                                                              NULL,
-                                                             0, CXTranslationUnit_DetailedPreprocessingRecord |
-                                                                CXTranslationUnit_KeepGoing |
-                                                                CXTranslationUnit_SkipFunctionBodies |
-                                                                CXTranslationUnit_IncludeAttributedTypes |
-                                                                CXTranslationUnit_VisitImplicitAttributes);
+                                                             0, unitFlags);
 
     free(clang_argv);
 
