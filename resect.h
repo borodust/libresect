@@ -410,6 +410,8 @@ RESECT_API void resect_options_add_target(resect_parse_options opts, const char 
 
 RESECT_API void resect_options_single_header(resect_parse_options opts);
 
+RESECT_API void resect_options_print_diagnostics(resect_parse_options opts);
+
 RESECT_API void resect_options_free(resect_parse_options opts);
 
 /*

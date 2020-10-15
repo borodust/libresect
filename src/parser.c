@@ -12,6 +12,7 @@
 struct resect_parse_options {
     resect_collection args;
     resect_bool single;
+    resect_bool diagnostics;
 };
 
 void resect_options_add(resect_parse_options opts, const char *key, const char *value) {
@@ -27,6 +28,7 @@ resect_parse_options resect_options_create() {
     resect_parse_options opts = malloc(sizeof(struct resect_parse_options));
     opts->args = resect_collection_create();
     opts->single = resect_false;
+    opts->diagnostics = resect_false;
 
     resect_collection_add(opts->args, resect_string_from_c("-ferror-limit=0"));
 
@@ -67,6 +69,10 @@ void resect_options_add_target(resect_parse_options opts, const char *target) {
 
 void resect_options_single_header(resect_parse_options opts) {
     opts->single = resect_true;
+}
+
+void resect_options_print_diagnostics(resect_parse_options opts) {
+    opts->diagnostics = resect_true;
 }
 
 void resect_options_free(resect_parse_options opts) {
@@ -111,7 +117,7 @@ resect_translation_unit resect_parse(const char *filename, resect_parse_options 
 
     resect_translation_context context = resect_context_create();
 
-    CXIndex index = clang_createIndex(0, 1);
+    CXIndex index = clang_createIndex(0, options->diagnostics ? 1 : 0);
 
     enum CXTranslationUnit_Flags unitFlags = CXTranslationUnit_DetailedPreprocessingRecord |
                                              CXTranslationUnit_KeepGoing |
