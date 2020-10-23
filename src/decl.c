@@ -332,10 +332,10 @@ resect_decl resect_find_owner(resect_translation_context context, CXCursor curso
     }
 
     CXCursor parent = clang_getCursorSemanticParent(cursor);
-    switch (clang_getCursorKind(parent)) {
-        case CXCursor_StructDecl:
-        case CXCursor_UnionDecl:
-        case CXCursor_ClassDecl:
+    switch (convert_cursor_kind(parent)) {
+        case RESECT_DECL_KIND_STRUCT:
+        case RESECT_DECL_KIND_UNION:
+        case RESECT_DECL_KIND_CLASS:
             return resect_decl_create(context, parent);
     }
 
@@ -810,6 +810,9 @@ resect_collection resect_function_parameters(resect_decl decl) {
 void resect_visit_function_child(resect_decl_child_visit_data visit_data,
                                  CXCursor cursor,
                                  resect_function_data data) {
+    if (cursor.kind == CXCursor_UnexposedExpr) {
+        return;
+    }
     resect_decl decl = resect_decl_create(visit_data->context, cursor);
     if (decl != NULL) {
         switch (decl->kind) {
