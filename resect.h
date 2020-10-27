@@ -304,6 +304,8 @@ RESECT_API resect_decl resect_decl_get_owner(resect_decl decl);
 
 RESECT_API resect_collection resect_decl_template_arguments(resect_decl decl);
 
+RESECT_API const char* resect_decl_get_source(resect_decl decl);
+
 /*
  * TRANSLATION UNIT
  */

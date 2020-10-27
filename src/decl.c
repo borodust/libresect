@@ -197,6 +197,8 @@ struct resect_decl {
     resect_decl owner;
     resect_type type;
 
+    resect_string source;
+
     void *data;
     resect_data_deallocator data_deallocator;
 };
@@ -370,6 +372,8 @@ void resect_decl_init_from_cursor(resect_decl decl, resect_translation_context c
 
     decl->owner = NULL;
 
+    decl->source = resect_string_from_clang(clang_getCursorPrettyPrinted(cursor, 0));
+
     decl->data_deallocator = NULL;
     decl->data = NULL;
 
@@ -527,6 +531,8 @@ void resect_decl_free(resect_decl decl, resect_set deallocated) {
         resect_decl_free(decl->owner, deallocated);
     }
 
+    resect_string_free(decl->source);
+
     free(decl);
 }
 
@@ -584,6 +590,10 @@ resect_collection resect_decl_template_parameters(resect_decl decl) {
 
 resect_collection resect_decl_template_arguments(resect_decl decl) {
     return decl->template_arguments;
+}
+
+const char* resect_decl_get_source(resect_decl decl) {
+    return resect_string_to_c(decl->source);
 }
 
 void resect_decl_collection_free(resect_collection decls, resect_set deallocated) {
@@ -685,9 +695,9 @@ enum CXChildVisitResult resect_visit_record_child(CXCursor cursor, CXCursor pare
     resect_record_data record_data = visit_data->parent->data;
 
     if (clang_getCursorKind(cursor) == CXCursor_CXXBaseSpecifier) {
-        CXCursor base_type = clang_getTypeDeclaration(clang_getCursorType(cursor));
+        CXType type = clang_getCursorType(cursor);
 
-        resect_collection_add(record_data->parents, resect_decl_create(visit_data->context, base_type));
+        resect_collection_add(record_data->parents, resect_type_create(visit_data->context, type));
 
         return CXChildVisit_Continue;
     }
@@ -719,7 +729,7 @@ void resect_record_data_free(void *data, resect_set deallocated) {
 
     resect_decl_collection_free(record_data->methods, deallocated);
     resect_decl_collection_free(record_data->fields, deallocated);
-    resect_decl_collection_free(record_data->parents, deallocated);
+    resect_type_collection_free(record_data->parents, deallocated);
 
     free(data);
 }

@@ -460,5 +460,4 @@ resect_type_category resect_type_get_category(resect_type type) {
 
 resect_collection resect_type_template_arguments(resect_type type) {
     return type->template_arguments;
-
 }

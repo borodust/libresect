@@ -138,6 +138,8 @@ resect_type resect_type_create(resect_translation_context context, CXType canoni
 
 void resect_type_free(resect_type type, resect_set deallocated);
 
+void resect_type_collection_free(resect_collection types, resect_set deallocated);
+
 /*
  * DECLARATION
  */
