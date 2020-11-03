@@ -188,6 +188,7 @@ struct resect_decl {
     resect_string mangled_name;
     resect_string comment;
     resect_access_specifier access;
+    resect_linkage_kind linkage;
 
     resect_collection template_parameters;
     resect_collection template_arguments;
@@ -266,6 +267,21 @@ resect_access_specifier convert_access_specifier(enum CX_CXXAccessSpecifier spec
             return RESECT_ACCESS_SPECIFIER_PRIVATE;
         default:
             return RESECT_ACCESS_SPECIFIER_UNKNOWN;
+    }
+}
+
+resect_linkage_kind convert_linkage(enum CXLinkageKind kind) {
+    switch (kind) {
+        case CXLinkage_NoLinkage:
+            return RESECT_LINKAGE_KIND_NO_LINKAGE;
+        case CXLinkage_Internal:
+            return RESECT_LINKAGE_KIND_INTERNAL;
+        case CXLinkage_UniqueExternal:
+            return RESECT_LINKAGE_KIND_UNIQUE_EXTERNAL;
+        case CXLinkage_External:
+            return RESECT_LINKAGE_KIND_EXTERNAL;
+        default:
+            return RESECT_LINKAGE_KIND_UNKNOWN;
     }
 }
 
@@ -353,6 +369,7 @@ void resect_decl_init_from_cursor(resect_decl decl, resect_translation_context c
 
     decl->namespace = resect_format_cursor_namespace(cursor);
     decl->access = convert_access_specifier(clang_getCXXAccessSpecifier(cursor));
+    decl->linkage = convert_linkage(clang_getCursorLinkage(cursor));
     if (resect_string_length(decl->name) == 0) {
         decl->mangled_name = resect_string_from_c("");
     } else {
@@ -594,6 +611,10 @@ resect_collection resect_decl_template_arguments(resect_decl decl) {
 
 const char* resect_decl_get_source(resect_decl decl) {
     return resect_string_to_c(decl->source);
+}
+
+resect_linkage_kind resect_decl_get_linkage(resect_decl decl) {
+    return decl->linkage;
 }
 
 void resect_decl_collection_free(resect_collection decls, resect_set deallocated) {

@@ -31,7 +31,7 @@ typedef enum {
     RESECT_DECL_KIND_METHOD = 10,
     RESECT_DECL_KIND_ENUM_CONSTANT = 11,
     RESECT_DECL_KIND_MACRO = 12,
-    RESECT_DECL_KIND_TEMPLATE_PARAMETER = 13,
+    RESECT_DECL_KIND_TEMPLATE_PARAMETER = 13
 } resect_decl_kind;
 
 typedef enum {
@@ -180,6 +180,14 @@ typedef enum {
     RESECT_TEMPLATE_ARGUMENT_KIND_PACK
 } resect_template_argument_kind;
 
+typedef enum {
+    RESECT_LINKAGE_KIND_UNKNOWN = 0,
+    RESECT_LINKAGE_KIND_NO_LINKAGE = 1,
+    RESECT_LINKAGE_KIND_INTERNAL = 2,
+    RESECT_LINKAGE_KIND_UNIQUE_EXTERNAL = 3,
+    RESECT_LINKAGE_KIND_EXTERNAL = 4
+} resect_linkage_kind;
+
 typedef struct resect_translation_unit *resect_translation_unit;
 typedef struct resect_collection *resect_collection;
 typedef struct resect_iterator *resect_iterator;
@@ -305,6 +313,8 @@ RESECT_API resect_decl resect_decl_get_owner(resect_decl decl);
 RESECT_API resect_collection resect_decl_template_arguments(resect_decl decl);
 
 RESECT_API const char* resect_decl_get_source(resect_decl decl);
+
+RESECT_API resect_linkage_kind resect_decl_get_linkage(resect_decl decl);
 
 /*
  * TRANSLATION UNIT
