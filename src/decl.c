@@ -851,7 +851,7 @@ void resect_visit_function_child(resect_decl_child_visit_data visit_data,
                 resect_collection_add(data->parameters, decl);
                 break;
             case RESECT_DECL_KIND_TEMPLATE_PARAMETER: {
-                if (cursor.kind != CXCursor_TypeRef) {
+                if (cursor.kind != CXCursor_TypeRef && cursor.kind != CXCursor_DeclRefExpr) {
                     resect_collection_add(visit_data->parent->template_parameters, decl);
                 }
             }
