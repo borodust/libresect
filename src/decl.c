@@ -609,7 +609,7 @@ resect_collection resect_decl_template_arguments(resect_decl decl) {
     return decl->template_arguments;
 }
 
-const char* resect_decl_get_source(resect_decl decl) {
+const char *resect_decl_get_source(resect_decl decl) {
     return resect_string_to_c(decl->source);
 }
 
@@ -1256,7 +1256,7 @@ resect_template_parameter_kind convert_template_parameter_kind(enum CXCursorKind
         case CXCursor_TemplateTypeParameter:
             return RESECT_TEMPLATE_PARAMETER_KIND_TYPE;
         case CXCursor_NonTypeTemplateParameter:
-            return RESECT_TEMPLATE_PARAMETER_KIND_NONE_TYPE;
+            return RESECT_TEMPLATE_PARAMETER_KIND_NON_TYPE;
         default:
             return RESECT_TEMPLATE_PARAMETER_KIND_UNKNOWN;
     }
@@ -1271,4 +1271,10 @@ void resect_template_parameter_init(resect_translation_context context, resect_d
     decl->data = data;
 
     resect_register_template_parameter(context, decl->name, decl);
+}
+
+resect_template_parameter_kind resect_template_parameter_get_kind(resect_decl decl) {
+    assert(decl->kind == RESECT_DECL_KIND_TEMPLATE_PARAMETER);
+    resect_template_parameter_data data = decl->data;
+    return data->kind;
 }

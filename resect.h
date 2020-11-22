@@ -164,7 +164,7 @@ typedef enum {
     RESECT_TEMPLATE_PARAMETER_KIND_UNKNOWN = 0,
     RESECT_TEMPLATE_PARAMETER_KIND_TEMPLATE,
     RESECT_TEMPLATE_PARAMETER_KIND_TYPE,
-    RESECT_TEMPLATE_PARAMETER_KIND_NONE_TYPE,
+    RESECT_TEMPLATE_PARAMETER_KIND_NON_TYPE,
 } resect_template_parameter_kind;
 
 typedef enum {
@@ -194,7 +194,6 @@ typedef struct resect_iterator *resect_iterator;
 typedef struct resect_location *resect_location;
 typedef struct resect_decl *resect_decl;
 typedef struct resect_type *resect_type;
-typedef struct resect_template_parameter *resect_template_parameter;
 typedef struct resect_template_argument *resect_template_argument;
 
 /*
@@ -396,6 +395,11 @@ RESECT_API resect_bool resect_method_is_pure_virtual(resect_decl decl);
  * MACRO
  */
 RESECT_API resect_bool resect_macro_is_function_like(resect_decl decl);
+
+/*
+ * TEMPLATE PARAMETER
+ */
+RESECT_API resect_template_parameter_kind resect_template_parameter_get_kind(resect_decl param);
 
 /*
  * PARSE OPTIONS
