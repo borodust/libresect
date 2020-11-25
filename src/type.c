@@ -351,6 +351,7 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
         case RESECT_TYPE_KIND_DEPENDENT:
         case RESECT_TYPE_KIND_AUTO:
         case RESECT_TYPE_KIND_ATTRIBUTED:
+        case RESECT_TYPE_KIND_ATOMIC:
             type->category = RESECT_TYPE_CATEGORY_AUX;
             break;
         case RESECT_TYPE_KIND_POINTER:

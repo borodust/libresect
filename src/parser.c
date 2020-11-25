@@ -67,6 +67,36 @@ void resect_options_add_target(resect_parse_options opts, const char *target) {
     resect_options_add(opts, "-target", target);
 }
 
+void resect_options_intrinsic(resect_parse_options opts, resect_option_intrinsic intrinsic) {
+    char *intrinsic_name;
+    switch (intrinsic) {
+        case RESECT_OPTION_INTRINSICS_SSE:
+            intrinsic_name = "sse";
+            break;
+        case RESECT_OPTION_INTRINSICS_SSE2:
+            intrinsic_name = "sse2";
+            break;
+        case RESECT_OPTION_INTRINSICS_SSE3:
+            intrinsic_name = "sse3";
+            break;
+        case RESECT_OPTION_INTRINSICS_SSE41:
+            intrinsic_name = "sse4.1";
+            break;
+        case RESECT_OPTION_INTRINSICS_SSE42:
+            intrinsic_name = "sse4.2";
+            break;
+        case RESECT_OPTION_INTRINSICS_AVX:
+            intrinsic_name = "avx";
+            break;
+        case RESECT_OPTION_INTRINSICS_AVX2:
+            intrinsic_name = "avx2";
+            break;
+        default:
+            return;
+    }
+    resect_options_add_concat(opts, "-m", intrinsic_name);
+}
+
 void resect_options_single_header(resect_parse_options opts) {
     opts->single = resect_true;
 }

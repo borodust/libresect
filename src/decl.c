@@ -710,6 +710,16 @@ void resect_field_init(resect_translation_context context, resect_decl decl, CXC
     decl->data = data;
 }
 
+void resect_inherit_fields(resect_record_data destRecord, resect_record_data sourceRecord) {
+    resect_iterator iter = resect_collection_iterator(sourceRecord->fields);
+    while (resect_iterator_next(iter)) {
+        resect_decl sourceField = resect_iterator_value(iter);
+
+    }
+
+    resect_iterator_free(iter);
+}
+
 enum CXChildVisitResult resect_visit_record_child(CXCursor cursor, CXCursor parent, CXClientData data) {
     resect_decl_child_visit_data visit_data = data;
 
@@ -735,6 +745,13 @@ enum CXChildVisitResult resect_visit_record_child(CXCursor cursor, CXCursor pare
                 break;
             case RESECT_DECL_KIND_TEMPLATE_PARAMETER:
                 resect_collection_add(visit_data->parent->template_parameters, decl);
+                break;
+            case RESECT_DECL_KIND_UNION:
+            case RESECT_DECL_KIND_STRUCT:
+            case RESECT_DECL_KIND_CLASS:
+                if (clang_Cursor_isAnonymousRecordDecl(cursor)) {
+                    resect_inherit_fields(record_data, decl->data);
+                }
                 break;
         }
     }

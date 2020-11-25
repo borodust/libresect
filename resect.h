@@ -94,6 +94,7 @@ typedef enum {
 
     RESECT_TYPE_KIND_ATTRIBUTED = 163,
 
+    RESECT_TYPE_KIND_ATOMIC = 177,
     RESECT_TYPE_KIND_EXTVECTOR = 178,
 
     RESECT_TYPE_KIND_TEMPLATE_PARAMETER = 10000
@@ -187,6 +188,18 @@ typedef enum {
     RESECT_LINKAGE_KIND_UNIQUE_EXTERNAL = 3,
     RESECT_LINKAGE_KIND_EXTERNAL = 4
 } resect_linkage_kind;
+
+typedef enum {
+    RESECT_OPTION_INTRINSICS_UNKNOWN = 0,
+    RESECT_OPTION_INTRINSICS_SSE = 1,
+    RESECT_OPTION_INTRINSICS_SSE2 = 2,
+    RESECT_OPTION_INTRINSICS_SSE3 = 3,
+    RESECT_OPTION_INTRINSICS_SSE41 = 4,
+    RESECT_OPTION_INTRINSICS_SSE42 = 5,
+    RESECT_OPTION_INTRINSICS_AVX = 6,
+    RESECT_OPTION_INTRINSICS_AVX2 = 7,
+} resect_option_intrinsic;
+
 
 typedef struct resect_translation_unit *resect_translation_unit;
 typedef struct resect_collection *resect_collection;
@@ -311,7 +324,7 @@ RESECT_API resect_decl resect_decl_get_owner(resect_decl decl);
 
 RESECT_API resect_collection resect_decl_template_arguments(resect_decl decl);
 
-RESECT_API const char* resect_decl_get_source(resect_decl decl);
+RESECT_API const char *resect_decl_get_source(resect_decl decl);
 
 RESECT_API resect_linkage_kind resect_decl_get_linkage(resect_decl decl);
 
@@ -424,9 +437,13 @@ RESECT_API void resect_options_add_cpu(resect_parse_options opts, const char *va
 
 RESECT_API void resect_options_add_target(resect_parse_options opts, const char *target);
 
+RESECT_API void resect_options_add_intrinsics(resect_parse_options opts, const char *target);
+
 RESECT_API void resect_options_single_header(resect_parse_options opts);
 
 RESECT_API void resect_options_print_diagnostics(resect_parse_options opts);
+
+RESECT_API void resect_options_intrinsic(resect_parse_options opts, resect_option_intrinsic intrinsic);
 
 RESECT_API void resect_options_free(resect_parse_options opts);
 
