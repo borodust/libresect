@@ -31,6 +31,7 @@ resect_parse_options resect_options_create() {
     opts->diagnostics = resect_false;
 
     resect_collection_add(opts->args, resect_string_from_c("-ferror-limit=0"));
+    resect_collection_add(opts->args, resect_string_from_c("-fno-implicit-templates"));
 
     return opts;
 }
@@ -148,6 +149,7 @@ resect_translation_unit resect_parse(const char *filename, resect_parse_options 
     resect_translation_context context = resect_context_create();
 
     CXIndex index = clang_createIndex(0, options->diagnostics ? 1 : 0);
+
 
     enum CXTranslationUnit_Flags unitFlags = CXTranslationUnit_DetailedPreprocessingRecord |
                                              CXTranslationUnit_KeepGoing |

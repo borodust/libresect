@@ -239,6 +239,7 @@ resect_decl_kind convert_cursor_kind(CXCursor cursor) {
         case CXCursor_TemplateRef:
         case CXCursor_ClassTemplate:
         case CXCursor_ClassTemplatePartialSpecialization:
+        case CXCursor_ClassTemplateSpecialization:
         case CXCursor_ClassDecl:
             return RESECT_DECL_KIND_CLASS;
         case CXCursor_CXXMethod:
@@ -389,7 +390,17 @@ void resect_decl_init_from_cursor(resect_decl decl, resect_translation_context c
 
     decl->owner = NULL;
 
-    decl->source = resect_string_from_clang(clang_getCursorPrettyPrinted(cursor, 0));
+    CXPrintingPolicy pp = clang_getCursorPrintingPolicy(cursor);
+    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_PolishForDeclaration, 1);
+//    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_FullyQualifiedName, 0);
+//    clang_PrintingPolicy_setProperty(pp,CXPrintingPolicy_IncludeTagDefinition, 0);
+//    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_TerseOutput, 0);
+//    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_SuppressSpecifiers, 0);
+    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_SuppressScope, 1);
+//    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_SuppressUnwrittenScope, 0);
+//    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_SuppressImplicitBase, 0);
+    decl->source = resect_string_from_clang(clang_getCursorPrettyPrinted(cursor, pp));
+    clang_PrintingPolicy_dispose(pp);
 
     decl->data_deallocator = NULL;
     decl->data = NULL;

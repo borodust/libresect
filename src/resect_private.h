@@ -27,6 +27,9 @@ size_t resect_string_length(resect_string string);
 
 resect_string resect_substring(resect_string string, long long start, long long end);
 
+resect_bool resect_string_equal(resect_string this, resect_string that);
+
+resect_bool resect_string_equal_c(resect_string this, const char* that);
 
 void resect_string_free(resect_string string);
 
