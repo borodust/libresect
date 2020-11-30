@@ -328,6 +328,8 @@ RESECT_API const char *resect_decl_get_source(resect_decl decl);
 
 RESECT_API resect_linkage_kind resect_decl_get_linkage(resect_decl decl);
 
+RESECT_API resect_bool resect_decl_is_forward(resect_decl decl);
+
 /*
  * TRANSLATION UNIT
  */

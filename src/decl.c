@@ -194,6 +194,7 @@ struct resect_decl {
     resect_collection template_arguments;
     resect_decl template;
     resect_bool partial;
+    resect_bool forward;
 
     resect_decl owner;
     resect_type type;
@@ -381,6 +382,7 @@ void resect_decl_init_from_cursor(resect_decl decl, resect_translation_context c
     decl->template_parameters = resect_collection_create();
     decl->template_arguments = resect_collection_create();
     decl->partial = cursor.kind == CXCursor_ClassTemplatePartialSpecialization;
+    decl->forward = resect_is_forward_declaration(cursor);
 
     resect_init_template_args_from_cursor(context, decl->template_arguments, cursor);
 
@@ -626,6 +628,10 @@ const char *resect_decl_get_source(resect_decl decl) {
 
 resect_linkage_kind resect_decl_get_linkage(resect_decl decl) {
     return decl->linkage;
+}
+
+resect_bool resect_decl_is_forward(resect_decl decl) {
+    return decl->forward;
 }
 
 void resect_decl_collection_free(resect_collection decls, resect_set deallocated) {
