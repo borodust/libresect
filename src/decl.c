@@ -516,9 +516,11 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
             resect_typedef_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_FIELD:
+            decl->owner = resect_find_owner(context, cursor);
             resect_field_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_METHOD:
+            decl->owner = resect_find_owner(context, cursor);
             resect_method_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_MACRO:
