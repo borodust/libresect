@@ -406,6 +406,8 @@ RESECT_API resect_bool resect_method_is_variadic(resect_decl decl);
 
 RESECT_API resect_bool resect_method_is_pure_virtual(resect_decl decl);
 
+RESECT_API resect_bool resect_method_is_const(resect_decl decl);
+
 /*
  * MACRO
  */

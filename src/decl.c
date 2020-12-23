@@ -1206,6 +1206,7 @@ void resect_macro_init(resect_translation_context context, resect_decl decl, CXC
 typedef struct resect_method_data {
     resect_function_data function_data;
     resect_bool pure_virtual;
+    resect_bool non_mutating;
 } *resect_method_data;
 
 resect_type resect_method_get_result_type(resect_decl decl) {
@@ -1226,10 +1227,16 @@ resect_bool resect_method_is_variadic(resect_decl decl) {
     return data->function_data->variadic;
 }
 
-RESECT_API resect_bool resect_method_is_pure_virtual(resect_decl decl) {
+resect_bool resect_method_is_pure_virtual(resect_decl decl) {
     assert(decl->kind == RESECT_DECL_KIND_METHOD);
     resect_method_data data = decl->data;
     return data->pure_virtual;
+}
+
+resect_bool resect_method_is_const(resect_decl decl) {
+    assert(decl->kind == RESECT_DECL_KIND_METHOD);
+    resect_method_data data = decl->data;
+    return data->non_mutating;
 }
 
 resect_collection resect_method_parameters(resect_decl decl) {
@@ -1266,6 +1273,7 @@ void resect_method_init(resect_translation_context context, resect_decl decl, CX
     decl->data = data;
 
     data->pure_virtual = clang_CXXMethod_isPureVirtual(cursor);
+    data->non_mutating = clang_CXXMethod_isConst(cursor);
 
     struct resect_decl_child_visit_data visit_data = {.context = context, .parent =  decl};
     clang_visitChildren(cursor, resect_visit_method_parameter, &visit_data);
