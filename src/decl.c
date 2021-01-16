@@ -320,7 +320,7 @@ void resect_extract_decl_namespace(resect_collection namespace_queue, CXCursor c
     if (!clang_Cursor_isNull(parent)) {
         resect_extract_decl_namespace(namespace_queue, parent);
     }
-    if (clang_getCursorKind(cursor) == CXCursor_Namespace) {
+    if (clang_getCursorKind(cursor) == CXCursor_Namespace && !clang_Cursor_isInlineNamespace(cursor)) {
         resect_collection_add(namespace_queue, resect_string_from_clang(clang_getCursorSpelling(cursor)));
     }
 }
