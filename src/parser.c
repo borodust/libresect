@@ -69,6 +69,11 @@ void resect_options_add_target(resect_parse_options opts, const char *target) {
 }
 
 void resect_options_intrinsic(resect_parse_options opts, resect_option_intrinsic intrinsic) {
+    if (intrinsic == RESECT_OPTION_INTRINSICS_NEON) {
+        resect_options_add_concat(opts, "-mfpu=neon", "");
+        return;
+    }
+
     char *intrinsic_name;
     switch (intrinsic) {
         case RESECT_OPTION_INTRINSICS_SSE:
