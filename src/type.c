@@ -296,11 +296,19 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
     }
 
     resect_type type = malloc(sizeof(struct resect_type));
+    CXCursor declaration_cursor = clang_getTypeDeclaration(clang_type);
 
     type->kind = convert_type_kind(clang_type.kind);
     type->name = resect_string_from_clang(clang_getTypeSpelling(clang_type));
-    type->size = 8 * filter_valid_value(clang_Type_getSizeOf(clang_type));
-    type->alignment = 8 * filter_valid_value(clang_Type_getAlignOf(clang_type));
+    if (clang_Cursor_isNull(declaration_cursor) ||
+        clang_Cursor_isNull(clang_getCursorDefinition(declaration_cursor))) {
+        // it's a forward declaration
+        type->size = 0;
+        type->alignment = 0;
+    } else {
+        type->size = 8 * filter_valid_value(clang_Type_getSizeOf(clang_type));
+        type->alignment = 8 * filter_valid_value(clang_Type_getAlignOf(clang_type));
+    }
     type->fields = resect_collection_create();
     type->const_qualified = clang_isConstQualifiedType(clang_type);
     type->pod = clang_isPODType(clang_type);
@@ -311,7 +319,6 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
 
     resect_init_template_args_from_type(context, type->template_arguments, clang_type);
 
-    CXCursor declaration_cursor = clang_getTypeDeclaration(clang_type);
     type->decl = (declaration_cursor.kind == CXCursor_NoDeclFound) ?
                  NULL : resect_decl_create(context, declaration_cursor);
     struct resect_type_visit_data visit_data = {type = type, context = context};
