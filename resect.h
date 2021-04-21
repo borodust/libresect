@@ -375,6 +375,8 @@ RESECT_API resect_function_storage_class resect_function_get_storage_class(resec
 
 RESECT_API resect_bool resect_function_is_variadic(resect_decl decl);
 
+RESECT_API resect_bool resect_function_is_inlined(resect_decl decl);
+
 
 /*
  * VARIABLE

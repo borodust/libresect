@@ -831,6 +831,7 @@ typedef struct resect_function_data {
     resect_collection parameters;
     resect_function_calling_convention calling_convention;
     resect_type result_type;
+    resect_bool inlined;
 } *resect_function_data;
 
 resect_type resect_function_get_result_type(resect_decl decl) {
@@ -849,6 +850,12 @@ resect_bool resect_function_is_variadic(resect_decl decl) {
     assert(decl->kind == RESECT_DECL_KIND_FUNCTION);
     resect_function_data data = decl->data;
     return data->variadic;
+}
+
+resect_bool resect_function_is_inlined(resect_decl decl) {
+    assert(decl->kind == RESECT_DECL_KIND_FUNCTION);
+    resect_function_data data = decl->data;
+    return data->inlined;
 }
 
 resect_collection resect_function_parameters(resect_decl decl) {
@@ -969,6 +976,7 @@ resect_function_data resect_function_data_create(resect_translation_context cont
     data->calling_convention = convert_calling_convention(clang_getFunctionTypeCallingConv(functionType));
     data->variadic = clang_isFunctionTypeVariadic(functionType) != 0 ? resect_true : resect_false;
     data->result_type = resect_type_create(context, clang_getResultType(functionType));
+    data->inlined = clang_Cursor_isFunctionInlined(cursor);
 
     return data;
 }
