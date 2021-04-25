@@ -13,6 +13,25 @@ cases.
 It's a work-in-progress library. Neither binary-level nor source-level
 compatibility is guaranteed yet.
 
+## Building
+Prepare your disk and RAM - we need to build a custom LLVM dist until I push required `libclang` additions into upstream.
+
+#### LLVM
+
+```sh
+# getting LLVM sources
+git submodule update --init --recursive
+# building LLVM, going for a walk
+./build_clang.sh
+```
+
+#### libresect
+
+Then we can build `resect` using usual cmake magic:
+```sh
+mkdir -p build/resect/ && cd build/resect/
+cmake -DCMAKE_BUILD_TYPE=Release ../../ && cmake --build .
+```
 
 ## Valgrind check
 ```sh

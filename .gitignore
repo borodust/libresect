@@ -1,6 +1,7 @@
 # cmake
 cmake-*/
 build/
+llvm-bin/
 
 # jetbrains ide
 .idea/
