@@ -135,8 +135,6 @@ void resect_init_template_args_from_cursor(resect_translation_context context,
                 arg_type = resect_type_create(context,
                                               clang_Cursor_getTemplateArgumentType(cursor, i));
                 break;
-            case RESECT_TEMPLATE_ARGUMENT_KIND_PACK:
-            case RESECT_TEMPLATE_ARGUMENT_KIND_EXPRESSION:
             case RESECT_TEMPLATE_ARGUMENT_KIND_INTEGRAL:
                 arg_value = clang_Cursor_getTemplateArgumentValue(cursor, i);
                 break;
