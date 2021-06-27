@@ -8,9 +8,11 @@ LLVM_INSTALL_DIR=$WORK_DIR/llvm-bin
 
 mkdir -p $BUILD_DIR && cd $BUILD_DIR
 
-CPU_COUNT=$(nproc)
-BUILD_THREAD_COUNT=$(($CPU_COUNT/4))
-BUILD_THREAD_COUNT=$(($BUILD_THREAD_COUNT > 0 ? $BUILD_THREAD_COUNT : 1))
+if [[ -z "$BUILD_THREAD_COUNT" ]]; then
+    CPU_COUNT=$(nproc --all)
+    BUILD_THREAD_COUNT=$(($CPU_COUNT/4))
+    BUILD_THREAD_COUNT=$(($BUILD_THREAD_COUNT > 0 ? $BUILD_THREAD_COUNT : 1))
+fi
 
 # gold linker reduces memory consumption during linking
 cmake -DCMAKE_INSTALL_PREFIX=$LLVM_INSTALL_DIR \
