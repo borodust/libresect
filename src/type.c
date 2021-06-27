@@ -75,7 +75,9 @@ typedef struct resect_type_visit_data {
 enum CXVisitorResult visit_type_fields(CXCursor cursor, CXClientData data) {
     resect_type_visit_data visit_data = data;
     resect_decl field_decl = resect_decl_create(visit_data->context, cursor);
-    resect_collection_add(visit_data->type->fields, field_decl);
+    if (field_decl != NULL) {
+        resect_collection_add(visit_data->type->fields, field_decl);
+    }
     return CXVisit_Continue;
 }
 

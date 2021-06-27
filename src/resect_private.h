@@ -181,4 +181,6 @@ long long filter_valid_value(long long value);
 
 void resect_string_collection_free(resect_collection collection);
 
+resect_string extract_decl_id(CXCursor cursor);
+
 #endif //RESECT_PRIVATE_H

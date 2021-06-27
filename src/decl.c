@@ -300,17 +300,44 @@ resect_bool resect_is_specialized(CXCursor cursor) {
     }
 }
 
+void append_anonymous_decl_id(resect_string id, const char *infix, CXCursor cursor) {
+    // nameless param with no USR?
+    CXCursor parent = clang_getCursorSemanticParent(cursor);
+    if (!clang_Cursor_isNull(parent)) {
+        resect_string parent_id = extract_decl_id(parent);
+
+        resect_location loc = resect_location_from_cursor(cursor);
+        resect_string postfix = resect_string_format(":%s:%d:%d",
+                                                     infix,
+                                                     resect_location_line(loc),
+                                                     resect_location_column(loc));
+
+        resect_string_append(id, resect_string_to_c(parent_id));
+        resect_string_append(id, resect_string_to_c(postfix));
+
+        resect_string_free(postfix);
+        resect_string_free(parent_id);
+        resect_location_free(loc);
+    }
+}
+
 resect_string extract_decl_id(CXCursor cursor) {
     resect_string id = resect_string_from_clang(clang_getCursorUSR(cursor));
-    if (resect_string_length(id) != 0) {
+
+    if (resect_string_length(id) > 0) {
         return id;
     }
-    resect_string_free(id);
 
-    resect_location location = resect_location_from_cursor(cursor);
-    resect_string result = resect_location_to_string(location);
-    resect_location_free(location);
-    return result;
+    switch (clang_getCursorKind(cursor)) {
+        case CXCursor_ParmDecl: // nameless param with no USR?
+            append_anonymous_decl_id(id, "parm", cursor);
+            return id;
+        case CXCursor_FieldDecl:  // anonymous struct/union?
+            append_anonymous_decl_id(id, "field", cursor);
+            return id;
+    }
+
+    assert(!"Declaration identifier must not be empty");
 }
 
 void resect_extract_decl_namespace(resect_collection namespace_queue, CXCursor cursor) {
@@ -450,6 +477,23 @@ enum CXChildVisitResult resect_visit_child_declaration(CXCursor cursor,
 }
 
 resect_decl resect_decl_create(resect_translation_context context, CXCursor cursor) {
+    enum CXCursorKind cursorKind = clang_getCursorKind(cursor);
+
+    if (cursorKind >= CXCursor_FirstInvalid // ignore invalid cursors
+        && cursorKind <= CXCursor_LastInvalid
+        || cursorKind >= CXCursor_FirstAttr // ignore attributes
+           && cursorKind <= CXCursor_LastAttr
+        || cursorKind >= CXCursor_FirstRef // ignore references
+           && cursorKind <= CXCursor_LastRef
+        || cursorKind >= CXCursor_FirstStmt // ignore statements
+           && cursorKind <= CXCursor_LastStmt
+        || cursorKind >= CXCursor_FirstExpr // ignore expressions
+           && cursorKind <= CXCursor_LastExpr) {
+        /* ignore some kinds for now, but just in case check children */
+        clang_visitChildren(cursor, resect_visit_child_declaration, context);
+        return NULL;
+    }
+
     if (resect_is_forward_declaration(cursor)) {
         CXCursor definition = clang_getCursorDefinition(cursor);
         if ((clang_getCursorKind(definition) < CXCursor_FirstInvalid
@@ -459,9 +503,26 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
         }
     }
 
-    switch (clang_getCursorKind(cursor)) {
+    switch (cursorKind) {
+        case CXCursor_FieldDecl:
+        case CXCursor_ParmDecl:
+        case CXCursor_TemplateTemplateParameter:
+        case CXCursor_TemplateTypeParameter:
+        case CXCursor_NonTypeTemplateParameter: {
+            CXCursor parent = clang_getCursorSemanticParent(cursor);
+            if (clang_getCursorKind(parent) == CXCursor_TranslationUnit) {
+                /* the hell is that even, but that happens, lets check children though */
+                clang_visitChildren(cursor, resect_visit_child_declaration, context);
+                return NULL;
+            }
+        }
+    }
+
+    switch (cursorKind) {
         case CXCursor_Namespace:
         case CXCursor_UnexposedDecl:
+        case CXCursor_MacroExpansion:
+        case CXCursor_InclusionDirective:
             /* we might encounter exposed declarations within unexposed one, e.g. inside extern "C"/"C++" block */
             clang_visitChildren(cursor, resect_visit_child_declaration, context);
             return NULL;
@@ -742,7 +803,7 @@ enum CXChildVisitResult resect_visit_record_child(CXCursor cursor, CXCursor pare
 
     resect_decl decl = resect_decl_create(visit_data->context, cursor);
 
-    if (decl) {
+    if (decl != NULL) {
         switch (decl->kind) {
             case RESECT_DECL_KIND_METHOD:
                 resect_collection_add(record_data->methods, decl);
@@ -1040,7 +1101,7 @@ enum CXChildVisitResult resect_visit_enum_constant(CXCursor cursor, CXCursor par
     resect_enum_data enum_data = visit_data->parent->data;
 
     resect_decl decl = resect_decl_create(visit_data->context, cursor);
-    if (decl->kind == RESECT_DECL_KIND_ENUM_CONSTANT) {
+    if (decl != NULL && decl->kind == RESECT_DECL_KIND_ENUM_CONSTANT) {
         resect_collection_add(enum_data->constants, decl);
     }
 
