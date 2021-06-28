@@ -1,3 +1,6 @@
 [submodule "llvm"]
 	path = llvm
 	url = https://github.com/borodust/llvm-project.git
+[submodule "libclang-static-build"]
+	path = libclang-static-build
+	url = https://github.com/borodust/libclang-static-build.git

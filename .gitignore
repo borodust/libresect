@@ -2,6 +2,7 @@
 cmake-*/
 build/
 llvm-bin/
+libclang-bundle/
 
 # jetbrains ide
 .idea/

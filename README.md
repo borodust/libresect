@@ -21,7 +21,7 @@ Prepare your disk and RAM - we need to build a custom LLVM dist until I push req
 ```sh
 # getting LLVM sources
 git submodule update --init --recursive
-# building LLVM, going for a walk
+# building LLVM and static libclang bundle, going for a walk
 ./build_clang.sh
 ```
 
