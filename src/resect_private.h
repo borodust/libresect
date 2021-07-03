@@ -1,9 +1,10 @@
 #ifndef RESECT_PRIVATE_H
 #define RESECT_PRIVATE_H
 
+#define CINDEX_NO_EXPORTS
+
 #include "../resect.h"
 #include <clang-c/Index.h>
-#include <bits/types/FILE.h>
 #include <stdio.h>
 
 /*
@@ -90,19 +91,6 @@ void resect_visit_table(resect_table table,
                         void *context);
 
 void resect_table_free(resect_table table, void (*value_destructor)(void *, void *), void *context);
-
-/*
- * MEMORY FILE
- */
-typedef struct resect_memory_file *resect_memory_file;
-
-resect_memory_file resect_memory_file_create(const char **filenames, int count);
-
-void resect_memory_file_flush(resect_memory_file file);
-
-FILE *resect_memory_file_handle(resect_memory_file file);
-
-void resect_memory_file_free(resect_memory_file file);
 
 /*
  * CONTEXT

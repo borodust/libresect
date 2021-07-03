@@ -16,6 +16,19 @@ compatibility is guaranteed yet.
 ## Building
 Prepare your disk and RAM - we need to build a custom LLVM dist until I push required `libclang` additions into upstream.
 
+
+#### Windows
+Prerequisites
+```
+choco install -y ninja git cmake gnuwin python3
+pip3 install psutil
+```
+For x64 arch you will need to use this powershell target
+```powershell
+# adapt to your version of VS
+%SystemRoot%\system32\WindowsPowerShell\v1.0\powershell.exe -noe -c "&{Import-Module """C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"""; Enter-VsDevShell 0c759dbc -DevCmdArguments '-arch=x64'}"
+```
+
 #### LLVM
 
 ```sh

@@ -337,37 +337,6 @@ void resect_set_add_to_collection(resect_set set, resect_collection collection) 
 }
 
 /*
- * MEMORY FILE
- */
-struct resect_memory_file {
-    char *buf;
-    size_t len;
-    FILE *handle;
-};
-
-resect_memory_file resect_memory_file_create(const char **filenames, int count) {
-    resect_memory_file file = malloc(sizeof(struct resect_memory_file));
-    file->handle = open_memstream(&file->buf, &file->len);
-    return file;
-}
-
-void resect_memory_file_flush(resect_memory_file file) {
-    fflush(file->handle);
-    fseek(file->handle, 0, SEEK_SET);
-}
-
-
-FILE *resect_memory_file_handle(resect_memory_file file) {
-    return file->handle;
-}
-
-
-void resect_memory_file_free(resect_memory_file file) {
-    fclose(file->handle);
-    free(file->buf);
-}
-
-/*
  * STRING HASH TABLE
  */
 struct resect_table_entry {

@@ -133,7 +133,7 @@ resect_language resect_unit_get_language(resect_translation_unit unit) {
 }
 
 resect_translation_unit resect_parse(const char *filename, resect_parse_options options) {
-    const char **clang_argv;
+    char **clang_argv;
     int clang_argc;
     if (options != NULL) {
         clang_argc = (int) resect_collection_size(options->args);

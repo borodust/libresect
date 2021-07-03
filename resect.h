@@ -2,7 +2,11 @@
 #define RESECT_H
 
 #if defined(_WIN32)
-#  define RESECT_API __declspec(dllexport)
+#  if !defined(RESECT_API_NOEXPORT)
+#    define RESECT_API __declspec(dllexport)
+#  else
+#    define RESECT_API __declspec(dllimport)
+#  endif
 #elif defined(__GNUC__)
 #  define RESECT_API __attribute__((visibility("default")))
 #else
@@ -457,7 +461,7 @@ RESECT_API void resect_options_free(resect_parse_options opts);
 /*
  * PARSER
  */
-resect_translation_unit resect_parse(const char *filename, resect_parse_options options);
+RESECT_API resect_translation_unit resect_parse(const char *filename, resect_parse_options options);
 
 RESECT_API void resect_free(resect_translation_unit result);
 

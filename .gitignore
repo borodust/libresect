@@ -4,8 +4,9 @@ build/
 llvm-bin/
 libclang-bundle/
 
-# jetbrains ide
+# ide
 .idea/
+.vs/
 
 # local
 local/
