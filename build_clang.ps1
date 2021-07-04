@@ -50,7 +50,7 @@ cmake -G "Visual Studio 16 2019" -A x64 -Thost=x64 `
       -DLIBCLANG_BUILD_STATIC=ON `
       -DBUILD_SHARED_LIBS=OFF `
       "$LlvmDir"
-cmake --build "$BuildDir" --target install --parallel $BuildThreadCount
+cmake --build "$BuildDir" --target install --config MinSizeRel --parallel $BuildThreadCount
 
 popd
 
@@ -65,6 +65,6 @@ cmake -G "Visual Studio 16 2019" -A x64 -Thost=x64 `
       -DLIBCLANG_SOURCES_DIR="$ClangDir" `
       -DLIBCLANG_PREBUILT_DIR="$LlvmInstallDir" `
       "$LibClangStaticBuild"
-cmake --build "$LibClangStaticBuildDir" --target install --parallel $BuildThreadCount
+cmake --build "$LibClangStaticBuildDir" --target install --config MinSizeRel --parallel $BuildThreadCount
 
 popd
