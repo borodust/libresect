@@ -32,6 +32,7 @@ resect_parse_options resect_options_create() {
 
     resect_collection_add(opts->args, resect_string_from_c("-ferror-limit=0"));
     resect_collection_add(opts->args, resect_string_from_c("-fno-implicit-templates"));
+    resect_collection_add(opts->args, resect_string_from_c("-fc++-abi=itanium"));
 
     return opts;
 }

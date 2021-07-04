@@ -338,6 +338,7 @@ resect_string extract_decl_id(CXCursor cursor) {
     }
 
     assert(!"Declaration identifier must not be empty");
+    return resect_string_from_c("");
 }
 
 void resect_extract_decl_namespace(resect_collection namespace_queue, CXCursor cursor) {

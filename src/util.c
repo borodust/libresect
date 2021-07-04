@@ -82,6 +82,8 @@ resect_string resect_string_append(resect_string string, const char *postfix) {
     memcpy(string->value + old_len, postfix, sizeof(char) * add_len);
 
     string->value[required_capacity - 1] = 0;
+
+    return string;
 }
 
 size_t resect_string_length(resect_string string) {

@@ -1,6 +1,8 @@
 param (
     [parameter(Mandatory=$false)]
-    [int] $BuildThreadCount=0
+    [int] $BuildThreadCount=0,
+    [parameter(Mandatory=$false)]
+    [String] $BuildType="MinSizeRel"
 )
 
 ### CONFIGURATION START ###
@@ -39,7 +41,7 @@ pushd $BuildDir
 
 cmake -G "Visual Studio 16 2019" -A x64 -Thost=x64 `
       -DCMAKE_INSTALL_PREFIX="$LlvmInstallDir" `
-      -DCMAKE_BUILD_TYPE="MinSizeRel" `
+      -DCMAKE_BUILD_TYPE="$BuildType" `
       -DLLVM_ENABLE_PROJECTS="clang;" `
       -DLLVM_TARGETS_TO_BUILD="X86;AArch64;" `
       -DLLVM_ENABLE_LLD=OFF `
