@@ -32,7 +32,7 @@ target_link_directories(resect
 
 add_library(resect_clang_static STATIC IMPORTED)
 
-if (APPLE OR LINUX)
+if (APPLE OR UNIX)
     set_target_properties(resect_clang_static PROPERTIES
         IMPORTED_LOCATION "${LIBCLANG_LINK_DIRS}/libclang_bundled.a")
     target_link_libraries(resect
