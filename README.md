@@ -1,7 +1,7 @@
 # LIBRESECT
 
-This is a tiny Pure C™ wrapper over `libclang` with simplified ABI tailored for
-extracting information from C/C++ headers to create bindings to C/C++ libraries.
+This is an elaborate Pure C™ wrapper over `libclang` with almost no runtime dependencies and 
+simplified ABI tailored for extracting information from C/C++ headers to create bindings to C/C++ libraries.
 
 The goal is to return binary-compatible metadata that can be used to invoke
 C/C++ routines from statically or dynamically linked libraries. There's no

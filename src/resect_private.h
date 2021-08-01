@@ -6,6 +6,7 @@
 #include "../resect.h"
 #include <clang-c/Index.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 /*
  * STRING
@@ -30,7 +31,7 @@ resect_string resect_substring(resect_string string, long long start, long long 
 
 resect_bool resect_string_equal(resect_string this, resect_string that);
 
-resect_bool resect_string_equal_c(resect_string this, const char* that);
+resect_bool resect_string_equal_c(resect_string this, const char *that);
 
 void resect_string_free(resect_string string);
 
@@ -93,12 +94,37 @@ void resect_visit_table(resect_table table,
 void resect_table_free(resect_table table, void (*value_destructor)(void *, void *), void *context);
 
 /*
+ * FILTERING
+ */
+typedef enum resect_inclusion_status {
+    EXCLUDED = 0,
+    WEAKLY_INCLUDED = 1,
+    WEAKLY_ENFORCED = 2,
+    INCLUDED = 3,
+} resect_inclusion_status;
+
+typedef struct resect_filtering_context *resect_filtering_context;
+
+resect_filtering_context resect_filtering_context_create(resect_parse_options options);
+
+void resect_filtering_context_free(resect_filtering_context context);
+
+resect_inclusion_status resect_filtering_decl_inclusion_status(resect_filtering_context context,
+                                                               const char *declaration_id,
+                                                               const char *declaration_name,
+                                                               const char *declaration_source);
+
+
+void resect_filtering_weakly_include_id(resect_filtering_context context, const char *id);
+
+void resect_filtering_weakly_enforce_id(resect_filtering_context context, const char *id);
+
+/*
  * CONTEXT
  */
-
 typedef struct resect_translation_context *resect_translation_context;
 
-resect_translation_context resect_context_create();
+resect_translation_context resect_context_create(resect_parse_options opts);
 
 resect_collection resect_create_decl_collection(resect_translation_context context);
 
@@ -113,6 +139,12 @@ void resect_register_decl(resect_translation_context context, resect_string id, 
 void resect_register_decl_language(resect_translation_context context, resect_language language);
 
 resect_language resect_get_assumed_language(resect_translation_context context);
+
+resect_inclusion_status resect_cursor_inclusion_status(resect_translation_context context, CXCursor cursor);
+
+void resect_enforce_type_weakly(resect_translation_context context, CXType type);
+
+void resect_include_type_weakly(resect_translation_context context, CXType type);
 
 void resect_export_decl(resect_translation_context context, resect_decl decl);
 
@@ -148,6 +180,14 @@ enum CXChildVisitResult resect_visit_child_declaration(CXCursor cursor,
 
 resect_string resect_location_to_string(resect_location location);
 
+resect_string resect_format_cursor_namespace(CXCursor cursor);
+
+resect_location resect_location_from_cursor(CXCursor cursor);
+
+void resect_location_free(resect_location location);
+
+resect_string resect_extract_decl_id(CXCursor cursor);
+
 /*
  * TEMPLATE ARGUMENT
  */
@@ -169,6 +209,17 @@ long long filter_valid_value(long long value);
 
 void resect_string_collection_free(resect_collection collection);
 
-resect_string extract_decl_id(CXCursor cursor);
+resect_string resect_extract_decl_id(CXCursor cursor);
+
+/*
+ * OPTIONS
+ */
+resect_collection resect_options_get_included_definitions(resect_parse_options opts);
+
+resect_collection resect_options_get_included_sources(resect_parse_options opts);
+
+resect_collection resect_options_get_excluded_definitions(resect_parse_options opts);
+
+resect_collection resect_options_get_excluded_sources(resect_parse_options opts);
 
 #endif //RESECT_PRIVATE_H

@@ -13,6 +13,11 @@ struct resect_parse_options {
     resect_collection args;
     resect_bool single;
     resect_bool diagnostics;
+
+    resect_collection included_definition_patterns;
+    resect_collection included_source_patterns;
+    resect_collection excluded_definition_patterns;
+    resect_collection excluded_source_patterns;
 };
 
 void resect_options_add(resect_parse_options opts, const char *key, const char *value) {
@@ -30,11 +35,49 @@ resect_parse_options resect_options_create() {
     opts->single = resect_false;
     opts->diagnostics = resect_false;
 
+    opts->included_definition_patterns = resect_collection_create();
+    opts->included_source_patterns = resect_collection_create();
+    opts->excluded_definition_patterns = resect_collection_create();
+    opts->excluded_source_patterns = resect_collection_create();
+
     resect_collection_add(opts->args, resect_string_from_c("-ferror-limit=0"));
     resect_collection_add(opts->args, resect_string_from_c("-fno-implicit-templates"));
     resect_collection_add(opts->args, resect_string_from_c("-fc++-abi=itanium"));
 
     return opts;
+}
+
+void resect_options_include_definition(resect_parse_options opts, const char *name) {
+    resect_collection_add(opts->included_definition_patterns, resect_string_from_c(name));
+}
+
+void resect_options_include_source(resect_parse_options opts, const char *name) {
+    resect_collection_add(opts->included_source_patterns, resect_string_from_c(name));
+}
+
+void resect_options_exclude_definition(resect_parse_options opts, const char *name) {
+    resect_collection_add(opts->excluded_definition_patterns, resect_string_from_c(name));
+}
+
+void resect_options_exclude_source(resect_parse_options opts, const char *name) {
+    resect_collection_add(opts->excluded_source_patterns, resect_string_from_c(name));
+}
+
+
+resect_collection resect_options_get_included_definitions(resect_parse_options opts) {
+    return opts->included_definition_patterns;
+}
+
+resect_collection resect_options_get_included_sources(resect_parse_options opts) {
+    return opts->included_source_patterns;
+}
+
+resect_collection resect_options_get_excluded_definitions(resect_parse_options opts) {
+    return opts->excluded_definition_patterns;
+}
+
+resect_collection resect_options_get_excluded_sources(resect_parse_options opts) {
+    return opts->excluded_source_patterns;
 }
 
 void resect_options_add_include_path(resect_parse_options opts, const char *path) {
@@ -114,6 +157,12 @@ void resect_options_print_diagnostics(resect_parse_options opts) {
 
 void resect_options_free(resect_parse_options opts) {
     resect_string_collection_free(opts->args);
+
+    resect_string_collection_free(opts->included_definition_patterns);
+    resect_string_collection_free(opts->included_source_patterns);
+    resect_string_collection_free(opts->excluded_definition_patterns);
+    resect_string_collection_free(opts->excluded_source_patterns);
+
     free(opts);
 }
 
@@ -144,7 +193,7 @@ resect_translation_unit resect_parse(const char *filename, resect_parse_options 
         int i = 0;
         while (resect_iterator_next(arg_iter)) {
             resect_string arg = resect_iterator_value(arg_iter);
-            clang_argv[i++] = (char*)resect_string_to_c(arg);
+            clang_argv[i++] = (char *) resect_string_to_c(arg);
         }
         resect_iterator_free(arg_iter);
     } else {
@@ -152,7 +201,7 @@ resect_translation_unit resect_parse(const char *filename, resect_parse_options 
         clang_argv = NULL;
     }
 
-    resect_translation_context context = resect_context_create();
+    resect_translation_context context = resect_context_create(options);
 
     CXIndex index = clang_createIndex(0, options->diagnostics ? 1 : 0);
 
@@ -168,7 +217,7 @@ resect_translation_unit resect_parse(const char *filename, resect_parse_options 
     }
 
     CXTranslationUnit clangUnit = clang_parseTranslationUnit(index, filename,
-                                                             (const char *const *)clang_argv,
+                                                             (const char *const *) clang_argv,
                                                              clang_argc,
                                                              NULL,
                                                              0, unitFlags);

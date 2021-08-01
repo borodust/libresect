@@ -432,6 +432,14 @@ typedef struct resect_parse_options *resect_parse_options;
 
 RESECT_API resect_parse_options resect_options_create();
 
+RESECT_API void resect_options_include_definition(resect_parse_options opts, const char *name);
+
+RESECT_API void resect_options_include_source(resect_parse_options opts, const char *source);
+
+RESECT_API void resect_options_exclude_definition(resect_parse_options opts, const char *name);
+
+RESECT_API void resect_options_exclude_source(resect_parse_options opts, const char *source);
+
 RESECT_API void resect_options_add_include_path(resect_parse_options opts, const char *path);
 
 RESECT_API void resect_options_add_framework_path(resect_parse_options opts, const char *framework);
