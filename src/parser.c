@@ -144,7 +144,7 @@ resect_translation_unit resect_parse(const char *filename, resect_parse_options 
         int i = 0;
         while (resect_iterator_next(arg_iter)) {
             resect_string arg = resect_iterator_value(arg_iter);
-            clang_argv[i++] = resect_string_to_c(arg);
+            clang_argv[i++] = (char*)resect_string_to_c(arg);
         }
         resect_iterator_free(arg_iter);
     } else {
@@ -167,7 +167,9 @@ resect_translation_unit resect_parse(const char *filename, resect_parse_options 
         unitFlags |= CXTranslationUnit_SingleFileParse;
     }
 
-    CXTranslationUnit clangUnit = clang_parseTranslationUnit(index, filename, clang_argv, clang_argc,
+    CXTranslationUnit clangUnit = clang_parseTranslationUnit(index, filename,
+                                                             (const char *const *)clang_argv,
+                                                             clang_argc,
                                                              NULL,
                                                              0, unitFlags);
 
