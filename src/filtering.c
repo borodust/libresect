@@ -16,8 +16,7 @@ struct resect_filtering_context {
     resect_collection excluded_definition_patterns;
     resect_collection excluded_source_patterns;
 
-    resect_table weakly_included;
-    resect_table weakly_enforced;
+    resect_collection status_stack;
 };
 
 static void print_pcre_error(int errornumber, size_t erroroffset) {
@@ -76,11 +75,33 @@ resect_filtering_context resect_filtering_context_create(resect_parse_options op
     context->excluded_source_patterns =
             compile_pattern_collection(resect_options_get_excluded_sources(options));
 
-    context->weakly_included = resect_table_create();
-    context->weakly_enforced = resect_table_create();
+    context->status_stack = resect_collection_create();
+    resect_collection_add(context->status_stack, (void *) WEAKLY_EXCLUDED);
 
     return context;
 }
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wvoid-pointer-to-enum-cast"
+
+static resect_inclusion_status current_inclusion_status(resect_filtering_context context) {
+    return (resect_inclusion_status) resect_collection_peek_last(context->status_stack);
+}
+
+static void push_inclusion_status(resect_filtering_context context,
+                                  resect_inclusion_status status) {
+    resect_collection_add(context->status_stack, (void *) status);
+}
+
+static resect_inclusion_status pop_inclusion_status(resect_filtering_context context) {
+    resect_collection status_stack = context->status_stack;
+    if (resect_collection_size(status_stack) <= 1) {
+        assert(!"Inclusion status stack exhausted");
+    }
+    return (resect_inclusion_status) resect_collection_pop_last(status_stack);
+}
+
+#pragma clang diagnostic pop
 
 void resect_filtering_context_free(resect_filtering_context context) {
     free_pattern_collection(context->included_definition_patterns);
@@ -88,9 +109,7 @@ void resect_filtering_context_free(resect_filtering_context context) {
     free_pattern_collection(context->excluded_definition_patterns);
     free_pattern_collection(context->excluded_source_patterns);
 
-    resect_table_free(context->weakly_included, NULL, NULL);
-    resect_table_free(context->weakly_enforced, NULL, NULL);
-
+    resect_collection_free(context->status_stack);
     free(context);
 }
 
@@ -122,46 +141,32 @@ static bool match_pattern_collection(resect_collection collection, const char *s
     return result;
 }
 
-resect_inclusion_status resect_filtering_decl_inclusion_status(resect_filtering_context context,
-                                                               const char *declaration_id,
-                                                               const char *declaration_name,
-                                                               const char *declaration_source) {
-    bool weakly_enforced = resect_table_get(context->weakly_enforced, declaration_id) != NULL;
-
-    bool explicitly_included = match_pattern_collection(context->included_definition_patterns, declaration_name) ||
-                               match_pattern_collection(context->included_source_patterns, declaration_source);
-
-    if (weakly_enforced && explicitly_included) {
-        return INCLUDED;
-    } else if (weakly_enforced) {
-        return WEAKLY_ENFORCED;
-    }
-
-    bool explicitly_excluded = match_pattern_collection(context->excluded_definition_patterns, declaration_name)
-                               || match_pattern_collection(context->excluded_source_patterns, declaration_source);
-
-    if (explicitly_excluded) {
+resect_inclusion_status resect_filtering_explicit_inclusion_status(resect_filtering_context context,
+                                                                   const char *declaration_name,
+                                                                   const char *declaration_source) {
+    if (match_pattern_collection(context->excluded_definition_patterns, declaration_name)
+        || match_pattern_collection(context->excluded_source_patterns, declaration_source)) {
         return EXCLUDED;
     }
 
-    if (explicitly_included) {
+    if (match_pattern_collection(context->included_definition_patterns, declaration_name)
+        || match_pattern_collection(context->included_source_patterns, declaration_source)) {
         return INCLUDED;
     }
 
-    bool weakly_included = resect_table_get(context->weakly_included, declaration_id) != NULL;
-    if (weakly_included) {
-        return WEAKLY_INCLUDED;
-    }
-
-    return false;
+    return WEAKLY_EXCLUDED;
 }
 
-void resect_filtering_weakly_include_id(resect_filtering_context context, const char *id) {
-    resect_table_put_if_absent(context->weakly_included, id, (void *) 1);
+resect_inclusion_status resect_filtering_inclusion_status(resect_filtering_context context) {
+    return current_inclusion_status(context);
 }
 
-void resect_filtering_weakly_enforce_id(resect_filtering_context context, const char *id) {
-    resect_table_put_if_absent(context->weakly_enforced, id, (void *) 1);
+void resect_filtering_push_inclusion_status(resect_filtering_context context, resect_inclusion_status status) {
+    push_inclusion_status(context, status);
+}
+
+resect_inclusion_status resect_filtering_pop_inclusion_status(resect_filtering_context context) {
+    return pop_inclusion_status(context);
 }
 
 #endif // RESECT_FILTERING_H

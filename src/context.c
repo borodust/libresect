@@ -71,7 +71,8 @@ static resect_string format_cursor_full_name(CXCursor cursor) {
 
     CXCursor parent = clang_getCursorSemanticParent(cursor);
 
-    if (clang_Cursor_isAnonymous(cursor)) {
+    if (clang_Cursor_isAnonymousRecordDecl(cursor)
+        || clang_Cursor_isAnonymous(cursor)) {
         return format_cursor_full_name(parent);
     }
 
@@ -125,45 +126,33 @@ static resect_string format_cursor_source(CXCursor cursor) {
 }
 
 resect_inclusion_status resect_cursor_inclusion_status(resect_translation_context context, CXCursor cursor) {
-    resect_string id = resect_extract_decl_id(cursor);
-    resect_string name = format_cursor_full_name(cursor);
+    if (clang_Cursor_isAnonymousRecordDecl(cursor) || clang_Cursor_isAnonymous(cursor)) {
+        return INCLUDED;
+    }
+
+    resect_string full_name = format_cursor_full_name(cursor);
     resect_string source = format_cursor_source(cursor);
 
-    resect_inclusion_status result = resect_filtering_decl_inclusion_status(context->filtering,
-                                                                            resect_string_to_c(id),
-                                                                            resect_string_to_c(name),
-                                                                            resect_string_to_c(source));
+    resect_inclusion_status result = resect_filtering_explicit_inclusion_status(context->filtering,
+                                                                                resect_string_to_c(full_name),
+                                                                                resect_string_to_c(source));
 
-    resect_string_free(id);
-    resect_string_free(name);
+    resect_string_free(full_name);
     resect_string_free(source);
 
     return result;
 }
 
-static bool is_cursor_invalid(CXCursor cursor) {
-    enum CXCursorKind kind = clang_getCursorKind(cursor);
-    return clang_Cursor_isNull(cursor)
-           || kind == CXCursor_TemplateTemplateParameter
-           || (kind >= CXCursor_FirstInvalid && kind <= CXCursor_LastInvalid);
+resect_inclusion_status resect_context_inclusion_status(resect_translation_context context) {
+    return resect_filtering_inclusion_status(context->filtering);
 }
 
-void resect_enforce_type_weakly(resect_translation_context context, CXType type) {
-    CXCursor decl = clang_getTypeDeclaration(type);
-    if (!is_cursor_invalid(decl)) {
-        resect_string id = resect_extract_decl_id(decl);
-        resect_filtering_weakly_enforce_id(context->filtering, resect_string_to_c(id));
-        resect_string_free(id);
-    }
+void resect_context_push_inclusion_status(resect_translation_context context, resect_inclusion_status status) {
+    resect_filtering_push_inclusion_status(context->filtering, status);
 }
 
-void resect_include_type_weakly(resect_translation_context context, CXType type) {
-    CXCursor decl = clang_getTypeDeclaration(type);
-    if (!is_cursor_invalid(decl)) {
-        resect_string id = resect_extract_decl_id(decl);
-        resect_filtering_weakly_include_id(context->filtering, resect_string_to_c(id));
-        resect_string_free(id);
-    }
+resect_inclusion_status resect_context_pop_inclusion_status(resect_translation_context context) {
+    return resect_filtering_pop_inclusion_status(context->filtering);
 }
 
 void resect_register_decl(resect_translation_context context, resect_string decl_id, resect_decl decl) {

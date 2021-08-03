@@ -98,9 +98,10 @@ void resect_table_free(resect_table table, void (*value_destructor)(void *, void
  */
 typedef enum resect_inclusion_status {
     EXCLUDED = 0,
-    WEAKLY_INCLUDED = 1,
-    WEAKLY_ENFORCED = 2,
-    INCLUDED = 3,
+    WEAKLY_EXCLUDED = 1,
+    WEAKLY_INCLUDED = 2,
+    WEAKLY_ENFORCED = 3,
+    INCLUDED = 4
 } resect_inclusion_status;
 
 typedef struct resect_filtering_context *resect_filtering_context;
@@ -109,15 +110,16 @@ resect_filtering_context resect_filtering_context_create(resect_parse_options op
 
 void resect_filtering_context_free(resect_filtering_context context);
 
-resect_inclusion_status resect_filtering_decl_inclusion_status(resect_filtering_context context,
-                                                               const char *declaration_id,
-                                                               const char *declaration_name,
-                                                               const char *declaration_source);
+resect_inclusion_status resect_filtering_explicit_inclusion_status(resect_filtering_context context,
+                                                                   const char *declaration_name,
+                                                                   const char *declaration_source);
 
 
-void resect_filtering_weakly_include_id(resect_filtering_context context, const char *id);
+resect_inclusion_status resect_filtering_inclusion_status(resect_filtering_context context);
 
-void resect_filtering_weakly_enforce_id(resect_filtering_context context, const char *id);
+void resect_filtering_push_inclusion_status(resect_filtering_context context, resect_inclusion_status status);
+
+resect_inclusion_status resect_filtering_pop_inclusion_status(resect_filtering_context context);
 
 /*
  * CONTEXT
@@ -142,9 +144,11 @@ resect_language resect_get_assumed_language(resect_translation_context context);
 
 resect_inclusion_status resect_cursor_inclusion_status(resect_translation_context context, CXCursor cursor);
 
-void resect_enforce_type_weakly(resect_translation_context context, CXType type);
+resect_inclusion_status resect_context_inclusion_status(resect_translation_context context);
 
-void resect_include_type_weakly(resect_translation_context context, CXType type);
+void resect_context_push_inclusion_status(resect_translation_context context, resect_inclusion_status status);
+
+resect_inclusion_status resect_context_pop_inclusion_status(resect_translation_context context);
 
 void resect_export_decl(resect_translation_context context, resect_decl decl);
 

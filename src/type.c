@@ -302,13 +302,14 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
 
     type->kind = convert_type_kind(clang_type.kind);
     type->name = resect_string_from_clang(clang_getTypeSpelling(clang_type));
-    if (clang_Cursor_isNull(declaration_cursor) ||
-        clang_Cursor_isNull(clang_getCursorDefinition(declaration_cursor))) {
-        // it's a forward declaration
+
+    long long int size = clang_Type_getSizeOf(clang_type);
+    if (size <= 0) {
+        // most likely forward declaration
         type->size = 0;
         type->alignment = 0;
     } else {
-        type->size = 8 * filter_valid_value(clang_Type_getSizeOf(clang_type));
+        type->size = 8 * size;
         type->alignment = 8 * filter_valid_value(clang_Type_getAlignOf(clang_type));
     }
     type->fields = resect_collection_create();
