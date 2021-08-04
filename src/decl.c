@@ -502,13 +502,18 @@ static void push_declaration_inclusion_status(resect_translation_context context
         case RESECT_DECL_KIND_METHOD:
         case RESECT_DECL_KIND_MACRO:
         case RESECT_DECL_KIND_FIELD: {
-            resect_inclusion_status calculated_status
-                    = calc_inclusion_status(kind, current_status,
-                                            resect_cursor_inclusion_status(context, cursor));
-            if (calculated_status == WEAKLY_EXCLUDED) {
-                status = EXCLUDED;
+            bool anonymous = clang_Cursor_isAnonymousRecordDecl(cursor) || clang_Cursor_isAnonymous(cursor);
+            if (anonymous) {
+                status = WEAKLY_INCLUDED;
             } else {
-                status = calculated_status;
+                resect_inclusion_status provided_status = resect_cursor_inclusion_status(context, cursor);
+                resect_inclusion_status calculated_status
+                        = calc_inclusion_status(kind, current_status, provided_status);
+                if (calculated_status == WEAKLY_EXCLUDED) {
+                    status = EXCLUDED;
+                } else {
+                    status = calculated_status;
+                }
             }
         }
             break;
@@ -1217,11 +1222,12 @@ resect_function_data resect_function_data_create(resect_translation_context cont
 
 void resect_function_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
     decl->data_deallocator = resect_function_data_free;
+
+    resect_context_push_inclusion_status(context, WEAKLY_ENFORCED);
     decl->data = resect_function_data_create(context, cursor);
 
     struct resect_decl_child_visit_data visit_data = {.context = context, .parent =  decl};
 
-    resect_context_push_inclusion_status(context, WEAKLY_ENFORCED);
     clang_visitChildren(cursor, resect_visit_function_parameter, &visit_data);
     resect_context_pop_inclusion_status(context);
 }
@@ -1506,6 +1512,8 @@ void resect_method_data_free(void *data, resect_set deallocated) {
 
 void resect_method_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
     resect_method_data data = malloc(sizeof(struct resect_method_data));
+
+    resect_context_push_inclusion_status(context, WEAKLY_ENFORCED);
     data->function_data = resect_function_data_create(context, cursor);
 
     decl->data_deallocator = resect_method_data_free;
@@ -1516,7 +1524,6 @@ void resect_method_init(resect_translation_context context, resect_decl decl, CX
 
     struct resect_decl_child_visit_data visit_data = {.context = context, .parent =  decl};
 
-    resect_context_push_inclusion_status(context, WEAKLY_ENFORCED);
     clang_visitChildren(cursor, resect_visit_method_parameter, &visit_data);
     resect_context_pop_inclusion_status(context);
 }

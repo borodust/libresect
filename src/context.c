@@ -70,8 +70,7 @@ static resect_string format_cursor_full_name(CXCursor cursor) {
 
     CXCursor parent = clang_getCursorSemanticParent(cursor);
 
-    if (clang_Cursor_isAnonymousRecordDecl(cursor)
-        || clang_Cursor_isAnonymous(cursor)) {
+    if (clang_Cursor_isAnonymousRecordDecl(cursor) || clang_Cursor_isAnonymous(cursor)) {
         return format_cursor_full_name(parent);
     }
 
@@ -79,6 +78,8 @@ static resect_string format_cursor_full_name(CXCursor cursor) {
     switch (parent_kind) {
         case CXCursor_ClassDecl:
         case CXCursor_ClassTemplate:
+        case CXCursor_ClassTemplateSpecialization:
+        case CXCursor_ClassTemplatePartialSpecialization:
         case CXCursor_UnionDecl:
         case CXCursor_EnumDecl:
         case CXCursor_StructDecl: {
@@ -125,10 +126,6 @@ static resect_string format_cursor_source(CXCursor cursor) {
 }
 
 resect_inclusion_status resect_cursor_inclusion_status(resect_translation_context context, CXCursor cursor) {
-    if (clang_Cursor_isAnonymousRecordDecl(cursor) || clang_Cursor_isAnonymous(cursor)) {
-        return INCLUDED;
-    }
-
     resect_string full_name = format_cursor_full_name(cursor);
     resect_string source = format_cursor_source(cursor);
 
