@@ -75,6 +75,10 @@ resect_string resect_string_update(resect_string string, const char *new_value) 
 resect_string resect_string_append(resect_string string, const char *postfix) {
     assert(string != NULL);
     size_t add_len = strlen(postfix);
+    if (add_len == 0) {
+        return string;
+    }
+
     size_t old_len = strlen(string->value);
     size_t required_capacity = old_len + add_len + 1;
     resect_ensure_string_capacity(string, required_capacity);
@@ -157,7 +161,7 @@ resect_string resect_string_format(const char *format, ...) {
     return result;
 }
 
-resect_bool resect_string_equal_c(resect_string this, const char* that) {
+resect_bool resect_string_equal_c(resect_string this, const char *that) {
     return strcmp(this->value, that) == 0;
 }
 

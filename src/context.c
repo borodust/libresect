@@ -63,7 +63,6 @@ resect_language resect_get_assumed_language(resect_translation_context context) 
     return context->language;
 }
 
-
 static resect_string format_cursor_full_name(CXCursor cursor) {
     if (clang_Cursor_isNull(cursor) || clang_getCursorKind(cursor) == CXCursor_TranslationUnit) {
         return resect_string_from_c("");

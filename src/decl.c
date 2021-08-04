@@ -472,6 +472,13 @@ static resect_inclusion_status calc_inclusion_status(resect_decl_kind kind,
         case RESECT_DECL_KIND_PARAMETER:
         case RESECT_DECL_KIND_TEMPLATE_PARAMETER:
             return WEAKLY_ENFORCED;
+
+        case RESECT_DECL_KIND_ENUM_CONSTANT: {
+            if (current_status == WEAKLY_ENFORCED) {
+                return INCLUDED;
+            }
+            return provided_status;
+        }
         default:
             return WEAKLY_EXCLUDED;
     }
@@ -482,20 +489,27 @@ static void push_declaration_inclusion_status(resect_translation_context context
                                               CXCursor cursor) {
     resect_inclusion_status current_status = resect_context_inclusion_status(context);
 
-
     resect_inclusion_status status;
     switch (kind) {
         case RESECT_DECL_KIND_STRUCT:
         case RESECT_DECL_KIND_CLASS:
         case RESECT_DECL_KIND_UNION:
         case RESECT_DECL_KIND_ENUM:
+        case RESECT_DECL_KIND_ENUM_CONSTANT:
         case RESECT_DECL_KIND_FUNCTION:
         case RESECT_DECL_KIND_VARIABLE:
         case RESECT_DECL_KIND_TYPEDEF:
         case RESECT_DECL_KIND_METHOD:
         case RESECT_DECL_KIND_MACRO:
         case RESECT_DECL_KIND_FIELD: {
-            status = calc_inclusion_status(kind, current_status, resect_cursor_inclusion_status(context, cursor));
+            resect_inclusion_status calculated_status
+                    = calc_inclusion_status(kind, current_status,
+                                            resect_cursor_inclusion_status(context, cursor));
+            if (calculated_status == WEAKLY_EXCLUDED) {
+                status = EXCLUDED;
+            } else {
+                status = calculated_status;
+            }
         }
             break;
         case RESECT_DECL_KIND_PARAMETER:
@@ -1287,15 +1301,18 @@ void resect_enum_init(resect_translation_context context, resect_decl decl, CXCu
     data->constants = resect_collection_create();
     CXType enum_type = clang_getEnumDeclIntegerType(cursor);
 
-    resect_context_push_inclusion_status(context, WEAKLY_ENFORCED);
-
     data->type = resect_type_create(context, enum_type);
-
     decl->data_deallocator = resect_enum_data_free;
     decl->data = data;
-    struct resect_decl_child_visit_data visit_data = {.context = context, .parent = decl};
-    clang_visitChildren(cursor, resect_visit_enum_constant, &visit_data);
 
+    struct resect_decl_child_visit_data visit_data = {.context = context, .parent = decl};
+
+    if (clang_Cursor_isAnonymous(cursor)) {
+        resect_context_push_inclusion_status(context, WEAKLY_INCLUDED);
+    } else {
+        resect_context_push_inclusion_status(context, WEAKLY_ENFORCED);
+    }
+    clang_visitChildren(cursor, resect_visit_enum_constant, &visit_data);
     resect_context_pop_inclusion_status(context);
 }
 
