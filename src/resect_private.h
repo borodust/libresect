@@ -96,13 +96,6 @@ void resect_table_free(resect_table table, void (*value_destructor)(void *, void
 /*
  * FILTERING
  */
-typedef enum resect_inclusion_status {
-    EXCLUDED = 0,
-    WEAKLY_EXCLUDED = 1,
-    WEAKLY_INCLUDED = 2,
-    WEAKLY_ENFORCED = 3,
-    INCLUDED = 4
-} resect_inclusion_status;
 
 typedef struct resect_filtering_context *resect_filtering_context;
 

@@ -856,6 +856,10 @@ resect_bool resect_decl_is_forward(resect_decl decl) {
     return decl->forward;
 }
 
+resect_inclusion_status resect_decl_get_inclusion_status(resect_decl decl) {
+    return decl->inclusion_status;
+}
+
 void resect_decl_collection_free(resect_collection decls, resect_set deallocated) {
     resect_iterator iter = resect_collection_iterator(decls);
     while (resect_iterator_next(iter)) {
