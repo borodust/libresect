@@ -522,7 +522,7 @@ static void push_declaration_inclusion_status(resect_translation_context context
             status = WEAKLY_ENFORCED;
             break;
         default:
-            status = WEAKLY_INCLUDED;
+            status = EXCLUDED;
             break;
     }
     resect_context_push_inclusion_status(context, status);
@@ -705,7 +705,7 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
 
     resect_decl_init_from_cursor(result, context, cursor);
 
-    if (is_kind_exportable(result->kind)) {
+    if (is_kind_exportable(result->kind) && inclusion_status == INCLUDED) {
         resect_export_decl(context, result);
     }
 
