@@ -10,7 +10,7 @@
 
 #include "resect_private.h"
 
-struct resect_filtering_context {
+struct _resect_filtering_context {
     resect_collection included_definition_patterns;
     resect_collection included_source_patterns;
     resect_collection excluded_definition_patterns;
@@ -65,7 +65,7 @@ static void free_pattern_collection(resect_collection collection) {
 }
 
 resect_filtering_context resect_filtering_context_create(resect_parse_options options) {
-    resect_filtering_context context = malloc(sizeof(struct resect_filtering_context));
+    resect_filtering_context context = malloc(sizeof(struct _resect_filtering_context));
     context->included_definition_patterns =
             compile_pattern_collection(resect_options_get_included_definitions(options));
     context->included_source_patterns =

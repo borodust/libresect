@@ -7,7 +7,7 @@
 /*
  * TRANSLATION CONTEXT
  */
-struct resect_translation_context {
+struct _resect_translation_context {
     resect_set exposed_decls;
     resect_table decl_table;
     resect_table template_parameter_table;
@@ -16,7 +16,7 @@ struct resect_translation_context {
 };
 
 resect_translation_context resect_context_create(resect_parse_options opts) {
-    resect_translation_context context = malloc(sizeof(struct resect_translation_context));
+    resect_translation_context context = malloc(sizeof(struct _resect_translation_context));
     context->exposed_decls = resect_set_create();
     context->decl_table = resect_table_create();
     context->template_parameter_table = resect_table_create();

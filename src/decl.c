@@ -9,7 +9,7 @@
 /*
  * LOCATION
  */
-struct resect_location {
+struct _resect_location {
     unsigned int line;
     unsigned int column;
     resect_string name;
@@ -35,7 +35,7 @@ resect_string resect_location_to_string(resect_location location) {
 }
 
 resect_location resect_location_from_cursor(CXCursor cursor) {
-    resect_location result = malloc(sizeof(struct resect_location));
+    resect_location result = malloc(sizeof(struct _resect_location));
 
     CXFile file;
     clang_getFileLocation(clang_getCursorLocation(cursor),
@@ -57,7 +57,7 @@ void resect_location_free(resect_location location) {
 /*
  * TEMPLATE ARGUMENT
  */
-struct resect_template_argument {
+struct _resect_template_argument {
     int position;
     resect_template_argument_kind kind;
     resect_type type;
@@ -94,7 +94,7 @@ resect_template_argument resect_template_argument_create(resect_template_argumen
                                                          resect_type type,
                                                          long long int value,
                                                          int arg_number) {
-    resect_template_argument arg = malloc(sizeof(struct resect_template_argument));
+    resect_template_argument arg = malloc(sizeof(struct _resect_template_argument));
 
     arg->position = arg_number;
     arg->kind = kind;
@@ -172,12 +172,12 @@ int resect_template_argument_get_position(resect_template_argument arg) {
 /*
  * DECLARATION
  */
-typedef struct resect_decl_child_visit_data {
+typedef struct _resect_decl_child_visit_data {
     resect_translation_context context;
     resect_decl parent;
 } *resect_decl_child_visit_data;
 
-struct resect_decl {
+struct _resect_decl {
     resect_decl_kind kind;
     resect_string id;
     resect_string name;
@@ -694,8 +694,8 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
         goto done;
     }
 
-    result = malloc(sizeof(struct resect_decl));
-    memset(result, 0, sizeof(struct resect_decl));
+    result = malloc(sizeof(struct _resect_decl));
+    memset(result, 0, sizeof(struct _resect_decl));
 
     resect_register_decl(context, decl_id, result);
     resect_register_decl_language(context, convert_language(clang_getCursorLanguage(cursor)));
@@ -873,13 +873,13 @@ void resect_decl_collection_free(resect_collection decls, resect_set deallocated
 /*
  * RECORD
  */
-typedef struct resect_field_data {
+typedef struct _resect_field_data {
     resect_bool bitfield;
     long long width;
     long long offset;
 } *resect_field_data;
 
-typedef struct resect_record_data {
+typedef struct _resect_record_data {
     resect_collection fields;
     resect_collection methods;
     resect_collection parents;
@@ -943,7 +943,7 @@ void resect_field_data_free(void *data, resect_set deallocated) {
 }
 
 void resect_field_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
-    resect_field_data data = malloc(sizeof(struct resect_field_data));
+    resect_field_data data = malloc(sizeof(struct _resect_field_data));
 
     data->offset = filter_valid_value(clang_Cursor_getOffsetOfField(cursor));
     data->bitfield = clang_Cursor_isBitField(cursor) != 0 ? resect_true : resect_false;
@@ -1001,7 +1001,7 @@ void resect_record_data_free(void *data, resect_set deallocated) {
 }
 
 void resect_record_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
-    resect_record_data data = malloc(sizeof(struct resect_record_data));
+    resect_record_data data = malloc(sizeof(struct _resect_record_data));
     data->methods = resect_collection_create();
     data->fields = resect_collection_create();
     data->parents = resect_collection_create();
@@ -1010,7 +1010,7 @@ void resect_record_init(resect_translation_context context, resect_decl decl, CX
     decl->data_deallocator = resect_record_data_free;
     decl->data = data;
 
-    struct resect_decl_child_visit_data visit_data = {.context =  context, .parent =  decl};
+    struct _resect_decl_child_visit_data visit_data = {.context =  context, .parent =  decl};
 
     if (decl->inclusion_status == INCLUDED) {
         resect_context_push_inclusion_status(context, WEAKLY_INCLUDED);
@@ -1025,7 +1025,7 @@ void resect_record_init(resect_translation_context context, resect_decl decl, CX
 /*
  * TYPEDEF
  */
-typedef struct resect_typedef_data {
+typedef struct _resect_typedef_data {
     resect_type aliased_type;
 } *resect_typedef_data;
 
@@ -1040,7 +1040,7 @@ void resect_typedef_data_free(void *data, resect_set deallocated) {
 }
 
 void resect_typedef_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
-    resect_typedef_data data = malloc(sizeof(struct resect_typedef_data));
+    resect_typedef_data data = malloc(sizeof(struct _resect_typedef_data));
 
     CXType canonical_type = clang_getCanonicalType(clang_getTypedefDeclUnderlyingType(cursor));
 
@@ -1068,7 +1068,7 @@ resect_type resect_typedef_get_aliased_type(resect_decl decl) {
 /*
  * FUNCTION
  */
-typedef struct resect_function_data {
+typedef struct _resect_function_data {
     resect_bool variadic;
     resect_function_storage_class storage_class;
     resect_collection parameters;
@@ -1211,7 +1211,7 @@ void resect_function_data_free(void *data, resect_set deallocated) {
 }
 
 resect_function_data resect_function_data_create(resect_translation_context context, CXCursor cursor) {
-    resect_function_data data = malloc(sizeof(struct resect_function_data));
+    resect_function_data data = malloc(sizeof(struct _resect_function_data));
 
     CXType functionType = clang_getCursorType(cursor);
     data->parameters = resect_collection_create();
@@ -1230,7 +1230,7 @@ void resect_function_init(resect_translation_context context, resect_decl decl, 
     resect_context_push_inclusion_status(context, WEAKLY_ENFORCED);
     decl->data = resect_function_data_create(context, cursor);
 
-    struct resect_decl_child_visit_data visit_data = {.context = context, .parent =  decl};
+    struct _resect_decl_child_visit_data visit_data = {.context = context, .parent =  decl};
 
     clang_visitChildren(cursor, resect_visit_function_parameter, &visit_data);
     resect_context_pop_inclusion_status(context);
@@ -1239,7 +1239,7 @@ void resect_function_init(resect_translation_context context, resect_decl decl, 
 /*
  * ENUM
  */
-typedef struct resect_enum_constant_data {
+typedef struct _resect_enum_constant_data {
     long long value;
 } *resect_enum_constant_data;
 
@@ -1259,13 +1259,13 @@ void resect_enum_constant_free(void *data, resect_set deallocated) {
 }
 
 void resect_enum_constant_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
-    resect_enum_constant_data data = malloc(sizeof(struct resect_enum_constant_data));
+    resect_enum_constant_data data = malloc(sizeof(struct _resect_enum_constant_data));
     data->value = clang_getEnumConstantDeclValue(cursor);
     decl->data_deallocator = resect_enum_constant_free;
     decl->data = data;
 }
 
-typedef struct resect_enum_data {
+typedef struct _resect_enum_data {
     resect_collection constants;
     resect_type type;
 } *resect_enum_data;
@@ -1307,7 +1307,7 @@ void resect_enum_data_free(void *data, resect_set deallocated) {
 }
 
 void resect_enum_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
-    resect_enum_data data = malloc(sizeof(struct resect_enum_data));
+    resect_enum_data data = malloc(sizeof(struct _resect_enum_data));
     data->constants = resect_collection_create();
     CXType enum_type = clang_getEnumDeclIntegerType(cursor);
 
@@ -1315,7 +1315,7 @@ void resect_enum_init(resect_translation_context context, resect_decl decl, CXCu
     decl->data_deallocator = resect_enum_data_free;
     decl->data = data;
 
-    struct resect_decl_child_visit_data visit_data = {.context = context, .parent = decl};
+    struct _resect_decl_child_visit_data visit_data = {.context = context, .parent = decl};
 
     if (clang_Cursor_isAnonymous(cursor)) {
         resect_context_push_inclusion_status(context, WEAKLY_INCLUDED);
@@ -1329,7 +1329,7 @@ void resect_enum_init(resect_translation_context context, resect_decl decl, CXCu
 /*
  * VARIABLE
  */
-typedef struct resect_variable_data {
+typedef struct _resect_variable_data {
     resect_variable_kind kind;
     resect_type type;
     resect_string string_value;
@@ -1382,7 +1382,7 @@ void resect_variable_data_free(void *data, resect_set deallocated) {
 
 void resect_variable_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
     CXEvalResult value = clang_Cursor_Evaluate(cursor);
-    resect_variable_data data = malloc(sizeof(struct resect_variable_data));
+    resect_variable_data data = malloc(sizeof(struct _resect_variable_data));
 
     resect_context_push_inclusion_status(context, WEAKLY_ENFORCED);
     data->type = resect_type_create(context, clang_getCursorType(cursor));
@@ -1421,7 +1421,7 @@ void resect_variable_init(resect_translation_context context, resect_decl decl, 
 /*
  * MACRO
  */
-typedef struct resect_macro_data {
+typedef struct _resect_macro_data {
     resect_bool is_function_like;
 } *resect_macro_data;
 
@@ -1441,7 +1441,7 @@ void resect_macro_data_free(void *data, resect_set deallocated) {
 }
 
 void resect_macro_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
-    resect_macro_data data = malloc(sizeof(struct resect_macro_data));
+    resect_macro_data data = malloc(sizeof(struct _resect_macro_data));
 
     data->is_function_like = clang_Cursor_isMacroFunctionLike(cursor) != 0 ? resect_true : resect_false;
 
@@ -1452,7 +1452,7 @@ void resect_macro_init(resect_translation_context context, resect_decl decl, CXC
 /*
  * METHOD
  */
-typedef struct resect_method_data {
+typedef struct _resect_method_data {
     resect_function_data function_data;
     resect_bool pure_virtual;
     resect_bool non_mutating;
@@ -1515,7 +1515,7 @@ void resect_method_data_free(void *data, resect_set deallocated) {
 }
 
 void resect_method_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
-    resect_method_data data = malloc(sizeof(struct resect_method_data));
+    resect_method_data data = malloc(sizeof(struct _resect_method_data));
 
     resect_context_push_inclusion_status(context, WEAKLY_ENFORCED);
     data->function_data = resect_function_data_create(context, cursor);
@@ -1526,7 +1526,7 @@ void resect_method_init(resect_translation_context context, resect_decl decl, CX
     data->pure_virtual = clang_CXXMethod_isPureVirtual(cursor);
     data->non_mutating = clang_CXXMethod_isConst(cursor);
 
-    struct resect_decl_child_visit_data visit_data = {.context = context, .parent =  decl};
+    struct _resect_decl_child_visit_data visit_data = {.context = context, .parent =  decl};
 
     clang_visitChildren(cursor, resect_visit_method_parameter, &visit_data);
     resect_context_pop_inclusion_status(context);
@@ -1535,7 +1535,7 @@ void resect_method_init(resect_translation_context context, resect_decl decl, CX
 /*
  * TEMPLATE PARAMETER
  */
-typedef struct resect_template_parameter_data {
+typedef struct _resect_template_parameter_data {
     resect_template_parameter_kind kind;
 } *resect_template_parameter_data;
 
@@ -1560,7 +1560,7 @@ resect_template_parameter_kind convert_template_parameter_kind(enum CXCursorKind
 }
 
 void resect_template_parameter_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
-    resect_template_parameter_data data = malloc(sizeof(struct resect_template_parameter_data));
+    resect_template_parameter_data data = malloc(sizeof(struct _resect_template_parameter_data));
 
     data->kind = convert_template_parameter_kind(clang_getCursorKind(cursor));
 

@@ -9,7 +9,7 @@
 /*
  * PARSER
  */
-struct resect_parse_options {
+struct _resect_parse_options {
     resect_collection args;
     resect_bool single;
     resect_bool diagnostics;
@@ -30,7 +30,7 @@ void resect_options_add_concat(resect_parse_options opts, const char *key, const
 }
 
 resect_parse_options resect_options_create() {
-    resect_parse_options opts = malloc(sizeof(struct resect_parse_options));
+    resect_parse_options opts = malloc(sizeof(struct _resect_parse_options));
     opts->args = resect_collection_create();
     opts->single = resect_false;
     opts->diagnostics = resect_false;
@@ -169,7 +169,7 @@ void resect_options_free(resect_parse_options opts) {
 /*
  * UNIT
  */
-struct resect_translation_unit {
+struct _resect_translation_unit {
     resect_collection declarations;
     resect_translation_context context;
 };
@@ -231,7 +231,7 @@ resect_translation_unit resect_parse(const char *filename, resect_parse_options 
     clang_disposeTranslationUnit(clangUnit);
     clang_disposeIndex(index);
 
-    resect_translation_unit result = malloc(sizeof(struct resect_translation_unit));
+    resect_translation_unit result = malloc(sizeof(struct _resect_translation_unit));
     result->context = context;
     result->declarations = resect_create_decl_collection(context);
 

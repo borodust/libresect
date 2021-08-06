@@ -205,7 +205,7 @@ typedef enum {
     RESECT_OPTION_INTRINSICS_NEON = 8,
 } resect_option_intrinsic;
 
-typedef enum resect_inclusion_status {
+typedef enum {
     EXCLUDED = 0,
     WEAKLY_EXCLUDED = 1,
     WEAKLY_INCLUDED = 2,
@@ -213,13 +213,13 @@ typedef enum resect_inclusion_status {
     INCLUDED = 4
 } resect_inclusion_status;
 
-typedef struct resect_translation_unit *resect_translation_unit;
-typedef struct resect_collection *resect_collection;
-typedef struct resect_iterator *resect_iterator;
-typedef struct resect_location *resect_location;
-typedef struct resect_decl *resect_decl;
-typedef struct resect_type *resect_type;
-typedef struct resect_template_argument *resect_template_argument;
+typedef struct _resect_translation_unit *resect_translation_unit;
+typedef struct _resect_collection *resect_collection;
+typedef struct _resect_iterator *resect_iterator;
+typedef struct _resect_location *resect_location;
+typedef struct _resect_decl *resect_decl;
+typedef struct _resect_type *resect_type;
+typedef struct _resect_template_argument *resect_template_argument;
 
 /*
  * COLLECTION
@@ -437,7 +437,7 @@ RESECT_API resect_template_parameter_kind resect_template_parameter_get_kind(res
 /*
  * PARSE OPTIONS
  */
-typedef struct resect_parse_options *resect_parse_options;
+typedef struct _resect_parse_options *resect_parse_options;
 
 RESECT_API resect_parse_options resect_options_create();
 

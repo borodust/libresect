@@ -11,7 +11,7 @@
 /*
  * TYPE
  */
-struct resect_type {
+struct _resect_type {
     resect_type_kind kind;
     resect_string name;
     unsigned int size;
@@ -67,7 +67,7 @@ resect_type_kind convert_type_kind(enum CXTypeKind kind) {
     }
 }
 
-typedef struct resect_type_visit_data {
+typedef struct _resect_type_visit_data {
     resect_type type;
     resect_translation_context context;
 } *resect_type_visit_data;
@@ -84,7 +84,7 @@ enum CXVisitorResult visit_type_fields(CXCursor cursor, CXClientData data) {
 /*
  * ARRAY
  */
-typedef struct resect_array_data {
+typedef struct _resect_array_data {
     resect_type type;
     long long size;
 } *resect_array_data;
@@ -100,7 +100,7 @@ void resect_array_data_free(void *data, resect_set deallocated) {
 }
 
 void resect_array_init(resect_translation_context context, resect_type type, CXType clangType) {
-    resect_array_data data = malloc(sizeof(struct resect_array_data));
+    resect_array_data data = malloc(sizeof(struct _resect_array_data));
     data->type = resect_type_create(context, clang_getArrayElementType(clangType));
     data->size = clang_getArraySize(clangType);
 
@@ -123,7 +123,7 @@ resect_type resect_array_get_element_type(resect_type type) {
 /*
  * POINTER
  */
-typedef struct resect_pointer_data {
+typedef struct _resect_pointer_data {
     resect_type type;
 } *resect_pointer_data;
 
@@ -137,7 +137,7 @@ void resect_pointer_data_free(void *data, resect_set deallocated) {
 }
 
 void resect_pointer_init(resect_translation_context context, resect_type type, CXType clangType) {
-    resect_pointer_data data = malloc(sizeof(struct resect_pointer_data));
+    resect_pointer_data data = malloc(sizeof(struct _resect_pointer_data));
     data->type = resect_type_create(context, clang_getPointeeType(clangType));
 
     type->data_deallocator = resect_pointer_data_free;
@@ -154,7 +154,7 @@ resect_type resect_pointer_get_pointee_type(resect_type type) {
 /*
  * REFERENCE
  */
-typedef struct resect_reference_data {
+typedef struct _resect_reference_data {
     resect_bool is_lvalue;
     resect_type type;
 } *resect_reference_data;
@@ -169,7 +169,7 @@ void resect_reference_data_free(void *data, resect_set deallocated) {
 }
 
 void resect_reference_init(resect_translation_context context, resect_type type, CXType clangType) {
-    resect_reference_data data = malloc(sizeof(struct resect_reference_data));
+    resect_reference_data data = malloc(sizeof(struct _resect_reference_data));
 
     data->type = resect_type_create(context, clang_getPointeeType(clangType));
     data->is_lvalue = clangType.kind == CXType_LValueReference;
@@ -193,7 +193,7 @@ resect_bool resect_reference_is_lvalue(resect_type type) {
 /*
  * FUNCTION PROTO
  */
-typedef struct resect_function_proto_data {
+typedef struct _resect_function_proto_data {
     resect_type result_type;
     resect_bool variadic;
     resect_collection parameters;
@@ -213,7 +213,7 @@ void resect_function_proto_free(void *data, resect_set deallocated) {
 void resect_function_proto_init(resect_translation_context context,
                                 resect_type type,
                                 CXType clangType) {
-    resect_function_proto_data data = malloc(sizeof(struct resect_function_proto_data));
+    resect_function_proto_data data = malloc(sizeof(struct _resect_function_proto_data));
     data->result_type = resect_type_create(context, clang_getResultType(clangType));
     data->variadic = clang_isFunctionTypeVariadic(clangType);
     data->parameters = resect_collection_create();
@@ -297,7 +297,7 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
             break;
     }
 
-    resect_type type = malloc(sizeof(struct resect_type));
+    resect_type type = malloc(sizeof(struct _resect_type));
     CXCursor declaration_cursor = clang_getTypeDeclaration(clang_type);
 
     type->kind = convert_type_kind(clang_type.kind);
@@ -324,7 +324,7 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
 
     type->decl = (declaration_cursor.kind == CXCursor_NoDeclFound) ?
                  NULL : resect_decl_create(context, declaration_cursor);
-    struct resect_type_visit_data visit_data = {type = type, context = context};
+    struct _resect_type_visit_data visit_data = {type = type, context = context};
     clang_Type_visitFields(clang_type, visit_type_fields, &visit_data);
 
     switch (type->kind) {
