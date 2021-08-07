@@ -455,6 +455,8 @@ RESECT_API void resect_options_add_framework_path(resect_parse_options opts, con
 
 RESECT_API void resect_options_add_language(resect_parse_options opts, const char *lang);
 
+RESECT_API void resect_options_add_define(resect_parse_options opts, const char *name, const char* value);
+
 RESECT_API void resect_options_add_standard(resect_parse_options opts, const char *standard);
 
 RESECT_API void resect_options_add_abi(resect_parse_options opts, const char *value);

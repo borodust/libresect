@@ -104,6 +104,11 @@ void resect_options_add_language(resect_parse_options opts, const char *lang) {
     resect_options_add(opts, "--language", lang);
 }
 
+void resect_options_add_define(resect_parse_options opts, const char *name, const char *value) {
+    resect_string define = resect_string_format("-D%s=%s", name, value);
+    resect_collection_add(opts->args, define);
+}
+
 void resect_options_add_standard(resect_parse_options opts, const char *standard) {
     resect_options_add(opts, "--std", standard);
 }
