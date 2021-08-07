@@ -502,11 +502,11 @@ static void push_declaration_inclusion_status(resect_translation_context context
         case RESECT_DECL_KIND_METHOD:
         case RESECT_DECL_KIND_MACRO:
         case RESECT_DECL_KIND_FIELD: {
+            resect_inclusion_status provided_status = resect_cursor_inclusion_status(context, cursor);
             bool anonymous = clang_Cursor_isAnonymousRecordDecl(cursor) || clang_Cursor_isAnonymous(cursor);
             if (anonymous) {
-                status = WEAKLY_INCLUDED;
+                status = provided_status;
             } else {
-                resect_inclusion_status provided_status = resect_cursor_inclusion_status(context, cursor);
                 resect_inclusion_status calculated_status
                         = calc_inclusion_status(kind, current_status, provided_status);
                 if (calculated_status == WEAKLY_EXCLUDED) {
