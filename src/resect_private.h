@@ -11,7 +11,7 @@
 /*
  * STRING
  */
-typedef struct _resect_string *resect_string;
+typedef struct P_resect_string *resect_string;
 
 resect_string resect_string_format(const char *format, ...);
 
@@ -55,7 +55,7 @@ unsigned int resect_collection_size(resect_collection collection);
 /*
  * SET
  */
-typedef struct _resect_set *resect_set;
+typedef struct P_resect_set *resect_set;
 
 resect_set resect_set_create();
 
@@ -79,7 +79,7 @@ void resect_iterator_free(resect_iterator iter);
 /*
  * HASH TABLE
  */
-typedef struct _resect_table *resect_table;
+typedef struct P_resect_table *resect_table;
 
 resect_table resect_table_create();
 
@@ -97,7 +97,7 @@ void resect_table_free(resect_table table, void (*value_destructor)(void *, void
  * FILTERING
  */
 
-typedef struct _resect_filtering_context *resect_filtering_context;
+typedef struct P_resect_filtering_context *resect_filtering_context;
 
 resect_filtering_context resect_filtering_context_create(resect_parse_options options);
 
@@ -117,7 +117,7 @@ resect_inclusion_status resect_filtering_pop_inclusion_status(resect_filtering_c
 /*
  * CONTEXT
  */
-typedef struct _resect_translation_context *resect_translation_context;
+typedef struct P_resect_translation_context *resect_translation_context;
 
 resect_translation_context resect_context_create(resect_parse_options opts);
 
@@ -155,6 +155,8 @@ resect_decl resect_find_template_parameter(resect_translation_context context, r
  * TYPE
  */
 resect_type resect_type_create(resect_translation_context context, CXType canonical_type);
+
+resect_bool resect_type_is_undeclared(resect_type type);
 
 void resect_type_free(resect_type type, resect_set deallocated);
 

@@ -11,13 +11,13 @@
 /*
  * STRING
  */
-struct _resect_string {
+struct P_resect_string {
     char *value;
     size_t capacity;
 };
 
 resect_string resect_string_create(unsigned int initial_capacity) {
-    resect_string result = malloc(sizeof(struct _resect_string));
+    resect_string result = malloc(sizeof(struct P_resect_string));
     result->capacity = initial_capacity > 0 ? initial_capacity : 1;
     result->value = malloc(result->capacity * sizeof(char));
     result->value[0] = 0;
@@ -172,19 +172,19 @@ resect_bool resect_string_equal(resect_string this, resect_string that) {
 /*
  * COLLECTION
  */
-struct _resect_collection_element {
+struct P_resect_collection_element {
     void *value;
-    struct _resect_collection_element *next;
-    struct _resect_collection_element *prev;
+    struct P_resect_collection_element *next;
+    struct P_resect_collection_element *prev;
 };
 
-struct _resect_collection {
+struct P_resect_collection {
     unsigned int size;
-    struct _resect_collection_element *head, *tail;
+    struct P_resect_collection_element *head, *tail;
 };
 
 resect_collection resect_collection_create() {
-    resect_collection collection = malloc(sizeof(struct _resect_collection));
+    resect_collection collection = malloc(sizeof(struct P_resect_collection));
     collection->head = NULL;
     collection->tail = NULL;
     collection->size = 0;
@@ -192,7 +192,7 @@ resect_collection resect_collection_create() {
 }
 
 void resect_collection_free(resect_collection collection) {
-    struct _resect_collection_element *el, *next;
+    struct P_resect_collection_element *el, *next;
     el = collection->head;
     while (el) {
         next = el->next;
@@ -203,7 +203,7 @@ void resect_collection_free(resect_collection collection) {
 }
 
 void resect_collection_add(resect_collection collection, void *value) {
-    struct _resect_collection_element *element = malloc(sizeof(struct _resect_collection_element));
+    struct P_resect_collection_element *element = malloc(sizeof(struct P_resect_collection_element));
     element->value = value;
     element->next = NULL;
     element->prev = NULL;
@@ -231,7 +231,7 @@ void *resect_collection_pop_last(resect_collection collection) {
         collection->head = NULL;
         collection->tail = NULL;
     } else {
-        struct _resect_collection_element *new_tail = collection->tail->prev;
+        struct P_resect_collection_element *new_tail = collection->tail->prev;
         free(collection->tail);
 
         new_tail->next = NULL;
@@ -255,13 +255,13 @@ unsigned int resect_collection_size(resect_collection collection) {
 /*
  * ITERATOR
  */
-struct _resect_iterator {
-    struct _resect_collection_element *head;
-    struct _resect_collection_element *current;
+struct P_resect_iterator {
+    struct P_resect_collection_element *head;
+    struct P_resect_collection_element *current;
 };
 
 resect_iterator resect_collection_iterator(resect_collection collection) {
-    resect_iterator iterator = malloc(sizeof(struct _resect_iterator));
+    resect_iterator iterator = malloc(sizeof(struct P_resect_iterator));
     iterator->head = collection->head;
     iterator->current = NULL;
     return iterator;
@@ -294,18 +294,18 @@ void resect_iterator_free(resect_iterator iter) {
 /*
  * SET
  */
-typedef struct _resect_set_item {
+typedef struct P_resect_set_item {
     void *key;
 
     UT_hash_handle hh;
 } *resect_set_item;
 
-struct _resect_set {
+struct P_resect_set {
     resect_set_item head;
 };
 
 resect_set resect_set_create() {
-    resect_set set = malloc(sizeof(struct _resect_set));
+    resect_set set = malloc(sizeof(struct P_resect_set));
     set->head = NULL;
     return set;
 }
@@ -318,7 +318,7 @@ resect_bool resect_set_contains(resect_set set, void *value) {
 
 resect_bool resect_set_add(resect_set set, void *value) {
     if (!resect_set_contains(set, value)) {
-        resect_set_item entry = malloc(sizeof(struct _resect_set_item));
+        resect_set_item entry = malloc(sizeof(struct P_resect_set_item));
         entry->key = value;
         HASH_ADD_PTR(set->head, key, entry);
         return resect_true;
@@ -327,7 +327,7 @@ resect_bool resect_set_add(resect_set set, void *value) {
 }
 
 void resect_set_free(resect_set set) {
-    struct _resect_set_item *element, *tmp;
+    struct P_resect_set_item *element, *tmp;
     HASH_ITER(hh, set->head, element, tmp) {
         HASH_DEL(set->head, element);
         free(element);
@@ -336,7 +336,7 @@ void resect_set_free(resect_set set) {
 }
 
 void resect_set_add_to_collection(resect_set set, resect_collection collection) {
-    struct _resect_set_item *element, *tmp;
+    struct P_resect_set_item *element, *tmp;
     HASH_ITER(hh, set->head, element, tmp) {
         resect_collection_add(collection, element->key);
     }
@@ -345,31 +345,31 @@ void resect_set_add_to_collection(resect_set set, resect_collection collection) 
 /*
  * STRING HASH TABLE
  */
-struct _resect_table_entry {
+struct P_resect_table_entry {
     char *key;
     void *value;
 
     UT_hash_handle hh;
 };
 
-struct _resect_table {
-    struct _resect_table_entry *head;
+struct P_resect_table {
+    struct P_resect_table_entry *head;
 };
 
 resect_table resect_table_create() {
-    resect_table table = malloc(sizeof(struct _resect_table));
+    resect_table table = malloc(sizeof(struct P_resect_table));
     table->head = NULL;
     return table;
 }
 
 resect_bool resect_table_put_if_absent(resect_table table, const char *key, void *value) {
-    struct _resect_table_entry *entry = NULL;
+    struct P_resect_table_entry *entry = NULL;
     HASH_FIND_STR(table->head, key, entry);
     if (entry != NULL) {
         return resect_false;
     }
 
-    entry = malloc(sizeof(struct _resect_table_entry));
+    entry = malloc(sizeof(struct P_resect_table_entry));
     entry->value = value;
 
     size_t key_len = strlen(key);
@@ -381,7 +381,7 @@ resect_bool resect_table_put_if_absent(resect_table table, const char *key, void
 }
 
 void *resect_table_get(resect_table table, const char *key) {
-    struct _resect_table_entry *entry = NULL;
+    struct P_resect_table_entry *entry = NULL;
     HASH_FIND_STR(table->head, key, entry);
 
     return entry != NULL ? entry->value : NULL;
@@ -391,7 +391,7 @@ void resect_visit_table(resect_table table,
                         resect_bool (*entry_visitor)(void *, const char *, void *),
                         void *context) {
     assert(entry_visitor != NULL);
-    struct _resect_table_entry *entry, *tmp;
+    struct P_resect_table_entry *entry, *tmp;
     HASH_ITER(hh, table->head, entry, tmp) {
         if (!entry_visitor(context, entry->key, entry->value)) {
             break;
@@ -400,7 +400,7 @@ void resect_visit_table(resect_table table,
 }
 
 void resect_table_free(resect_table table, void (*value_destructor)(void *, void *), void *context) {
-    struct _resect_table_entry *entry, *tmp;
+    struct P_resect_table_entry *entry, *tmp;
     HASH_ITER(hh, table->head, entry, tmp) {
         HASH_DEL(table->head, entry);
         if (value_destructor != NULL) {

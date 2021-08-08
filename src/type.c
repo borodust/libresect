@@ -11,7 +11,7 @@
 /*
  * TYPE
  */
-struct _resect_type {
+struct P_resect_type {
     resect_type_kind kind;
     resect_string name;
     unsigned int size;
@@ -20,6 +20,7 @@ struct _resect_type {
     resect_collection fields;
     resect_bool const_qualified;
     resect_bool pod;
+    resect_bool undeclared;
     resect_collection template_arguments;
 
     resect_decl decl;
@@ -67,7 +68,7 @@ resect_type_kind convert_type_kind(enum CXTypeKind kind) {
     }
 }
 
-typedef struct _resect_type_visit_data {
+typedef struct P_resect_type_visit_data {
     resect_type type;
     resect_translation_context context;
 } *resect_type_visit_data;
@@ -86,7 +87,7 @@ enum CXVisitorResult visit_type_fields(CXCursor cursor, CXClientData data) {
 /*
  * ARRAY
  */
-typedef struct _resect_array_data {
+typedef struct P_resect_array_data {
     resect_type type;
     long long size;
 } *resect_array_data;
@@ -102,7 +103,7 @@ void resect_array_data_free(void *data, resect_set deallocated) {
 }
 
 void resect_array_init(resect_translation_context context, resect_type type, CXType clangType) {
-    resect_array_data data = malloc(sizeof(struct _resect_array_data));
+    resect_array_data data = malloc(sizeof(struct P_resect_array_data));
     data->type = resect_type_create(context, clang_getArrayElementType(clangType));
     data->size = clang_getArraySize(clangType);
 
@@ -125,7 +126,7 @@ resect_type resect_array_get_element_type(resect_type type) {
 /*
  * POINTER
  */
-typedef struct _resect_pointer_data {
+typedef struct P_resect_pointer_data {
     resect_type type;
 } *resect_pointer_data;
 
@@ -139,7 +140,7 @@ void resect_pointer_data_free(void *data, resect_set deallocated) {
 }
 
 void resect_pointer_init(resect_translation_context context, resect_type type, CXType clangType) {
-    resect_pointer_data data = malloc(sizeof(struct _resect_pointer_data));
+    resect_pointer_data data = malloc(sizeof(struct P_resect_pointer_data));
     data->type = resect_type_create(context, clang_getPointeeType(clangType));
 
     type->data_deallocator = resect_pointer_data_free;
@@ -156,7 +157,7 @@ resect_type resect_pointer_get_pointee_type(resect_type type) {
 /*
  * REFERENCE
  */
-typedef struct _resect_reference_data {
+typedef struct P_resect_reference_data {
     resect_bool is_lvalue;
     resect_type type;
 } *resect_reference_data;
@@ -171,7 +172,7 @@ void resect_reference_data_free(void *data, resect_set deallocated) {
 }
 
 void resect_reference_init(resect_translation_context context, resect_type type, CXType clangType) {
-    resect_reference_data data = malloc(sizeof(struct _resect_reference_data));
+    resect_reference_data data = malloc(sizeof(struct P_resect_reference_data));
 
     data->type = resect_type_create(context, clang_getPointeeType(clangType));
     data->is_lvalue = clangType.kind == CXType_LValueReference;
@@ -195,7 +196,7 @@ resect_bool resect_reference_is_lvalue(resect_type type) {
 /*
  * FUNCTION PROTO
  */
-typedef struct _resect_function_proto_data {
+typedef struct P_resect_function_proto_data {
     resect_type result_type;
     resect_bool variadic;
     resect_collection parameters;
@@ -215,7 +216,7 @@ void resect_function_proto_free(void *data, resect_set deallocated) {
 void resect_function_proto_init(resect_translation_context context,
                                 resect_type type,
                                 CXType clangType) {
-    resect_function_proto_data data = malloc(sizeof(struct _resect_function_proto_data));
+    resect_function_proto_data data = malloc(sizeof(struct P_resect_function_proto_data));
     data->result_type = resect_type_create(context, clang_getResultType(clangType));
     data->variadic = clang_isFunctionTypeVariadic(clangType);
     data->parameters = resect_collection_create();
@@ -299,9 +300,7 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
             break;
     }
 
-    resect_type type = malloc(sizeof(struct _resect_type));
-    CXCursor declaration_cursor = clang_getTypeDeclaration(clang_type);
-
+    resect_type type = malloc(sizeof(struct P_resect_type));
     type->kind = convert_type_kind(clang_type.kind);
     type->name = resect_string_from_clang(clang_getTypeSpelling(clang_type));
 
@@ -323,18 +322,6 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
     type->data = NULL;
 
     resect_init_template_args_from_type(context, type->template_arguments, clang_type);
-
-    type->decl = (declaration_cursor.kind == CXCursor_NoDeclFound) ?
-                 NULL : resect_decl_create(context, declaration_cursor);
-
-    if (type->decl != NULL && resect_decl_get_inclusion_status(type->decl) == INCLUDED) {
-        resect_context_push_inclusion_status(context, WEAKLY_INCLUDED);
-    } else {
-        resect_context_push_inclusion_status(context, WEAKLY_EXCLUDED);
-    }
-    struct _resect_type_visit_data visit_data = {type = type, context = context};
-    clang_Type_visitFields(clang_type, visit_type_fields, &visit_data);
-    resect_context_pop_inclusion_status(context);
 
     switch (type->kind) {
         case RESECT_TYPE_KIND_BOOL:
@@ -407,6 +394,31 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
             type->category = RESECT_TYPE_CATEGORY_UNKNOWN;
     }
 
+    resect_inclusion_status current_inclusion_status = resect_context_inclusion_status(context);
+    if (type->kind == RESECT_TYPE_CATEGORY_UNIQUE) {
+        resect_context_push_inclusion_status(context, current_inclusion_status);
+    } else {
+        resect_context_push_inclusion_status(context, WEAKLY_ENFORCED);
+    }
+    CXCursor declaration_cursor = clang_getTypeDeclaration(clang_type);
+    if (declaration_cursor.kind == CXCursor_NoDeclFound) {
+        type->undeclared = resect_true;
+        type->decl = NULL;
+    } else {
+        type->undeclared = resect_false;
+        type->decl = resect_decl_create(context, declaration_cursor);
+    }
+    resect_context_pop_inclusion_status(context);
+
+    if (type->decl != NULL) {
+        resect_context_push_inclusion_status(context, resect_decl_get_inclusion_status(type->decl));
+    } else {
+        resect_context_push_inclusion_status(context, WEAKLY_ENFORCED);
+    }
+    struct P_resect_type_visit_data visit_data = {type = type, context = context};
+    clang_Type_visitFields(clang_type, visit_type_fields, &visit_data);
+    resect_context_pop_inclusion_status(context);
+
     if (type->kind == RESECT_TYPE_KIND_UNKNOWN && type->decl == NULL) {
         resect_decl param = NULL;
         if (clang_isConstQualifiedType(clang_type)
@@ -425,6 +437,10 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
         }
     }
     return type;
+}
+
+resect_bool resect_type_is_undeclared(resect_type type) {
+    return type->undeclared;
 }
 
 resect_type_kind resect_type_get_kind(resect_type type) {
