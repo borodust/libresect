@@ -74,10 +74,12 @@ typedef struct _resect_type_visit_data {
 
 enum CXVisitorResult visit_type_fields(CXCursor cursor, CXClientData data) {
     resect_type_visit_data visit_data = data;
+
     resect_decl field_decl = resect_decl_create(visit_data->context, cursor);
     if (field_decl != NULL) {
         resect_collection_add(visit_data->type->fields, field_decl);
     }
+
     return CXVisit_Continue;
 }
 
@@ -324,8 +326,15 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
 
     type->decl = (declaration_cursor.kind == CXCursor_NoDeclFound) ?
                  NULL : resect_decl_create(context, declaration_cursor);
+
+    if (type->decl != NULL && resect_decl_get_inclusion_status(type->decl) == INCLUDED) {
+        resect_context_push_inclusion_status(context, WEAKLY_INCLUDED);
+    } else {
+        resect_context_push_inclusion_status(context, WEAKLY_EXCLUDED);
+    }
     struct _resect_type_visit_data visit_data = {type = type, context = context};
     clang_Type_visitFields(clang_type, visit_type_fields, &visit_data);
+    resect_context_pop_inclusion_status(context);
 
     switch (type->kind) {
         case RESECT_TYPE_KIND_BOOL:

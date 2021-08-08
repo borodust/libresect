@@ -533,9 +533,9 @@ static void pop_cursor_inclusion_status(resect_translation_context context) {
     resect_context_pop_inclusion_status(context);
 }
 
-void resect_decl_init_from_cursor(resect_decl decl,
-                                  resect_translation_context context,
-                                  CXCursor cursor) {
+void resect_decl_init_rest_from_cursor(resect_decl decl,
+                                       resect_translation_context context,
+                                       CXCursor cursor) {
     decl->id = resect_extract_decl_id(cursor);
     decl->name = resect_string_from_clang(clang_getCursorSpelling(cursor));
     decl->location = resect_location_from_cursor(cursor);
@@ -690,7 +690,15 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
 
     resect_decl registered_decl = resect_find_decl(context, decl_id);
     if (registered_decl != NULL) {
-        result = registered_decl;
+        switch (registered_decl->inclusion_status) {
+            case EXCLUDED:
+            case WEAKLY_EXCLUDED:
+                result = NULL;
+                break;
+            default:
+                result = registered_decl;
+                break;
+        }
         goto done;
     }
 
@@ -703,7 +711,7 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
     result->kind = kind;
     result->inclusion_status = inclusion_status;
 
-    resect_decl_init_from_cursor(result, context, cursor);
+    resect_decl_init_rest_from_cursor(result, context, cursor);
 
     if (is_kind_exportable(result->kind) && inclusion_status == INCLUDED) {
         resect_export_decl(context, result);
@@ -748,6 +756,14 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
         case RESECT_DECL_KIND_TEMPLATE_PARAMETER:
             resect_template_parameter_init(context, result, cursor);
             break;
+    }
+
+    if (result->kind == RESECT_DECL_KIND_FIELD
+        && (result->type == NULL
+            || resect_type_get_declaration(result->type) == NULL)) {
+        result->inclusion_status = EXCLUDED;
+        result = NULL;
+        goto done;
     }
 
     done:
