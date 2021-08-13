@@ -76,7 +76,7 @@ typedef struct P_resect_type_visit_data {
 enum CXVisitorResult visit_type_fields(CXCursor cursor, CXClientData data) {
     resect_type_visit_data visit_data = data;
 
-    resect_decl field_decl = resect_decl_create(visit_data->context, cursor);
+    resect_decl field_decl = resect_decl_create(visit_data->context, cursor).decl;
     if (field_decl != NULL) {
         resect_collection_add(visit_data->type->fields, field_decl);
     }
@@ -395,7 +395,7 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
     }
 
     resect_inclusion_status current_inclusion_status = resect_context_inclusion_status(context);
-    if (type->kind == RESECT_TYPE_CATEGORY_UNIQUE) {
+    if (type->category == RESECT_TYPE_CATEGORY_UNIQUE) {
         resect_context_push_inclusion_status(context, current_inclusion_status);
     } else {
         resect_context_push_inclusion_status(context, WEAKLY_ENFORCED);
@@ -406,7 +406,7 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
         type->decl = NULL;
     } else {
         type->undeclared = resect_false;
-        type->decl = resect_decl_create(context, declaration_cursor);
+        type->decl = resect_decl_create(context, declaration_cursor).decl;
     }
     resect_context_pop_inclusion_status(context);
 

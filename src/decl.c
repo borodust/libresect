@@ -115,7 +115,12 @@ void resect_template_argument_free(resect_template_argument arg, resect_set deal
     free(arg);
 }
 
-void resect_init_template_args_from_cursor(resect_translation_context context,
+static bool is_type_invalid(resect_type type) {
+    return type == NULL
+           || (!resect_type_is_undeclared(type) && resect_type_get_declaration(type) == NULL);
+}
+
+bool resect_init_template_args_from_cursor(resect_translation_context context,
                                            resect_collection args,
                                            CXCursor cursor) {
     int arg_count = clang_Cursor_getNumTemplateArguments(cursor);
@@ -141,7 +146,12 @@ void resect_init_template_args_from_cursor(resect_translation_context context,
         }
 
         resect_collection_add(args, resect_template_argument_create(arg_kind, arg_type, arg_value, i));
+        if (arg_type != NULL && is_type_invalid(arg_type)) {
+            return false;
+        }
     }
+
+    return true;
 }
 
 void resect_template_argument_collection_free(resect_collection args, resect_set deallocated) {
@@ -188,6 +198,7 @@ struct P_resect_decl {
     resect_access_specifier access;
     resect_linkage_kind linkage;
 
+    resect_bool is_template;
     resect_collection template_parameters;
     resect_collection template_arguments;
     resect_decl template;
@@ -383,8 +394,12 @@ resect_decl resect_find_owner(resect_translation_context context, CXCursor curso
     switch (convert_cursor_kind(parent)) {
         case RESECT_DECL_KIND_STRUCT:
         case RESECT_DECL_KIND_UNION:
-        case RESECT_DECL_KIND_CLASS:
-            return resect_decl_create(context, parent);
+        case RESECT_DECL_KIND_CLASS: {
+            resect_context_push_inclusion_status(context, WEAKLY_ENFORCED);
+            resect_decl owner = resect_decl_create(context, parent).decl;
+            resect_context_pop_inclusion_status(context);
+            return owner;
+        }
     }
 
     return resect_find_owner(context, parent);
@@ -406,9 +421,9 @@ static bool is_kind_exportable(resect_decl_kind kind) {
     }
 }
 
-static resect_inclusion_status calc_inclusion_status(resect_decl_kind kind,
-                                                     resect_inclusion_status current_status,
-                                                     resect_inclusion_status provided_status) {
+static resect_inclusion_status combine_inclusion_status(resect_decl_kind kind,
+                                                        resect_inclusion_status context_status,
+                                                        resect_inclusion_status cursor_status) {
     switch (kind) {
         case RESECT_DECL_KIND_STRUCT:
         case RESECT_DECL_KIND_UNION:
@@ -418,30 +433,30 @@ static resect_inclusion_status calc_inclusion_status(resect_decl_kind kind,
         case RESECT_DECL_KIND_VARIABLE:
         case RESECT_DECL_KIND_MACRO:
         case RESECT_DECL_KIND_TYPEDEF: {
-            switch (current_status) {
-                case WEAKLY_INCLUDED: {
-                    if (provided_status == WEAKLY_EXCLUDED) {
-                        return WEAKLY_INCLUDED;
-                    }
-                    return provided_status;
-                }
+            switch (context_status) {
                 case WEAKLY_EXCLUDED: {
-                    if (provided_status == WEAKLY_EXCLUDED) {
+                    if (cursor_status == WEAKLY_EXCLUDED) {
                         return EXCLUDED;
                     }
-                    return provided_status;
+                    return cursor_status;
+                }
+                case WEAKLY_INCLUDED: {
+                    if (cursor_status == WEAKLY_EXCLUDED) {
+                        return WEAKLY_INCLUDED;
+                    }
+                    return cursor_status;
                 }
                 case WEAKLY_ENFORCED: {
-                    if (provided_status == INCLUDED) {
+                    if (cursor_status == INCLUDED) {
                         return INCLUDED;
                     }
                     return WEAKLY_ENFORCED;
                 }
                 case INCLUDED: {
-                    if (provided_status == WEAKLY_EXCLUDED) {
+                    if (cursor_status == WEAKLY_EXCLUDED) {
                         return WEAKLY_INCLUDED;
                     }
-                    return provided_status;
+                    return cursor_status;
                 }
                 default:
                     return EXCLUDED;
@@ -449,19 +464,17 @@ static resect_inclusion_status calc_inclusion_status(resect_decl_kind kind,
         }
         case RESECT_DECL_KIND_METHOD:
         case RESECT_DECL_KIND_FIELD: {
-            switch (current_status) {
-                case WEAKLY_EXCLUDED:
+            switch (context_status) {
+                case WEAKLY_INCLUDED:
                 case WEAKLY_ENFORCED: {
-                    if (provided_status == INCLUDED) {
+                    if (cursor_status == INCLUDED) {
                         return INCLUDED;
                     }
                     return EXCLUDED;
                 }
-                case WEAKLY_INCLUDED:
                 case INCLUDED: {
-                    if (provided_status == INCLUDED
-                        || provided_status == EXCLUDED) {
-                        return provided_status;
+                    if (cursor_status != WEAKLY_EXCLUDED) {
+                        return cursor_status;
                     }
                     return WEAKLY_INCLUDED;
                 }
@@ -471,76 +484,66 @@ static resect_inclusion_status calc_inclusion_status(resect_decl_kind kind,
         }
         case RESECT_DECL_KIND_PARAMETER:
         case RESECT_DECL_KIND_TEMPLATE_PARAMETER:
-            return WEAKLY_ENFORCED;
+            return INCLUDED;
 
         case RESECT_DECL_KIND_ENUM_CONSTANT: {
-            if (current_status == WEAKLY_ENFORCED) {
+            if (context_status == WEAKLY_ENFORCED) {
                 return INCLUDED;
             }
-            return provided_status;
+            return cursor_status;
         }
         default:
-            return WEAKLY_EXCLUDED;
+            return EXCLUDED;
     }
 }
 
 static void push_declaration_inclusion_status(resect_translation_context context,
                                               resect_decl_kind kind,
                                               CXCursor cursor) {
-    resect_inclusion_status current_status = resect_context_inclusion_status(context);
 
-    resect_inclusion_status status;
-    resect_inclusion_status provided_status = resect_cursor_inclusion_status(context, cursor);
+    resect_inclusion_status status = WEAKLY_EXCLUDED;
+    resect_inclusion_status context_status = resect_context_inclusion_status(context);
+    resect_inclusion_status cursor_status = resect_cursor_inclusion_status(context, cursor);
     switch (kind) {
         case RESECT_DECL_KIND_STRUCT:
-        case RESECT_DECL_KIND_CLASS:
         case RESECT_DECL_KIND_UNION:
+        case RESECT_DECL_KIND_CLASS:
         case RESECT_DECL_KIND_ENUM:
         case RESECT_DECL_KIND_ENUM_CONSTANT:
         case RESECT_DECL_KIND_FUNCTION:
         case RESECT_DECL_KIND_VARIABLE:
         case RESECT_DECL_KIND_TYPEDEF:
-        case RESECT_DECL_KIND_METHOD:
         case RESECT_DECL_KIND_MACRO: {
             bool anonymous = clang_Cursor_isAnonymousRecordDecl(cursor) || clang_Cursor_isAnonymous(cursor);
             if (anonymous) {
-                status = provided_status;
-            } else {
-                resect_inclusion_status calculated_status
-                        = calc_inclusion_status(kind, current_status, provided_status);
-                if (calculated_status == WEAKLY_EXCLUDED) {
+                if (cursor_status == WEAKLY_EXCLUDED) {
                     status = EXCLUDED;
                 } else {
-                    status = calculated_status;
+                    status = cursor_status;
                 }
-            }
-        }
-            break;
-        case RESECT_DECL_KIND_FIELD: {
-            resect_inclusion_status calculated_status = calc_inclusion_status(kind, current_status, provided_status);
-
-            if (calculated_status == EXCLUDED) {
-                status = EXCLUDED;
-            } else if (calculated_status == INCLUDED) {
-                status = INCLUDED;
-            } else if (provided_status == INCLUDED) {
-                status = WEAKLY_INCLUDED;
             } else {
-                status = EXCLUDED;
+                status = combine_inclusion_status(kind, context_status, cursor_status);
             }
         }
             break;
         case RESECT_DECL_KIND_PARAMETER:
         case RESECT_DECL_KIND_TEMPLATE_PARAMETER:
-            status = WEAKLY_ENFORCED;
+        case RESECT_DECL_KIND_METHOD:
+        case RESECT_DECL_KIND_FIELD: {
+            status = combine_inclusion_status(kind, context_status, cursor_status);
+        }
             break;
-        default:
-            if (provided_status == INCLUDED) {
+        case RESECT_DECL_KIND_UNDECLARED:
+        case RESECT_DECL_KIND_UNKNOWN:
+            if (cursor_status == INCLUDED) {
                 status = INCLUDED;
             } else {
                 status = EXCLUDED;
             }
             break;
+    }
+    if (status == WEAKLY_EXCLUDED) {
+        assert(!"Failed to figure out proper inclusion status");
     }
     resect_context_push_inclusion_status(context, status);
 }
@@ -550,10 +553,33 @@ static void pop_cursor_inclusion_status(resect_translation_context context) {
     resect_context_pop_inclusion_status(context);
 }
 
+void resect_decl_init_template_from_cursor(resect_decl decl,
+                                           resect_translation_context context,
+                                           CXCursor cursor) {
+    decl->template_arguments = resect_collection_create();
+    resect_context_push_inclusion_status(context, WEAKLY_INCLUDED);
+    bool all_args_found = resect_init_template_args_from_cursor(context, decl->template_arguments, cursor);
+    resect_context_pop_inclusion_status(context);
+    if (!all_args_found) {
+        decl->inclusion_status = EXCLUDED;
+        return;
+    }
+
+    if (resect_is_specialized(cursor)) {
+        resect_context_push_inclusion_status(context, WEAKLY_INCLUDED);
+        resect_decl_result decl_result = resect_decl_create(context, clang_getSpecializedCursorTemplate(cursor));
+        resect_context_pop_inclusion_status(context);
+        if (decl_result.excluded) {
+            decl->inclusion_status = EXCLUDED;
+        } else {
+            decl->template = decl_result.decl;
+        }
+    }
+}
+
 void resect_decl_init_rest_from_cursor(resect_decl decl,
                                        resect_translation_context context,
                                        CXCursor cursor) {
-    decl->id = resect_extract_decl_id(cursor);
     decl->name = resect_string_from_clang(clang_getCursorSpelling(cursor));
     decl->location = resect_location_from_cursor(cursor);
     decl->comment = resect_string_from_clang(clang_Cursor_getRawCommentText(cursor));
@@ -569,16 +595,18 @@ void resect_decl_init_rest_from_cursor(resect_decl decl,
 
     decl->template = NULL;
     decl->template_parameters = resect_collection_create();
-    decl->template_arguments = resect_collection_create();
     decl->partial = cursor.kind == CXCursor_ClassTemplatePartialSpecialization;
     decl->forward = resect_is_forward_declaration(cursor);
 
-    resect_context_push_inclusion_status(context, WEAKLY_ENFORCED);
-    resect_init_template_args_from_cursor(context, decl->template_arguments, cursor);
-    if (resect_is_specialized(cursor)) {
-        decl->template = resect_decl_create(context, clang_getSpecializedCursorTemplate(cursor));
+    switch (clang_getCursorKind(cursor)) {
+        case CXCursor_ClassTemplate:
+        case CXCursor_ClassTemplatePartialSpecialization:
+            decl->is_template = resect_true;
+            break;
+        default:
+            decl->is_template = resect_false;
+            break;
     }
-    resect_context_pop_inclusion_status(context);
 
     decl->owner = NULL;
 
@@ -641,8 +669,37 @@ enum CXChildVisitResult resect_visit_child_declaration(CXCursor cursor,
     return CXChildVisit_Continue;
 }
 
-resect_decl resect_decl_create(resect_translation_context context, CXCursor cursor) {
+static resect_decl_result find_registered_decl(resect_translation_context context, CXCursor cursor) {
+    resect_decl_kind decl_kind = convert_cursor_kind(cursor);
+    resect_string decl_id = resect_extract_decl_id(cursor);
+
+    resect_decl_result result;
+    result.kind = decl_kind;
+
+    resect_decl registered_decl = resect_find_decl(context, decl_id);
+    if (registered_decl != NULL) {
+        switch (registered_decl->inclusion_status) {
+            case EXCLUDED:
+            case WEAKLY_EXCLUDED:
+                result.decl = NULL;
+                result.excluded = true;
+                break;
+            default:
+                result.decl = registered_decl;
+                result.excluded = false;
+                break;
+        }
+    } else {
+        result.decl = NULL;
+        result.excluded = false;
+    }
+    resect_string_free(decl_id);
+    return result;
+}
+
+resect_decl_result resect_decl_create(resect_translation_context context, CXCursor cursor) {
     enum CXCursorKind cursor_kind = clang_getCursorKind(cursor);
+    resect_decl_result result = {.kind = RESECT_DECL_KIND_UNKNOWN, .decl = NULL, .excluded = false};
 
     if (cursor_kind >= CXCursor_FirstInvalid // ignore invalid cursors
         && cursor_kind <= CXCursor_LastInvalid
@@ -656,7 +713,7 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
            && cursor_kind <= CXCursor_LastExpr) {
         /* ignore some kinds for now, but just in case check children */
         clang_visitChildren(cursor, resect_visit_child_declaration, context);
-        return NULL;
+        return result;
     }
 
     if (resect_is_forward_declaration(cursor)) {
@@ -678,7 +735,7 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
             if (clang_getCursorKind(parent) == CXCursor_TranslationUnit) {
                 /* the hell is that even, but that happens, lets check children though */
                 clang_visitChildren(cursor, resect_visit_child_declaration, context);
-                return NULL;
+                return result;
             }
         }
     }
@@ -690,102 +747,96 @@ resect_decl resect_decl_create(resect_translation_context context, CXCursor curs
         case CXCursor_InclusionDirective:
             /* we might encounter exposed declarations within unexposed one, e.g. inside extern "C"/"C++" block */
             clang_visitChildren(cursor, resect_visit_child_declaration, context);
-            return NULL;
+            return result;
     }
 
-    resect_decl result = NULL;
 
-    resect_string decl_id = resect_extract_decl_id(cursor);
+    resect_decl_result registered_decl_result = find_registered_decl(context, cursor);
+    if (registered_decl_result.excluded || registered_decl_result.decl != NULL) {
+        return registered_decl_result;
+    }
+
     resect_decl_kind kind = convert_cursor_kind(cursor);
+    result.kind = kind;
+
     push_declaration_inclusion_status(context, kind, cursor);
-
     resect_inclusion_status inclusion_status = resect_context_inclusion_status(context);
+
     if (inclusion_status == EXCLUDED) {
-        result = NULL;
+        result.decl = NULL;
+        result.excluded = true;
         goto done;
     }
 
-    resect_decl registered_decl = resect_find_decl(context, decl_id);
-    if (registered_decl != NULL) {
-        switch (registered_decl->inclusion_status) {
-            case EXCLUDED:
-            case WEAKLY_EXCLUDED:
-                result = NULL;
-                break;
-            default:
-                result = registered_decl;
-                break;
-        }
-        goto done;
-    }
+    resect_decl decl = malloc(sizeof(struct P_resect_decl));
+    memset(decl, 0, sizeof(struct P_resect_decl));
 
-    result = malloc(sizeof(struct P_resect_decl));
-    memset(result, 0, sizeof(struct P_resect_decl));
+    decl->id = resect_extract_decl_id(cursor);
+    decl->kind = kind;
+    decl->inclusion_status = inclusion_status;
 
-    resect_register_decl(context, decl_id, result);
+    resect_register_decl(context, decl->id, decl);
     resect_register_decl_language(context, convert_language(clang_getCursorLanguage(cursor)));
 
-    result->kind = kind;
-    result->inclusion_status = inclusion_status;
+    resect_decl_init_rest_from_cursor(decl, context, cursor);
 
-    resect_decl_init_rest_from_cursor(result, context, cursor);
-
-    if (is_kind_exportable(result->kind) && inclusion_status == INCLUDED) {
-        resect_export_decl(context, result);
-    }
-
-    switch (result->kind) {
+    switch (decl->kind) {
         case RESECT_DECL_KIND_STRUCT:
         case RESECT_DECL_KIND_CLASS:
         case RESECT_DECL_KIND_UNION:
-            result->owner = resect_find_owner(context, cursor);
-            resect_record_init(context, result, cursor);
+            decl->owner = resect_find_owner(context, cursor);
+            resect_record_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_ENUM:
-            result->owner = resect_find_owner(context, cursor);
-            resect_enum_init(context, result, cursor);
+            decl->owner = resect_find_owner(context, cursor);
+            resect_enum_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_ENUM_CONSTANT:
-            resect_enum_constant_init(context, result, cursor);
+            resect_enum_constant_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_FUNCTION:
-            resect_function_init(context, result, cursor);
+            resect_function_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_VARIABLE:
-            result->owner = resect_find_owner(context, cursor);
-            resect_variable_init(context, result, cursor);
+            decl->owner = resect_find_owner(context, cursor);
+            resect_variable_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_TYPEDEF:
-            result->owner = resect_find_owner(context, cursor);
-            resect_typedef_init(context, result, cursor);
+            decl->owner = resect_find_owner(context, cursor);
+            resect_typedef_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_FIELD:
-            result->owner = resect_find_owner(context, cursor);
-            resect_field_init(context, result, cursor);
+            decl->owner = resect_find_owner(context, cursor);
+            resect_field_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_METHOD:
-            result->owner = resect_find_owner(context, cursor);
-            resect_method_init(context, result, cursor);
+            decl->owner = resect_find_owner(context, cursor);
+            resect_method_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_MACRO:
-            resect_macro_init(context, result, cursor);
+            resect_macro_init(context, decl, cursor);
             break;
         case RESECT_DECL_KIND_TEMPLATE_PARAMETER:
-            resect_template_parameter_init(context, result, cursor);
+            resect_template_parameter_init(context, decl, cursor);
             break;
     }
 
-    if (result->kind == RESECT_DECL_KIND_FIELD
-        && (result->type == NULL
-            || (!resect_type_is_undeclared(result->type)
-                && resect_type_get_declaration(result->type) == NULL))) {
-        result->inclusion_status = EXCLUDED;
-        result = NULL;
+    resect_decl_init_template_from_cursor(decl, context, cursor);
+
+    if (decl->inclusion_status == EXCLUDED) {
+        result.decl = NULL;
+        result.excluded = true;
         goto done;
+    } else {
+        result.decl = decl;
+        result.excluded = false;
+    }
+
+    if (decl->inclusion_status == INCLUDED && is_kind_exportable(decl->kind)) {
+        resect_export_decl(context, decl);
     }
 
     done:
-    resect_string_free(decl_id);
     pop_cursor_inclusion_status(context);
     return result;
 }
@@ -868,6 +919,10 @@ resect_decl resect_decl_get_template(resect_decl decl) {
 
 resect_bool resect_decl_is_partially_specialized(resect_decl decl) {
     return decl->partial;
+}
+
+resect_bool resect_decl_is_template(resect_decl decl) {
+    return decl->is_template;
 }
 
 resect_collection resect_decl_template_parameters(resect_decl decl) {
@@ -976,7 +1031,19 @@ void resect_field_data_free(void *data, resect_set deallocated) {
     free(field);
 }
 
+static bool exclude_decl_if_type_not_found(resect_decl decl, resect_type type) {
+    if (is_type_invalid(type)) {
+        decl->inclusion_status = EXCLUDED;
+        return true;
+    }
+    return false;
+}
+
 void resect_field_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
+    if (exclude_decl_if_type_not_found(decl, decl->type)) {
+        return;
+    }
+
     resect_field_data data = malloc(sizeof(struct P_resect_field_data));
 
     data->offset = filter_valid_value(clang_Cursor_getOffsetOfField(cursor));
@@ -995,16 +1062,30 @@ enum CXChildVisitResult resect_visit_record_child(CXCursor cursor, CXCursor pare
     if (clang_getCursorKind(cursor) == CXCursor_CXXBaseSpecifier) {
         CXType type = clang_getCursorType(cursor);
 
-        resect_context_push_inclusion_status(visit_data->context, WEAKLY_ENFORCED);
-        resect_collection_add(record_data->parents, resect_type_create(visit_data->context, type));
+        resect_context_push_inclusion_status(visit_data->context, WEAKLY_INCLUDED);
+        resect_type parent_type = resect_type_create(visit_data->context, type);
         resect_context_pop_inclusion_status(visit_data->context);
+
+        resect_collection_add(record_data->parents, parent_type);
+
+        if (exclude_decl_if_type_not_found(visit_data->parent, parent_type)) {
+            return CXChildVisit_Break;
+        }
 
         return CXChildVisit_Continue;
     }
 
-    resect_decl decl = resect_decl_create(visit_data->context, cursor);
+    resect_context_push_inclusion_status(visit_data->context, WEAKLY_INCLUDED);
+    resect_decl_result decl_result = resect_decl_create(visit_data->context, cursor);
+    resect_context_pop_inclusion_status(visit_data->context);
 
-    if (decl != NULL) {
+    if (decl_result.excluded && decl_result.kind == RESECT_DECL_KIND_TEMPLATE_PARAMETER) {
+        visit_data->parent->inclusion_status = EXCLUDED;
+        return CXChildVisit_Break;
+    }
+
+    if (decl_result.decl != NULL && !decl_result.excluded) {
+        resect_decl decl = decl_result.decl;
         switch (decl->kind) {
             case RESECT_DECL_KIND_METHOD:
                 resect_collection_add(record_data->methods, decl);
@@ -1083,6 +1164,8 @@ void resect_typedef_init(resect_translation_context context, resect_decl decl, C
 
     decl->data_deallocator = resect_typedef_data_free;
     decl->data = data;
+
+    exclude_decl_if_type_not_found(decl, data->aliased_type);
 }
 
 resect_type resect_typedef_get_aliased_type(resect_decl decl) {
@@ -1133,14 +1216,23 @@ resect_collection resect_function_parameters(resect_decl decl) {
     return data->parameters;
 }
 
-void resect_visit_function_child(resect_decl_child_visit_data visit_data,
+bool resect_visit_function_child(resect_decl_child_visit_data visit_data,
                                  CXCursor cursor,
                                  resect_function_data data) {
     if (cursor.kind == CXCursor_UnexposedExpr) {
-        return;
+        return true;
     }
-    resect_decl decl = resect_decl_create(visit_data->context, cursor);
-    if (decl != NULL) {
+    resect_decl_result decl_result = resect_decl_create(visit_data->context, cursor);
+    switch (decl_result.kind) {
+        case RESECT_DECL_KIND_TEMPLATE_PARAMETER:
+        case RESECT_DECL_KIND_PARAMETER:
+            if (decl_result.excluded) {
+                return false;
+            }
+    }
+
+    if (decl_result.decl != NULL) {
+        resect_decl decl = decl_result.decl;
         switch (decl->kind) {
             case RESECT_DECL_KIND_PARAMETER:
                 resect_collection_add(data->parameters, decl);
@@ -1153,13 +1245,17 @@ void resect_visit_function_child(resect_decl_child_visit_data visit_data,
                 break;
         }
     }
+    return true;
 }
 
 enum CXChildVisitResult resect_visit_function_parameter(CXCursor cursor, CXCursor parent, CXClientData data) {
     resect_decl_child_visit_data visit_data = data;
     resect_function_data function_data = visit_data->parent->data;
 
-    resect_visit_function_child(visit_data, cursor, function_data);
+    if (!resect_visit_function_child(visit_data, cursor, function_data)) {
+        visit_data->parent->inclusion_status = EXCLUDED;
+        return CXChildVisit_Break;
+    }
 
     return CXChildVisit_Continue;
 }
@@ -1251,13 +1347,20 @@ resect_function_data resect_function_data_create(resect_translation_context cont
 }
 
 void resect_function_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
-    decl->data_deallocator = resect_function_data_free;
+    resect_context_push_inclusion_status(context, WEAKLY_INCLUDED);
+    resect_function_data function_data = resect_function_data_create(context, cursor);
+    resect_context_pop_inclusion_status(context);
 
-    resect_context_push_inclusion_status(context, WEAKLY_ENFORCED);
-    decl->data = resect_function_data_create(context, cursor);
+    decl->data_deallocator = resect_function_data_free;
+    decl->data = function_data;
+
+    if (exclude_decl_if_type_not_found(decl, function_data->result_type)) {
+        return;
+    }
 
     struct P_resect_decl_child_visit_data visit_data = {.context = context, .parent =  decl};
 
+    resect_context_push_inclusion_status(context, WEAKLY_INCLUDED);
     clang_visitChildren(cursor, resect_visit_function_parameter, &visit_data);
     resect_context_pop_inclusion_status(context);
 }
@@ -1314,7 +1417,7 @@ enum CXChildVisitResult resect_visit_enum_constant(CXCursor cursor, CXCursor par
     resect_decl_child_visit_data visit_data = data;
     resect_enum_data enum_data = visit_data->parent->data;
 
-    resect_decl decl = resect_decl_create(visit_data->context, cursor);
+    resect_decl decl = resect_decl_create(visit_data->context, cursor).decl;
     if (decl != NULL && decl->kind == RESECT_DECL_KIND_ENUM_CONSTANT) {
         resect_collection_add(enum_data->constants, decl);
     }
@@ -1357,7 +1460,6 @@ void resect_enum_init(resect_translation_context context, resect_decl decl, CXCu
  */
 typedef struct P_resect_variable_data {
     resect_variable_kind kind;
-    resect_type type;
     resect_string string_value;
     long long int_value;
     double float_value;
@@ -1365,8 +1467,7 @@ typedef struct P_resect_variable_data {
 
 resect_type resect_variable_get_type(resect_decl decl) {
     assert(decl->kind == RESECT_DECL_KIND_VARIABLE);
-    resect_variable_data data = decl->data;
-    return data->type;
+    return decl->type;
 }
 
 resect_variable_kind resect_variable_get_kind(resect_decl decl) {
@@ -1401,18 +1502,16 @@ void resect_variable_data_free(void *data, resect_set deallocated) {
     resect_variable_data var_data = data;
     resect_string_free(var_data->string_value);
 
-    resect_type_free(var_data->type, deallocated);
-
     free(data);
 }
 
 void resect_variable_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
+    if (exclude_decl_if_type_not_found(decl, decl->type)) {
+        return;
+    }
+
     CXEvalResult value = clang_Cursor_Evaluate(cursor);
     resect_variable_data data = malloc(sizeof(struct P_resect_variable_data));
-
-    resect_context_push_inclusion_status(context, WEAKLY_ENFORCED);
-    data->type = resect_type_create(context, clang_getCursorType(cursor));
-    resect_context_pop_inclusion_status(context);
 
     data->string_value = resect_string_from_c("");
 
@@ -1524,7 +1623,11 @@ enum CXChildVisitResult resect_visit_method_parameter(CXCursor cursor, CXCursor 
     resect_decl_child_visit_data visit_data = data;
     resect_method_data method_data = visit_data->parent->data;
 
-    resect_visit_function_child(visit_data, cursor, method_data->function_data);
+
+    if (!resect_visit_function_child(visit_data, cursor, method_data->function_data)) {
+        visit_data->parent->inclusion_status = EXCLUDED;
+        return CXChildVisit_Break;
+    }
 
     return CXChildVisit_Continue;
 }
@@ -1543,17 +1646,25 @@ void resect_method_data_free(void *data, resect_set deallocated) {
 void resect_method_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
     resect_method_data data = malloc(sizeof(struct P_resect_method_data));
 
-    resect_context_push_inclusion_status(context, WEAKLY_ENFORCED);
+    resect_context_push_inclusion_status(context, WEAKLY_INCLUDED);
     data->function_data = resect_function_data_create(context, cursor);
-
-    decl->data_deallocator = resect_method_data_free;
-    decl->data = data;
+    resect_context_pop_inclusion_status(context);
 
     data->pure_virtual = clang_CXXMethod_isPureVirtual(cursor);
     data->non_mutating = clang_CXXMethod_isConst(cursor);
 
+    decl->data_deallocator = resect_method_data_free;
+    decl->data = data;
+
+    exclude_decl_if_type_not_found(decl, data->function_data->result_type);
+
+    if (decl->inclusion_status == EXCLUDED) {
+        return;
+    }
+
     struct P_resect_decl_child_visit_data visit_data = {.context = context, .parent =  decl};
 
+    resect_context_push_inclusion_status(context, WEAKLY_INCLUDED);
     clang_visitChildren(cursor, resect_visit_method_parameter, &visit_data);
     resect_context_pop_inclusion_status(context);
 }

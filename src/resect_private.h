@@ -167,7 +167,14 @@ void resect_type_collection_free(resect_collection types, resect_set deallocated
  */
 typedef void (*resect_data_deallocator)(void *data, resect_set deallocated);
 
-resect_decl resect_decl_create(resect_translation_context context, CXCursor cursor);
+typedef struct {
+    resect_decl_kind kind;
+    bool excluded;
+
+    resect_decl decl;
+} resect_decl_result;
+
+resect_decl_result resect_decl_create(resect_translation_context context, CXCursor cursor);
 
 void resect_decl_free(resect_decl decl, resect_set deallocated);
 
