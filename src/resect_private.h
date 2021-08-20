@@ -119,6 +119,10 @@ resect_inclusion_status resect_filtering_pop_inclusion_status(resect_filtering_c
  */
 typedef struct P_resect_translation_context *resect_translation_context;
 
+enum P_resect_garbage_kind {
+    RESECT_GARBAGE_KIND_TEMPLATE_ARGUMENT
+};
+
 resect_translation_context resect_context_create(resect_parse_options opts);
 
 resect_collection resect_create_decl_collection(resect_translation_context context);
@@ -151,12 +155,18 @@ void resect_register_template_parameter(resect_translation_context context, rese
 
 resect_decl resect_find_template_parameter(resect_translation_context context, resect_string name);
 
+void *resect_context_current_state(resect_translation_context context);
+
+void resect_context_push_state(resect_translation_context context, void *value);
+
+void *resect_context_pop_state(resect_translation_context context);
+
+void resect_register_garbage(resect_translation_context context, enum P_resect_garbage_kind kind, void* garbage);
+
 /*
  * TYPE
  */
 resect_type resect_type_create(resect_translation_context context, CXType canonical_type);
-
-resect_bool resect_type_is_undeclared(resect_type type);
 
 void resect_type_free(resect_type type, resect_set deallocated);
 
@@ -169,8 +179,6 @@ typedef void (*resect_data_deallocator)(void *data, resect_set deallocated);
 
 typedef struct {
     resect_decl_kind kind;
-    bool excluded;
-
     resect_decl decl;
 } resect_decl_result;
 
@@ -193,6 +201,12 @@ resect_location resect_location_from_cursor(CXCursor cursor);
 void resect_location_free(resect_location location);
 
 resect_string resect_extract_decl_id(CXCursor cursor);
+
+void resect_register_exclusion(resect_translation_context translation_context);
+
+void resect_reset_registered_exclusion(resect_translation_context translation_context);
+
+bool resect_is_exclusion_detected(resect_translation_context translation_context);
 
 /*
  * TEMPLATE ARGUMENT

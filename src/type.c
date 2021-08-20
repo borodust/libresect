@@ -77,6 +77,7 @@ enum CXVisitorResult visit_type_fields(CXCursor cursor, CXClientData data) {
     resect_type_visit_data visit_data = data;
 
     resect_decl field_decl = resect_decl_create(visit_data->context, cursor).decl;
+    resect_reset_registered_exclusion(visit_data->context);
     if (field_decl != NULL) {
         resect_collection_add(visit_data->type->fields, field_decl);
     }
@@ -279,7 +280,16 @@ void resect_init_template_args_from_type(resect_translation_context context,
                 break;
         }
 
-        resect_collection_add(args, resect_template_argument_create(arg_kind, arg_type, arg_value, i));
+
+        if (resect_is_exclusion_detected(context)) {
+            while (resect_collection_size(args) > 0) {
+                resect_register_garbage(context, RESECT_GARBAGE_KIND_TEMPLATE_ARGUMENT,
+                                        resect_collection_pop_last(args));
+            }
+            return;
+        } else {
+            resect_collection_add(args, resect_template_argument_create(arg_kind, arg_type, arg_value, i));
+        }
     }
 }
 
@@ -406,18 +416,20 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
         type->decl = NULL;
     } else {
         type->undeclared = resect_false;
-        type->decl = resect_decl_create(context, declaration_cursor).decl;
+        if (resect_is_exclusion_detected(context)) {
+            type->decl = NULL;
+        } else {
+            type->decl = resect_decl_create(context, declaration_cursor).decl;
+        }
     }
     resect_context_pop_inclusion_status(context);
 
     if (type->decl != NULL) {
         resect_context_push_inclusion_status(context, resect_decl_get_inclusion_status(type->decl));
-    } else {
-        resect_context_push_inclusion_status(context, WEAKLY_ENFORCED);
+        struct P_resect_type_visit_data visit_data = {type = type, context = context};
+        clang_Type_visitFields(clang_type, visit_type_fields, &visit_data);
+        resect_context_pop_inclusion_status(context);
     }
-    struct P_resect_type_visit_data visit_data = {type = type, context = context};
-    clang_Type_visitFields(clang_type, visit_type_fields, &visit_data);
-    resect_context_pop_inclusion_status(context);
 
     if (type->kind == RESECT_TYPE_KIND_UNKNOWN && type->decl == NULL) {
         resect_decl param = NULL;

@@ -267,6 +267,8 @@ RESECT_API resect_bool resect_type_is_pod(resect_type decl);
 
 RESECT_API resect_collection resect_type_template_arguments(resect_type type);
 
+RESECT_API resect_bool resect_type_is_undeclared(resect_type type);
+
 /*
  * TEMPLATE ARGUMENT
  */
