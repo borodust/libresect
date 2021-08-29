@@ -478,6 +478,8 @@ static resect_inclusion_status combine_inclusion_status(resect_decl_kind kind,
         case RESECT_DECL_KIND_ENUM_CONSTANT: {
             if (context_status == WEAKLY_ENFORCED) {
                 return INCLUDED;
+            } else if (cursor_status == WEAKLY_EXCLUDED) {
+                return EXCLUDED;
             }
             return cursor_status;
         }
@@ -497,7 +499,6 @@ static void push_declaration_inclusion_status(resect_translation_context context
         case RESECT_DECL_KIND_STRUCT:
         case RESECT_DECL_KIND_UNION:
         case RESECT_DECL_KIND_CLASS:
-        case RESECT_DECL_KIND_ENUM:
         case RESECT_DECL_KIND_ENUM_CONSTANT:
         case RESECT_DECL_KIND_FUNCTION:
         case RESECT_DECL_KIND_VARIABLE:
@@ -507,6 +508,19 @@ static void push_declaration_inclusion_status(resect_translation_context context
             if (anonymous) {
                 if (cursor_status == WEAKLY_EXCLUDED) {
                     status = EXCLUDED;
+                } else {
+                    status = cursor_status;
+                }
+            } else {
+                status = combine_inclusion_status(kind, context_status, cursor_status);
+            }
+        }
+            break;
+
+        case RESECT_DECL_KIND_ENUM:{
+            if (clang_Cursor_isAnonymous(cursor)) {
+                if (cursor_status == WEAKLY_EXCLUDED) {
+                    status = WEAKLY_INCLUDED;
                 } else {
                     status = cursor_status;
                 }
@@ -1442,6 +1456,10 @@ void resect_enum_init(resect_translation_context context, resect_decl decl, CXCu
     }
     clang_visitChildren(cursor, resect_visit_enum_constant, &visit_data);
     resect_context_pop_inclusion_status(context);
+
+    if (decl->inclusion_status == WEAKLY_INCLUDED && resect_collection_size(data->constants) > 0) {
+        decl->inclusion_status = INCLUDED;
+    }
 }
 
 /*

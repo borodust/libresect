@@ -446,7 +446,6 @@ resect_string resect_format_cursor_full_name(CXCursor cursor) {
         case CXCursor_ClassTemplateSpecialization:
         case CXCursor_ClassTemplatePartialSpecialization:
         case CXCursor_UnionDecl:
-        case CXCursor_EnumDecl:
         case CXCursor_StructDecl: {
             resect_string parent_full_name = resect_format_cursor_full_name(parent);
             resect_string name = resect_string_from_clang(clang_getCursorSpelling(cursor));
