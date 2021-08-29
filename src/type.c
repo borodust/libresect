@@ -410,7 +410,7 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
     if (type->category == RESECT_TYPE_CATEGORY_UNIQUE) {
         resect_context_push_inclusion_status(context, current_inclusion_status);
     } else {
-        resect_context_push_inclusion_status(context, WEAKLY_ENFORCED);
+        resect_context_push_inclusion_status(context, RESECT_INCLUSION_STATUS_WEAKLY_ENFORCED);
     }
     CXCursor declaration_cursor = clang_getTypeDeclaration(clang_type);
     if (declaration_cursor.kind == CXCursor_NoDeclFound) {

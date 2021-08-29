@@ -205,11 +205,11 @@ typedef enum {
 } resect_option_intrinsic;
 
 typedef enum {
-    EXCLUDED = 0,
-    WEAKLY_EXCLUDED = 1,
-    WEAKLY_INCLUDED = 2,
-    WEAKLY_ENFORCED = 3,
-    INCLUDED = 4
+    RESECT_INCLUSION_STATUS_EXCLUDED = 0,
+    RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED = 1,
+    RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED = 2,
+    RESECT_INCLUSION_STATUS_WEAKLY_ENFORCED = 3,
+    RESECT_INCLUSION_STATUS_INCLUDED = 4
 } resect_inclusion_status;
 
 typedef struct P_resect_translation_unit *resect_translation_unit;

@@ -76,7 +76,7 @@ resect_filtering_context resect_filtering_context_create(resect_parse_options op
             compile_pattern_collection(resect_options_get_excluded_sources(options));
 
     context->status_stack = resect_collection_create();
-    resect_collection_add(context->status_stack, (void *) WEAKLY_EXCLUDED);
+    resect_collection_add(context->status_stack, (void *) RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED);
 
     return context;
 }
@@ -146,15 +146,15 @@ resect_inclusion_status resect_filtering_explicit_inclusion_status(resect_filter
                                                                    const char *declaration_source) {
     if (match_pattern_collection(context->excluded_definition_patterns, declaration_name)
         || match_pattern_collection(context->excluded_source_patterns, declaration_source)) {
-        return EXCLUDED;
+        return RESECT_INCLUSION_STATUS_EXCLUDED;
     }
 
     if (match_pattern_collection(context->included_definition_patterns, declaration_name)
         || match_pattern_collection(context->included_source_patterns, declaration_source)) {
-        return INCLUDED;
+        return RESECT_INCLUSION_STATUS_INCLUDED;
     }
 
-    return WEAKLY_EXCLUDED;
+    return RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED;
 }
 
 resect_inclusion_status resect_filtering_inclusion_status(resect_filtering_context context) {
