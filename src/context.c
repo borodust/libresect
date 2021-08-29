@@ -99,60 +99,6 @@ resect_language resect_get_assumed_language(resect_translation_context context) 
     return context->language;
 }
 
-static resect_string format_cursor_full_name(CXCursor cursor) {
-    if (clang_Cursor_isNull(cursor) || clang_getCursorKind(cursor) == CXCursor_TranslationUnit) {
-        return resect_string_from_c("");
-    }
-
-    CXCursor parent = clang_getCursorSemanticParent(cursor);
-
-    if (clang_Cursor_isAnonymousRecordDecl(cursor) || clang_Cursor_isAnonymous(cursor)) {
-        return format_cursor_full_name(parent);
-    }
-
-    enum CXCursorKind parent_kind = clang_getCursorKind(parent);
-    switch (parent_kind) {
-        case CXCursor_ClassDecl:
-        case CXCursor_ClassTemplate:
-        case CXCursor_ClassTemplateSpecialization:
-        case CXCursor_ClassTemplatePartialSpecialization:
-        case CXCursor_UnionDecl:
-        case CXCursor_EnumDecl:
-        case CXCursor_StructDecl: {
-            resect_string parent_full_name = format_cursor_full_name(parent);
-            resect_string name = resect_string_from_clang(clang_getCursorSpelling(cursor));
-
-            resect_string full_name = resect_string_format("%s::%s",
-                                                           resect_string_to_c(parent_full_name),
-                                                           resect_string_to_c(name));
-
-            resect_string_free(name);
-            resect_string_free(parent_full_name);
-
-            return full_name;
-        }
-    }
-
-    resect_string full_name = resect_string_from_c("");
-
-    {
-        resect_string namespace = resect_format_cursor_namespace(cursor);
-        if (resect_string_length(namespace) > 0) {
-            resect_string_append(full_name, resect_string_to_c(namespace));
-            resect_string_append(full_name, "::");
-        }
-        resect_string_free(namespace);
-    }
-
-    {
-        resect_string name = resect_string_from_clang(clang_getCursorSpelling(cursor));
-        resect_string_append(full_name, resect_string_to_c(name));
-        resect_string_free(name);
-    }
-
-    return full_name;
-}
-
 static resect_string format_cursor_source(CXCursor cursor) {
     resect_location location = resect_location_from_cursor(cursor);
     resect_string source = resect_string_from_c(resect_location_name(location));
@@ -162,7 +108,7 @@ static resect_string format_cursor_source(CXCursor cursor) {
 }
 
 resect_inclusion_status resect_cursor_inclusion_status(resect_translation_context context, CXCursor cursor) {
-    resect_string full_name = format_cursor_full_name(cursor);
+    resect_string full_name = resect_format_cursor_full_name(cursor);
     resect_string source = format_cursor_source(cursor);
 
     resect_inclusion_status result = resect_filtering_explicit_inclusion_status(context->filtering,

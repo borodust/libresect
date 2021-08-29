@@ -308,6 +308,9 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
             }
         }
             break;
+        case CXType_Attributed:
+            // skip attributes
+            return resect_type_create(context, clang_Type_getModifiedType(clang_type));
     }
 
     resect_type type = malloc(sizeof(struct P_resect_type));
@@ -366,7 +369,6 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
         case RESECT_TYPE_KIND_OVERLOAD:
         case RESECT_TYPE_KIND_DEPENDENT:
         case RESECT_TYPE_KIND_AUTO:
-        case RESECT_TYPE_KIND_ATTRIBUTED:
         case RESECT_TYPE_KIND_ATOMIC:
             type->category = RESECT_TYPE_CATEGORY_AUX;
             break;

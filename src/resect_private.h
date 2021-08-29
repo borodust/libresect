@@ -161,7 +161,7 @@ void resect_context_push_state(resect_translation_context context, void *value);
 
 void *resect_context_pop_state(resect_translation_context context);
 
-void resect_register_garbage(resect_translation_context context, enum P_resect_garbage_kind kind, void* garbage);
+void resect_register_garbage(resect_translation_context context, enum P_resect_garbage_kind kind, void *garbage);
 
 /*
  * TYPE
@@ -230,6 +230,9 @@ long long filter_valid_value(long long value);
 void resect_string_collection_free(resect_collection collection);
 
 resect_string resect_extract_decl_id(CXCursor cursor);
+
+resect_string resect_format_cursor_full_name(CXCursor cursor);
+
 
 /*
  * OPTIONS

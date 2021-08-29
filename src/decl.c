@@ -343,47 +343,6 @@ resect_bool resect_is_specialized(CXCursor cursor) {
     }
 }
 
-void append_anonymous_decl_id(resect_string id, const char *infix, CXCursor cursor) {
-    // nameless param with no USR?
-    CXCursor parent = clang_getCursorSemanticParent(cursor);
-    if (!clang_Cursor_isNull(parent)) {
-        resect_string parent_id = resect_extract_decl_id(parent);
-
-        resect_location loc = resect_location_from_cursor(cursor);
-        resect_string postfix = resect_string_format(":%s:%d:%d",
-                                                     infix,
-                                                     resect_location_line(loc),
-                                                     resect_location_column(loc));
-
-        resect_string_append(id, resect_string_to_c(parent_id));
-        resect_string_append(id, resect_string_to_c(postfix));
-
-        resect_string_free(postfix);
-        resect_string_free(parent_id);
-        resect_location_free(loc);
-    }
-}
-
-resect_string resect_extract_decl_id(CXCursor cursor) {
-    resect_string id = resect_string_from_clang(clang_getCursorUSR(cursor));
-
-    if (resect_string_length(id) > 0) {
-        return id;
-    }
-
-    switch (clang_getCursorKind(cursor)) {
-        case CXCursor_ParmDecl: // nameless param with no USR?
-            append_anonymous_decl_id(id, "parm", cursor);
-            return id;
-        case CXCursor_FieldDecl:  // anonymous struct/union?
-            append_anonymous_decl_id(id, "field", cursor);
-            return id;
-    }
-
-    assert(!"Declaration identifier must not be empty");
-    return resect_string_from_c("");
-}
-
 void resect_extract_decl_namespace(resect_collection namespace_queue, CXCursor cursor) {
     CXCursor parent = clang_getCursorSemanticParent(cursor);
     if (!clang_Cursor_isNull(parent)) {

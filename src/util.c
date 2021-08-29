@@ -427,3 +427,127 @@ void resect_string_collection_free(resect_collection collection) {
     resect_iterator_free(arg_iter);
     resect_collection_free(collection);
 }
+
+resect_string resect_format_cursor_full_name(CXCursor cursor) {
+    if (clang_Cursor_isNull(cursor) || clang_getCursorKind(cursor) == CXCursor_TranslationUnit) {
+        return resect_string_from_c("");
+    }
+
+    CXCursor parent = clang_getCursorSemanticParent(cursor);
+
+    if (clang_Cursor_isAnonymousRecordDecl(cursor) || clang_Cursor_isAnonymous(cursor)) {
+        return resect_format_cursor_full_name(parent);
+    }
+
+    enum CXCursorKind parent_kind = clang_getCursorKind(parent);
+    switch (parent_kind) {
+        case CXCursor_ClassDecl:
+        case CXCursor_ClassTemplate:
+        case CXCursor_ClassTemplateSpecialization:
+        case CXCursor_ClassTemplatePartialSpecialization:
+        case CXCursor_UnionDecl:
+        case CXCursor_EnumDecl:
+        case CXCursor_StructDecl: {
+            resect_string parent_full_name = resect_format_cursor_full_name(parent);
+            resect_string name = resect_string_from_clang(clang_getCursorSpelling(cursor));
+
+            resect_string full_name = resect_string_format("%s::%s",
+                                                           resect_string_to_c(parent_full_name),
+                                                           resect_string_to_c(name));
+
+            resect_string_free(name);
+            resect_string_free(parent_full_name);
+
+            return full_name;
+        }
+    }
+
+    resect_string full_name = resect_string_from_c("");
+
+    {
+        resect_string namespace = resect_format_cursor_namespace(cursor);
+        if (resect_string_length(namespace) > 0) {
+            resect_string_append(full_name, resect_string_to_c(namespace));
+            resect_string_append(full_name, "::");
+        }
+        resect_string_free(namespace);
+    }
+
+    {
+        resect_string name = resect_string_from_clang(clang_getCursorSpelling(cursor));
+        resect_string_append(full_name, resect_string_to_c(name));
+        resect_string_free(name);
+    }
+
+    return full_name;
+}
+
+static void append_anonymous_decl_id(resect_string id, const char *infix, CXCursor cursor) {
+    // nameless param with no USR?
+    CXCursor parent = clang_getCursorSemanticParent(cursor);
+    if (!clang_Cursor_isNull(parent)) {
+        resect_string parent_id = resect_extract_decl_id(parent);
+
+        resect_location loc = resect_location_from_cursor(cursor);
+        resect_string postfix = resect_string_format(":%s:%d:%d",
+                                                     infix,
+                                                     resect_location_line(loc),
+                                                     resect_location_column(loc));
+
+        resect_string_append(id, resect_string_to_c(parent_id));
+        resect_string_append(id, resect_string_to_c(postfix));
+
+        resect_string_free(postfix);
+        resect_string_free(parent_id);
+        resect_location_free(loc);
+    }
+}
+
+static void append_cursor_full_name(resect_string id, CXCursor cursor) {
+    resect_string full_name = resect_format_cursor_full_name(cursor);
+    if (resect_string_length(full_name) == 0) {
+        goto done;
+    }
+
+    resect_string cursor_kind =
+            resect_string_from_clang(clang_getCursorKindSpelling(clang_getCursorKind(cursor)));
+    resect_string decl_id = resect_string_format("claw_did$%s$%s",
+                                                 resect_string_to_c(cursor_kind),
+                                                 resect_string_to_c(full_name));
+    resect_string_append(id, resect_string_to_c(decl_id));
+
+    resect_string_free(decl_id);
+    resect_string_free(cursor_kind);
+
+    done:
+    resect_string_free(full_name);
+}
+
+
+resect_string resect_extract_decl_id(CXCursor cursor) {
+    resect_string id = resect_string_from_clang(clang_getCursorUSR(cursor));
+
+    if (resect_string_length(id) > 0) {
+        return id;
+    }
+
+    switch (clang_getCursorKind(cursor)) {
+        case CXCursor_ParmDecl: // nameless param with no USR?
+            append_anonymous_decl_id(id, "parm", cursor);
+            return id;
+        case CXCursor_FieldDecl:  // anonymous struct/union?
+            append_anonymous_decl_id(id, "field", cursor);
+            return id;
+        default:  // as a last resort, lets try extracting cursor's full type name
+        {
+            append_cursor_full_name(id, cursor);
+            if (resect_string_length(id) > 0) {
+                return id;
+            }
+        }
+    }
+
+    // FIXME: add proper error handling
+    assert(!"Declaration identifier must not be empty");
+    return id;
+}
