@@ -487,6 +487,7 @@ static resect_inclusion_status combine_inclusion_status(resect_decl_kind kind,
             return RESECT_INCLUSION_STATUS_EXCLUDED;
     }
 }
+
 static bool is_cursor_anonymous(CXCursor cursor) {
     switch (convert_cursor_kind(cursor)) {
         case RESECT_DECL_KIND_UNKNOWN:
@@ -550,7 +551,7 @@ static void push_declaration_inclusion_status(resect_translation_context context
         }
             break;
 
-        case RESECT_DECL_KIND_ENUM:{
+        case RESECT_DECL_KIND_ENUM: {
             if (is_cursor_anonymous(cursor)) {
                 if (cursor_status == RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED) {
                     status = RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED;
@@ -617,6 +618,43 @@ void resect_decl_init_template_from_cursor(resect_decl decl,
     }
 }
 
+struct P_function_class_mangling_result {
+    resect_string mangling;
+};
+
+static enum CXChildVisitResult find_mangled_name(CXCursor cursor,
+                                                 CXCursor parent,
+                                                 CXClientData data) {
+    struct P_function_class_mangling_result *mangling_result = data;
+    if (clang_getCursorKind(cursor) == CXCursor_Constructor) {
+        assert(mangling_result->mangling == NULL);
+        CXStringSet *manglings = clang_Cursor_getCXXManglings(cursor);
+        mangling_result->mangling = manglings->Count > 0 ?
+                                    resect_string_from_c(clang_getCString(manglings->Strings[0])) :
+                                    NULL;
+        clang_disposeStringSet(manglings);
+    } else {
+        clang_visitChildren(cursor, find_mangled_name, data);
+    }
+    
+    return mangling_result->mangling == NULL ? CXChildVisit_Continue : CXChildVisit_Break;
+}
+
+static resect_string get_cursor_mangling(resect_string decl_name, resect_string decl_namespace, CXCursor cursor) {
+    if (convert_cursor_kind(cursor) == RESECT_DECL_KIND_CLASS
+        && clang_Type_getSizeOf(clang_getCursorType(cursor)) > 0) {
+
+        struct P_function_class_mangling_result mangling_result = {.mangling = NULL};
+        clang_visitChildren(cursor, find_mangled_name, &mangling_result);
+
+        if (mangling_result.mangling != NULL) {
+            return mangling_result.mangling;
+        }
+    }
+
+    return resect_string_from_clang(clang_Cursor_getMangling(cursor));
+}
+
 void resect_decl_init_rest_from_cursor(resect_decl decl,
                                        resect_translation_context context,
                                        CXCursor cursor) {
@@ -630,7 +668,7 @@ void resect_decl_init_rest_from_cursor(resect_decl decl,
     if (resect_string_length(decl->name) == 0) {
         decl->mangled_name = resect_string_from_c("");
     } else {
-        decl->mangled_name = resect_string_from_clang(clang_Cursor_getMangling(cursor));
+        decl->mangled_name = get_cursor_mangling(decl->name, decl->namespace, cursor);
     }
 
     decl->template = NULL;
@@ -1490,7 +1528,8 @@ void resect_enum_init(resect_translation_context context, resect_decl decl, CXCu
     clang_visitChildren(cursor, resect_visit_enum_constant, &visit_data);
     resect_context_pop_inclusion_status(context);
 
-    if (decl->inclusion_status == RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED && resect_collection_size(data->constants) > 0) {
+    if (decl->inclusion_status == RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED &&
+        resect_collection_size(data->constants) > 0) {
         decl->inclusion_status = RESECT_INCLUSION_STATUS_INCLUDED;
     }
 }

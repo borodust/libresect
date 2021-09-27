@@ -165,6 +165,10 @@ resect_bool resect_string_equal_c(resect_string this, const char *that) {
     return strcmp(this->value, that) == 0;
 }
 
+resect_bool resect_string_starts_with_c(resect_string this, const char *prefix) {
+    return strncmp(prefix, this->value, strlen(prefix)) == 0;
+}
+
 resect_bool resect_string_equal(resect_string this, resect_string that) {
     return strcmp(this->value, that->value) == 0;
 }

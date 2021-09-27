@@ -33,6 +33,8 @@ resect_bool resect_string_equal(resect_string this, resect_string that);
 
 resect_bool resect_string_equal_c(resect_string this, const char *that);
 
+resect_bool resect_string_starts_with_c(resect_string this, const char *prefix);
+
 void resect_string_free(resect_string string);
 
 const char *resect_string_to_c(resect_string string);
