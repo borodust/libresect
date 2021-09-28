@@ -122,7 +122,9 @@ resect_inclusion_status resect_filtering_pop_inclusion_status(resect_filtering_c
 typedef struct P_resect_translation_context *resect_translation_context;
 
 enum P_resect_garbage_kind {
-    RESECT_GARBAGE_KIND_TEMPLATE_ARGUMENT
+    RESECT_GARBAGE_KIND_TEMPLATE_ARGUMENT,
+    RESECT_GARBAGE_KIND_DECL,
+    RESECT_GARBAGE_KIND_TYPE,
 };
 
 resect_translation_context resect_context_create(resect_parse_options opts);

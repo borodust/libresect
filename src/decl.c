@@ -442,8 +442,9 @@ static resect_inclusion_status combine_inclusion_status(resect_decl_kind kind,
                     return RESECT_INCLUSION_STATUS_WEAKLY_ENFORCED;
                 }
                 case RESECT_INCLUSION_STATUS_INCLUDED: {
-                    if (cursor_status == RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED) {
-                        return RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED;
+                    if (cursor_status == RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED
+                        || cursor_status == RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED) {
+                        return RESECT_INCLUSION_STATUS_INCLUDED;
                     }
                     return cursor_status;
                 }
@@ -636,7 +637,7 @@ static enum CXChildVisitResult find_mangled_name(CXCursor cursor,
     } else {
         clang_visitChildren(cursor, find_mangled_name, data);
     }
-    
+
     return mangling_result->mangling == NULL ? CXChildVisit_Continue : CXChildVisit_Break;
 }
 
@@ -1127,7 +1128,6 @@ void resect_field_init(resect_translation_context context, resect_decl decl, CXC
 
 enum CXChildVisitResult resect_visit_record_child(CXCursor cursor, CXCursor parent, CXClientData data) {
     resect_decl_child_visit_data visit_data = data;
-    resect_reset_registered_exclusion(visit_data->context);
 
     resect_record_data record_data = visit_data->parent->data;
 
@@ -1138,11 +1138,13 @@ enum CXChildVisitResult resect_visit_record_child(CXCursor cursor, CXCursor pare
         resect_type parent_type = resect_type_create(visit_data->context, type);
         resect_context_pop_inclusion_status(visit_data->context);
 
-        resect_collection_add(record_data->parents, parent_type);
-
         if (exclude_decl_if_exclusion_detected(visit_data->context, visit_data->parent)) {
-            return CXChildVisit_Break;
+            resect_register_garbage(visit_data->context, RESECT_GARBAGE_KIND_TYPE, parent_type);
+        } else {
+            resect_collection_add(record_data->parents, parent_type);
         }
+
+        resect_reset_registered_exclusion(visit_data->context);
 
         return CXChildVisit_Continue;
     }
@@ -1156,7 +1158,6 @@ enum CXChildVisitResult resect_visit_record_child(CXCursor cursor, CXCursor pare
         return CXChildVisit_Break;
     }
 
-    resect_reset_registered_exclusion(visit_data->context);
     if (decl_result.decl != NULL) {
         resect_decl decl = decl_result.decl;
         switch (decl->kind) {
@@ -1172,6 +1173,7 @@ enum CXChildVisitResult resect_visit_record_child(CXCursor cursor, CXCursor pare
         }
     }
 
+    resect_reset_registered_exclusion(visit_data->context);
     return CXChildVisit_Continue;
 }
 

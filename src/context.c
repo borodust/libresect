@@ -21,7 +21,7 @@ struct P_resect_translation_context {
 
 struct P_resect_garbage {
     enum P_resect_garbage_kind kind;
-    void* data;
+    void *data;
 };
 
 resect_translation_context resect_context_create(resect_parse_options opts) {
@@ -54,6 +54,12 @@ static void free_garbage_collection(resect_collection garbage_collection, resect
         switch (garbage->kind) {
             case RESECT_GARBAGE_KIND_TEMPLATE_ARGUMENT:
                 resect_template_argument_free(garbage->data, deallocated);
+                break;
+            case RESECT_GARBAGE_KIND_DECL:
+                resect_decl_free(garbage->data, deallocated);
+                break;
+            case RESECT_GARBAGE_KIND_TYPE:
+                resect_type_free(garbage->data, deallocated);
                 break;
             default:
                 // FIXME: add better error reporting
@@ -181,8 +187,8 @@ void *resect_context_pop_state(resect_translation_context context) {
     return resect_collection_pop_last(context->state_stack);
 }
 
-void resect_register_garbage(resect_translation_context context, enum P_resect_garbage_kind kind, void* garbage) {
-    struct P_resect_garbage* garbage_holder = malloc(sizeof (struct P_resect_garbage));
+void resect_register_garbage(resect_translation_context context, enum P_resect_garbage_kind kind, void *garbage) {
+    struct P_resect_garbage *garbage_holder = malloc(sizeof(struct P_resect_garbage));
 
     garbage_holder->kind = kind;
     garbage_holder->data = garbage;
