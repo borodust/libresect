@@ -237,6 +237,8 @@ resect_string resect_extract_decl_id(CXCursor cursor);
 
 resect_string resect_format_cursor_full_name(CXCursor cursor);
 
+unsigned long resect_hash(const char *str);
+
 
 /*
  * OPTIONS

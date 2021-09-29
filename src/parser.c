@@ -101,7 +101,7 @@ void resect_options_add_cpu(resect_parse_options opts, const char *value) {
 }
 
 void resect_options_add_language(resect_parse_options opts, const char *lang) {
-    resect_options_add(opts, "--language", lang);
+    resect_options_add_concat(opts, "--language=", lang);
 }
 
 void resect_options_add_define(resect_parse_options opts, const char *name, const char *value) {
@@ -110,11 +110,11 @@ void resect_options_add_define(resect_parse_options opts, const char *name, cons
 }
 
 void resect_options_add_standard(resect_parse_options opts, const char *standard) {
-    resect_options_add(opts, "--std", standard);
+    resect_options_add_concat(opts, "--std=", standard);
 }
 
 void resect_options_add_target(resect_parse_options opts, const char *target) {
-    resect_options_add(opts, "-target", target);
+    resect_options_add_concat(opts, "--target=", target);
 }
 
 void resect_options_intrinsic(resect_parse_options opts, resect_option_intrinsic intrinsic) {

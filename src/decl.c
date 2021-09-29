@@ -49,6 +49,19 @@ resect_location resect_location_from_cursor(CXCursor cursor) {
     return result;
 }
 
+static resect_string resect_location_hash_from_cursor(CXCursor cursor) {
+    resect_location location = resect_location_from_cursor(cursor);
+    resect_string location_string = resect_location_to_string(location);
+
+    resect_string location_hash =
+            resect_string_format("%lld", resect_hash(resect_string_to_c(location_string)));
+
+    resect_string_free(location_string);
+    resect_location_free(location);
+    return location_hash;
+}
+
+
 void resect_location_free(resect_location location) {
     resect_string_free(location->name);
     free(location);
@@ -602,7 +615,15 @@ static bool exclude_decl_if_exclusion_detected(resect_translation_context contex
 void resect_decl_init_template_from_cursor(resect_decl decl,
                                            resect_translation_context context,
                                            CXCursor cursor) {
-    resect_context_push_inclusion_status(context, RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED);
+
+    resect_inclusion_status template_arg_incl_status;
+    if (decl->inclusion_status == RESECT_INCLUSION_STATUS_INCLUDED) {
+        template_arg_incl_status = RESECT_INCLUSION_STATUS_WEAKLY_ENFORCED;
+    } else {
+        template_arg_incl_status = RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED;
+    }
+
+    resect_context_push_inclusion_status(context, template_arg_incl_status);
     resect_init_template_args_from_cursor(context, decl->template_arguments, cursor);
     resect_context_pop_inclusion_status(context);
     if (resect_is_exclusion_detected(context)) {
@@ -748,7 +769,6 @@ enum CXChildVisitResult resect_visit_child_declaration(CXCursor cursor,
 }
 
 static resect_decl find_registered_decl(resect_translation_context context, CXCursor cursor) {
-    resect_decl_kind decl_kind = convert_cursor_kind(cursor);
     resect_string decl_id = resect_extract_decl_id(cursor);
     resect_decl registered_decl = resect_find_decl(context, decl_id);
     resect_string_free(decl_id);
@@ -890,6 +910,7 @@ resect_decl_result resect_decl_create(resect_translation_context context, CXCurs
             resect_template_parameter_init(context, decl, cursor);
             break;
     }
+
     if (exclude_decl_if_exclusion_detected(context, decl)) {
         goto done;
     }

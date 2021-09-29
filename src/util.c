@@ -554,3 +554,17 @@ resect_string resect_extract_decl_id(CXCursor cursor) {
     assert(!"Declaration identifier must not be empty");
     return id;
 }
+
+/**
+ * http://www.cse.yorku.ca/~oz/hash.html
+ */
+unsigned long resect_hash(const char *str) {
+    unsigned long hash = 0;
+    int c;
+
+    while ((c = (unsigned char)*str++)) {
+        hash = c + (hash << 6) + (hash << 16) - hash;
+    }
+
+    return hash;
+}
