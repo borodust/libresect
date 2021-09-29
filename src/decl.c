@@ -465,11 +465,34 @@ static resect_inclusion_status combine_inclusion_status(resect_decl_kind kind,
                     return RESECT_INCLUSION_STATUS_EXCLUDED;
             }
         }
-        case RESECT_DECL_KIND_METHOD:
         case RESECT_DECL_KIND_FIELD: {
             switch (context_status) {
                 case RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED:
                 case RESECT_INCLUSION_STATUS_WEAKLY_ENFORCED: {
+                    if (cursor_status == RESECT_INCLUSION_STATUS_INCLUDED) {
+                        return RESECT_INCLUSION_STATUS_INCLUDED;
+                    }
+                    return RESECT_INCLUSION_STATUS_EXCLUDED;
+                }
+                case RESECT_INCLUSION_STATUS_INCLUDED: {
+                    if (cursor_status != RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED) {
+                        return cursor_status;
+                    }
+                    return RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED;
+                }
+                default:
+                    return RESECT_INCLUSION_STATUS_EXCLUDED;
+            }
+        }
+        case RESECT_DECL_KIND_METHOD: {
+            switch (context_status) {
+                case RESECT_INCLUSION_STATUS_WEAKLY_ENFORCED: {
+                    if (cursor_status == RESECT_INCLUSION_STATUS_INCLUDED) {
+                        return RESECT_INCLUSION_STATUS_INCLUDED;
+                    }
+                    return RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED;
+                }
+                case RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED: {
                     if (cursor_status == RESECT_INCLUSION_STATUS_INCLUDED) {
                         return RESECT_INCLUSION_STATUS_INCLUDED;
                     }
@@ -1170,7 +1193,17 @@ enum CXChildVisitResult resect_visit_record_child(CXCursor cursor, CXCursor pare
         return CXChildVisit_Continue;
     }
 
-    resect_context_push_inclusion_status(visit_data->context, RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED);
+    resect_inclusion_status child_status;
+    switch (clang_getCursorKind(cursor)) {
+        case CXCursor_Constructor:
+        case CXCursor_Destructor:
+            child_status = RESECT_INCLUSION_STATUS_WEAKLY_ENFORCED;
+            break;
+        default:
+            child_status = RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED;
+    }
+
+    resect_context_push_inclusion_status(visit_data->context, child_status);
     resect_decl_result decl_result = resect_decl_create(visit_data->context, cursor);
     resect_context_pop_inclusion_status(visit_data->context);
 
