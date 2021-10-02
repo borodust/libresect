@@ -516,7 +516,7 @@ static resect_inclusion_status combine_inclusion_status(resect_decl_kind kind,
             if (context_status == RESECT_INCLUSION_STATUS_WEAKLY_ENFORCED) {
                 return RESECT_INCLUSION_STATUS_INCLUDED;
             } else if (cursor_status == RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED) {
-                return RESECT_INCLUSION_STATUS_EXCLUDED;
+                return context_status;
             }
             return cursor_status;
         }
@@ -1551,6 +1551,7 @@ enum CXChildVisitResult resect_visit_enum_constant(CXCursor cursor, CXCursor par
     if (decl != NULL && decl->kind == RESECT_DECL_KIND_ENUM_CONSTANT) {
         resect_collection_add(enum_data->constants, decl);
     }
+    resect_reset_registered_exclusion(visit_data->context);
 
     return CXChildVisit_Continue;
 }
@@ -1576,11 +1577,7 @@ void resect_enum_init(resect_translation_context context, resect_decl decl, CXCu
 
     struct P_resect_decl_child_visit_data visit_data = {.context = context, .parent = decl};
 
-    if (clang_Cursor_isAnonymous(cursor)) {
-        resect_context_push_inclusion_status(context, RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED);
-    } else {
-        resect_context_push_inclusion_status(context, RESECT_INCLUSION_STATUS_WEAKLY_ENFORCED);
-    }
+    resect_context_push_inclusion_status(context, RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED);
     clang_visitChildren(cursor, resect_visit_enum_constant, &visit_data);
     resect_context_pop_inclusion_status(context);
 
