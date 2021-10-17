@@ -1309,7 +1309,7 @@ resect_type resect_typedef_get_aliased_type(resect_decl decl) {
  */
 typedef struct P_resect_function_data {
     resect_bool variadic;
-    resect_function_storage_class storage_class;
+    resect_storage_class storage_class;
     resect_collection parameters;
     resect_function_calling_convention calling_convention;
     resect_type result_type;
@@ -1322,7 +1322,7 @@ resect_type resect_function_get_result_type(resect_decl decl) {
     return data->result_type;
 }
 
-resect_function_storage_class resect_function_get_storage_class(resect_decl decl) {
+resect_storage_class resect_function_get_storage_class(resect_decl decl) {
     assert(decl->kind == RESECT_DECL_KIND_FUNCTION);
     resect_function_data data = decl->data;
     return data->storage_class;
@@ -1430,24 +1430,24 @@ resect_function_calling_convention convert_calling_convention(enum CXCallingConv
     }
 }
 
-resect_function_storage_class convert_storage_class(enum CX_StorageClass storage_class) {
+resect_storage_class convert_storage_class(enum CX_StorageClass storage_class) {
     switch (storage_class) {
         case CX_SC_None:
-            return RESECT_FUNCTION_STORAGE_CLASS_NONE;
+            return RESECT_STORAGE_CLASS_NONE;
         case CX_SC_Extern:
-            return RESECT_FUNCTION_STORAGE_CLASS_EXTERN;
+            return RESECT_STORAGE_CLASS_EXTERN;
         case CX_SC_Static:
-            return RESECT_FUNCTION_STORAGE_CLASS_STATIC;
+            return RESECT_STORAGE_CLASS_STATIC;
         case CX_SC_PrivateExtern:
-            return RESECT_FUNCTION_STORAGE_CLASS_PRIVATE_EXTERN;
+            return RESECT_STORAGE_CLASS_PRIVATE_EXTERN;
         case CX_SC_OpenCLWorkGroupLocal:
-            return RESECT_FUNCTION_STORAGE_CLASS_OPENCL_WORKGROUP_LOCAL;
+            return RESECT_STORAGE_CLASS_OPENCL_WORKGROUP_LOCAL;
         case CX_SC_Auto:
-            return RESECT_FUNCTION_STORAGE_CLASS_AUTO;
+            return RESECT_STORAGE_CLASS_AUTO;
         case CX_SC_Register:
-            return RESECT_FUNCTION_STORAGE_CLASS_REGISTER;
+            return RESECT_STORAGE_CLASS_REGISTER;
         default:
-            return RESECT_FUNCTION_STORAGE_CLASS_UNKNOWN;
+            return RESECT_STORAGE_CLASS_UNKNOWN;
     }
 }
 
@@ -1595,6 +1595,7 @@ typedef struct P_resect_variable_data {
     resect_string string_value;
     long long int_value;
     double float_value;
+    resect_storage_class storage_class;
 } *resect_variable_data;
 
 resect_type resect_variable_get_type(resect_decl decl) {
@@ -1626,6 +1627,12 @@ const char *resect_variable_get_value_as_string(resect_decl decl) {
     return resect_string_to_c(data->string_value);
 }
 
+resect_storage_class resect_variable_get_storage_class(resect_decl decl) {
+    assert(decl->kind == RESECT_DECL_KIND_VARIABLE);
+    resect_variable_data data = decl->data;
+    return data->storage_class;
+}
+
 void resect_variable_data_free(void *data, resect_set deallocated) {
     if (data == NULL || !resect_set_add(deallocated, data)) {
         return;
@@ -1645,6 +1652,7 @@ void resect_variable_init(resect_translation_context context, resect_decl decl, 
     CXEvalResult value = clang_Cursor_Evaluate(cursor);
     resect_variable_data data = malloc(sizeof(struct P_resect_variable_data));
 
+    data->storage_class = convert_storage_class(clang_Cursor_getStorageClass(cursor));
     data->string_value = resect_string_from_c("");
 
     switch (clang_EvalResult_getKind(value)) {
@@ -1721,7 +1729,7 @@ resect_type resect_method_get_result_type(resect_decl decl) {
     return data->function_data->result_type;
 }
 
-resect_function_storage_class resect_method_get_storage_class(resect_decl decl) {
+resect_storage_class resect_method_get_storage_class(resect_decl decl) {
     assert(decl->kind == RESECT_DECL_KIND_METHOD);
     resect_method_data data = decl->data;
     return data->function_data->storage_class;

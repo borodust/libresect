@@ -136,15 +136,15 @@ typedef enum {
 
 
 typedef enum {
-    RESECT_FUNCTION_STORAGE_CLASS_UNKNOWN = 0,
-    RESECT_FUNCTION_STORAGE_CLASS_NONE = 1,
-    RESECT_FUNCTION_STORAGE_CLASS_EXTERN = 2,
-    RESECT_FUNCTION_STORAGE_CLASS_STATIC = 3,
-    RESECT_FUNCTION_STORAGE_CLASS_PRIVATE_EXTERN = 4,
-    RESECT_FUNCTION_STORAGE_CLASS_OPENCL_WORKGROUP_LOCAL = 5,
-    RESECT_FUNCTION_STORAGE_CLASS_AUTO = 6,
-    RESECT_FUNCTION_STORAGE_CLASS_REGISTER = 7,
-} resect_function_storage_class;
+    RESECT_STORAGE_CLASS_UNKNOWN = 0,
+    RESECT_STORAGE_CLASS_NONE = 1,
+    RESECT_STORAGE_CLASS_EXTERN = 2,
+    RESECT_STORAGE_CLASS_STATIC = 3,
+    RESECT_STORAGE_CLASS_PRIVATE_EXTERN = 4,
+    RESECT_STORAGE_CLASS_OPENCL_WORKGROUP_LOCAL = 5,
+    RESECT_STORAGE_CLASS_AUTO = 6,
+    RESECT_STORAGE_CLASS_REGISTER = 7,
+} resect_storage_class;
 
 
 typedef enum {
@@ -387,7 +387,7 @@ RESECT_API resect_collection resect_function_parameters(resect_decl decl);
 
 RESECT_API resect_type resect_function_get_result_type(resect_decl decl);
 
-RESECT_API resect_function_storage_class resect_function_get_storage_class(resect_decl decl);
+RESECT_API resect_storage_class resect_function_get_storage_class(resect_decl decl);
 
 RESECT_API resect_bool resect_function_is_variadic(resect_decl decl);
 
@@ -407,6 +407,8 @@ RESECT_API double resect_variable_get_value_as_float(resect_decl decl);
 
 RESECT_API const char *resect_variable_get_value_as_string(resect_decl decl);
 
+RESECT_API resect_storage_class resect_variable_get_storage_class(resect_decl decl);
+
 /*
  * TYPEDEF
  */
@@ -419,7 +421,7 @@ RESECT_API resect_collection resect_method_parameters(resect_decl decl);
 
 RESECT_API resect_type resect_method_get_result_type(resect_decl decl);
 
-RESECT_API resect_function_storage_class resect_method_get_storage_class(resect_decl decl);
+RESECT_API resect_storage_class resect_method_get_storage_class(resect_decl decl);
 
 RESECT_API resect_bool resect_method_is_variadic(resect_decl decl);
 
