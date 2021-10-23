@@ -251,4 +251,8 @@ resect_collection resect_options_get_excluded_definitions(resect_parse_options o
 
 resect_collection resect_options_get_excluded_sources(resect_parse_options opts);
 
+resect_collection resect_options_get_enforced_definitions(resect_parse_options opts);
+
+resect_collection resect_options_get_enforced_sources(resect_parse_options opts);
+
 #endif //RESECT_PRIVATE_H

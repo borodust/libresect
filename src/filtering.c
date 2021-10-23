@@ -15,6 +15,8 @@ struct P_resect_filtering_context {
     resect_collection included_source_patterns;
     resect_collection excluded_definition_patterns;
     resect_collection excluded_source_patterns;
+    resect_collection enforced_definition_patterns;
+    resect_collection enforced_source_patterns;
 
     resect_collection status_stack;
 };
@@ -74,6 +76,10 @@ resect_filtering_context resect_filtering_context_create(resect_parse_options op
             compile_pattern_collection(resect_options_get_excluded_definitions(options));
     context->excluded_source_patterns =
             compile_pattern_collection(resect_options_get_excluded_sources(options));
+    context->enforced_definition_patterns =
+            compile_pattern_collection(resect_options_get_enforced_definitions(options));
+    context->enforced_source_patterns =
+            compile_pattern_collection(resect_options_get_enforced_sources(options));
 
     context->status_stack = resect_collection_create();
     resect_collection_add(context->status_stack, (void *) RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED);
@@ -108,6 +114,8 @@ void resect_filtering_context_free(resect_filtering_context context) {
     free_pattern_collection(context->included_source_patterns);
     free_pattern_collection(context->excluded_definition_patterns);
     free_pattern_collection(context->excluded_source_patterns);
+    free_pattern_collection(context->enforced_definition_patterns);
+    free_pattern_collection(context->enforced_source_patterns);
 
     resect_collection_free(context->status_stack);
     free(context);
@@ -144,6 +152,11 @@ static bool match_pattern_collection(resect_collection collection, const char *s
 resect_inclusion_status resect_filtering_explicit_inclusion_status(resect_filtering_context context,
                                                                    const char *declaration_name,
                                                                    const char *declaration_source) {
+    if (match_pattern_collection(context->enforced_definition_patterns, declaration_name)
+        || match_pattern_collection(context->enforced_source_patterns, declaration_source)) {
+        return RESECT_INCLUSION_STATUS_INCLUDED;
+    }
+
     if (match_pattern_collection(context->excluded_definition_patterns, declaration_name)
         || match_pattern_collection(context->excluded_source_patterns, declaration_source)) {
         return RESECT_INCLUSION_STATUS_EXCLUDED;

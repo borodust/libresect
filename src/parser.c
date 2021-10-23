@@ -18,6 +18,8 @@ struct P_resect_parse_options {
     resect_collection included_source_patterns;
     resect_collection excluded_definition_patterns;
     resect_collection excluded_source_patterns;
+    resect_collection enforced_definition_patterns;
+    resect_collection enforced_source_patterns;
 };
 
 void resect_options_add(resect_parse_options opts, const char *key, const char *value) {
@@ -40,11 +42,29 @@ resect_parse_options resect_options_create() {
     opts->excluded_definition_patterns = resect_collection_create();
     opts->excluded_source_patterns = resect_collection_create();
 
+    opts->enforced_definition_patterns = resect_collection_create();
+    opts->enforced_source_patterns = resect_collection_create();
+
     resect_collection_add(opts->args, resect_string_from_c("-ferror-limit=0"));
     resect_collection_add(opts->args, resect_string_from_c("-fno-implicit-templates"));
     resect_collection_add(opts->args, resect_string_from_c("-fc++-abi=itanium"));
 
     return opts;
+}
+
+void resect_options_free(resect_parse_options opts) {
+    resect_string_collection_free(opts->args);
+
+    resect_string_collection_free(opts->included_definition_patterns);
+    resect_string_collection_free(opts->included_source_patterns);
+
+    resect_string_collection_free(opts->excluded_definition_patterns);
+    resect_string_collection_free(opts->excluded_source_patterns);
+
+    resect_string_collection_free(opts->enforced_definition_patterns);
+    resect_string_collection_free(opts->enforced_source_patterns);
+
+    free(opts);
 }
 
 void resect_options_include_definition(resect_parse_options opts, const char *name) {
@@ -63,6 +83,13 @@ void resect_options_exclude_source(resect_parse_options opts, const char *name) 
     resect_collection_add(opts->excluded_source_patterns, resect_string_from_c(name));
 }
 
+void resect_options_enforce_definition(resect_parse_options opts, const char *name) {
+    resect_collection_add(opts->enforced_definition_patterns, resect_string_from_c(name));
+}
+
+void resect_options_enforce_source(resect_parse_options opts, const char *name) {
+    resect_collection_add(opts->enforced_source_patterns, resect_string_from_c(name));
+}
 
 resect_collection resect_options_get_included_definitions(resect_parse_options opts) {
     return opts->included_definition_patterns;
@@ -77,6 +104,14 @@ resect_collection resect_options_get_excluded_definitions(resect_parse_options o
 }
 
 resect_collection resect_options_get_excluded_sources(resect_parse_options opts) {
+    return opts->enforced_source_patterns;
+}
+
+resect_collection resect_options_get_enforced_definitions(resect_parse_options opts) {
+    return opts->enforced_definition_patterns;
+}
+
+resect_collection resect_options_get_enforced_sources(resect_parse_options opts) {
     return opts->excluded_source_patterns;
 }
 
@@ -158,17 +193,6 @@ void resect_options_single_header(resect_parse_options opts) {
 
 void resect_options_print_diagnostics(resect_parse_options opts) {
     opts->diagnostics = resect_true;
-}
-
-void resect_options_free(resect_parse_options opts) {
-    resect_string_collection_free(opts->args);
-
-    resect_string_collection_free(opts->included_definition_patterns);
-    resect_string_collection_free(opts->included_source_patterns);
-    resect_string_collection_free(opts->excluded_definition_patterns);
-    resect_string_collection_free(opts->excluded_source_patterns);
-
-    free(opts);
 }
 
 /*
