@@ -1499,15 +1499,11 @@ void resect_function_init(resect_translation_context context, resect_decl decl, 
  * ENUM
  */
 typedef struct P_resect_enum_constant_data {
+    resect_bool is_unsigned;
+    unsigned long long unsigned_value;
     long long value;
 } *resect_enum_constant_data;
 
-
-long long resect_enum_constant_value(resect_decl decl) {
-    assert(decl->kind == RESECT_DECL_KIND_ENUM_CONSTANT);
-    resect_enum_constant_data data = decl->data;
-    return data->value;
-}
 
 void resect_enum_constant_free(void *data, resect_set deallocated) {
     if (data == NULL || !resect_set_add(deallocated, data)) {
@@ -1517,9 +1513,56 @@ void resect_enum_constant_free(void *data, resect_set deallocated) {
     free(data);
 }
 
+long long resect_enum_constant_value(resect_decl decl) {
+    assert(decl->kind == RESECT_DECL_KIND_ENUM_CONSTANT);
+    resect_enum_constant_data data = decl->data;
+    return data->value;
+}
+
+unsigned long long resect_enum_constant_unsigned_value(resect_decl decl) {
+    assert(decl->kind == RESECT_DECL_KIND_ENUM_CONSTANT);
+    resect_enum_constant_data data = decl->data;
+    return data->unsigned_value;
+}
+
+resect_bool resect_enum_constant_is_unsigned(resect_decl decl) {
+    assert(decl->kind == RESECT_DECL_KIND_ENUM_CONSTANT);
+    resect_enum_constant_data data = decl->data;
+    return data->is_unsigned;
+}
+
 void resect_enum_constant_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
     resect_enum_constant_data data = malloc(sizeof(struct P_resect_enum_constant_data));
-    data->value = clang_getEnumConstantDeclValue(cursor);
+
+    CXType enum_value_type = clang_getEnumDeclIntegerType(clang_getCursorSemanticParent(cursor));
+
+    bool is_unsigned = false;
+    switch (enum_value_type.kind) {
+        case CXType_UChar:
+        case CXType_UShort:
+        case CXType_UInt:
+        case CXType_ULong:
+        case CXType_ULongLong:
+        case CXType_UInt128:
+        case CXType_UAccum:
+        case CXType_UShortAccum:
+        case CXType_ULongAccum:
+            is_unsigned = true;
+            break;
+        default:
+            is_unsigned = false;
+    }
+
+    if (is_unsigned) {
+        data->unsigned_value = clang_getEnumConstantDeclUnsignedValue(cursor);
+        data->value = (long long) data->unsigned_value;
+        data->is_unsigned = resect_true;
+    } else {
+        data->value = clang_getEnumConstantDeclValue(cursor);
+        data->unsigned_value = (unsigned long long) data->value;
+        data->is_unsigned = resect_false;
+    }
+
     decl->data_deallocator = resect_enum_constant_free;
     decl->data = data;
 }

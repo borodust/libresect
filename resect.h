@@ -376,6 +376,10 @@ RESECT_API resect_bool resect_record_is_abstract(resect_decl decl);
  */
 RESECT_API long long resect_enum_constant_value(resect_decl decl);
 
+RESECT_API unsigned long long resect_enum_constant_unsigned_value(resect_decl decl);
+
+RESECT_API resect_bool resect_enum_constant_is_unsigned(resect_decl decl);
+
 RESECT_API resect_collection resect_enum_constants(resect_decl decl);
 
 RESECT_API resect_type resect_enum_get_type(resect_decl decl);
@@ -464,7 +468,7 @@ RESECT_API void resect_options_add_framework_path(resect_parse_options opts, con
 
 RESECT_API void resect_options_add_language(resect_parse_options opts, const char *lang);
 
-RESECT_API void resect_options_add_define(resect_parse_options opts, const char *name, const char* value);
+RESECT_API void resect_options_add_define(resect_parse_options opts, const char *name, const char *value);
 
 RESECT_API void resect_options_add_standard(resect_parse_options opts, const char *standard);
 
