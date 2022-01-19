@@ -1688,6 +1688,11 @@ void resect_variable_data_free(void *data, resect_set deallocated) {
 }
 
 void resect_variable_init(resect_translation_context context, resect_decl decl, CXCursor cursor) {
+    if (decl->linkage == RESECT_LINKAGE_KIND_NO_LINKAGE) {
+        // somehow we are getting into constexpr function variables with no linkage
+        // so we skip them here
+        resect_register_exclusion(context);
+    }
     if (exclude_decl_if_exclusion_detected(context, decl)) {
         return;
     }
