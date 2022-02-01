@@ -1768,6 +1768,7 @@ void resect_macro_init(resect_translation_context context, resect_decl decl, CXC
 typedef struct P_resect_method_data {
     resect_function_data function_data;
     resect_bool pure_virtual;
+    resect_bool virtual;
     resect_bool non_mutating;
 } *resect_method_data;
 
@@ -1793,6 +1794,12 @@ resect_bool resect_method_is_pure_virtual(resect_decl decl) {
     assert(decl->kind == RESECT_DECL_KIND_METHOD);
     resect_method_data data = decl->data;
     return data->pure_virtual;
+}
+
+resect_bool resect_method_is_virtual(resect_decl decl) {
+    assert(decl->kind == RESECT_DECL_KIND_METHOD);
+    resect_method_data data = decl->data;
+    return data->virtual;
 }
 
 resect_bool resect_method_is_const(resect_decl decl) {
@@ -1839,6 +1846,7 @@ void resect_method_init(resect_translation_context context, resect_decl decl, CX
     data->function_data = resect_function_data_create(context, cursor);
     resect_context_pop_inclusion_status(context);
 
+    data->virtual = clang_CXXMethod_isVirtual(cursor);
     data->pure_virtual = clang_CXXMethod_isPureVirtual(cursor);
     data->non_mutating = clang_CXXMethod_isConst(cursor);
 
