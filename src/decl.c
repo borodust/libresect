@@ -664,6 +664,7 @@ void resect_decl_init_template_from_cursor(resect_decl decl,
 }
 
 struct P_function_class_mangling_result {
+    CXCursor cursor;
     resect_string mangling;
 };
 
@@ -671,7 +672,9 @@ static enum CXChildVisitResult find_mangled_name(CXCursor cursor,
                                                  CXCursor parent,
                                                  CXClientData data) {
     struct P_function_class_mangling_result *mangling_result = data;
-    if (clang_getCursorKind(cursor) == CXCursor_Constructor) {
+    CXCursor source = mangling_result->cursor;
+    CXCursor semantic_parent = clang_getCursorSemanticParent(cursor);
+    if (clang_getCursorKind(cursor) == CXCursor_Constructor && clang_equalCursors(source, semantic_parent)) {
         assert(mangling_result->mangling == NULL);
         CXStringSet *manglings = clang_Cursor_getCXXManglings(cursor);
         mangling_result->mangling = manglings->Count > 0 ?
@@ -689,7 +692,7 @@ static resect_string get_cursor_mangling(resect_string decl_name, resect_string 
     if (convert_cursor_kind(cursor) == RESECT_DECL_KIND_CLASS
         && clang_Type_getSizeOf(clang_getCursorType(cursor)) > 0) {
 
-        struct P_function_class_mangling_result mangling_result = {.mangling = NULL};
+        struct P_function_class_mangling_result mangling_result = {.cursor = cursor, .mangling = NULL};
         clang_visitChildren(cursor, find_mangled_name, &mangling_result);
 
         if (mangling_result.mangling != NULL) {
