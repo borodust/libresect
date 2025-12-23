@@ -104,7 +104,7 @@ resect_collection resect_options_get_excluded_definitions(resect_parse_options o
 }
 
 resect_collection resect_options_get_excluded_sources(resect_parse_options opts) {
-    return opts->enforced_source_patterns;
+    return opts->excluded_source_patterns;
 }
 
 resect_collection resect_options_get_enforced_definitions(resect_parse_options opts) {
@@ -112,7 +112,7 @@ resect_collection resect_options_get_enforced_definitions(resect_parse_options o
 }
 
 resect_collection resect_options_get_enforced_sources(resect_parse_options opts) {
-    return opts->excluded_source_patterns;
+    return opts->enforced_source_patterns;
 }
 
 void resect_options_add_include_path(resect_parse_options opts, const char *path) {
