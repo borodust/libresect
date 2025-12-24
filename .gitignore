@@ -1,6 +1,6 @@
 # cmake
 cmake-*/
-build/
+.build/
 llvm-bin/
 libclang-bundle/
 
