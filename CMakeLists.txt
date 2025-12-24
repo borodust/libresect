@@ -22,8 +22,6 @@ set(PCRE2_STATIC_PIC ON)
 
 add_subdirectory("${THIRD_PARTY_DIR}/pcre2-10.47/")
 
-set_target_properties(pcre2-8 PROPERTIES
-        CMAKE_POSITION_INDEPENDENT_CODE ON)
 #
 # RESECT
 #
@@ -46,7 +44,7 @@ set_target_properties(resect PROPERTIES
 
 target_include_directories(resect
   SYSTEM BEFORE PUBLIC "${LIBCLANG_INCLUDE_DIRS}"
-  SYSTEM BEFORE PUBLIC "${CMAKE_BINARY_DIR}/third-party/pcre2-10.37/")
+        SYSTEM BEFORE PUBLIC "${CMAKE_BINARY_DIR}/third-party/pcre2-10.47/")
 
 target_link_directories(resect
   PUBLIC "${LIBCLANG_LINK_DIRS}")
@@ -59,17 +57,18 @@ if (APPLE OR UNIX)
         IMPORTED_LOCATION "${LIBCLANG_LINK_DIRS}/libclang_bundled.a")
 
 #    target_link_options(resect PUBLIC "-fuse-ld=gold")
-    target_link_libraries(resect
+    target_link_libraries(resect PRIVATE
         stdc++ m dl pthread z)
 elseif(WIN32)
     set_target_properties(resect_clang_static PROPERTIES
         IMPORTED_LOCATION "${LIBCLANG_LINK_DIRS}/clang_static_bundled.lib")
-    target_link_libraries(resect
+    target_link_libraries(resect PRIVATE
         version.lib)
 endif()
 
-target_link_libraries(resect
-    resect_clang_static pcre2-8)
+target_link_libraries(resect PRIVATE
+        resect_clang_static
+        pcre2-8)
 
 add_executable(resect-test test/test.c)
 target_link_libraries(resect-test PUBLIC resect)
