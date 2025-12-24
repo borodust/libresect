@@ -1,0 +1,16 @@
+* Docker-based builders
+
+** Linux
+#+BEGIN_SRC sh
+./build-linux.sh
+#+END_SRC
+
+
+** Windows
+This one is more like a prepared environment than a builder. I'll make it more builder-like in the future.
+
+#+BEGIN_SRC powershell
+  cd windows && docker build -t libresect-builder:windows .
+  docker run --rm -it -v C:\Path\To\libresect\:c:\Project\ libresect-builder:windows
+#+END_SRC
+
