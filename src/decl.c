@@ -260,7 +260,6 @@ struct P_resect_decl {
 };
 
 static resect_decl_kind convert_cursor_kind(CXCursor cursor) {
-
     enum CXCursorKind clang_kind = clang_getTemplateCursorKind(cursor);
 
     if (clang_kind == CXCursor_NoDeclFound) {
@@ -294,7 +293,6 @@ static resect_decl_kind convert_cursor_kind(CXCursor cursor) {
         case CXCursor_TemplateRef:
         case CXCursor_ClassTemplate:
         case CXCursor_ClassTemplatePartialSpecialization:
-        case CXCursor_ClassTemplateSpecialization:
         case CXCursor_ClassDecl:
             return RESECT_DECL_KIND_CLASS;
         case CXCursor_CXXMethod:
@@ -554,7 +552,6 @@ static bool is_cursor_anonymous(CXCursor cursor) {
 static void push_declaration_inclusion_status(resect_translation_context context,
                                               resect_decl_kind kind,
                                               CXCursor cursor) {
-
     resect_inclusion_status status = RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED;
     resect_inclusion_status context_status = resect_context_inclusion_status(context);
     resect_inclusion_status cursor_status = resect_cursor_inclusion_status(context, cursor);
@@ -586,7 +583,7 @@ static void push_declaration_inclusion_status(resect_translation_context context
                 status = combine_inclusion_status(kind, context_status, cursor_status);
             }
         }
-            break;
+        break;
 
         case RESECT_DECL_KIND_ENUM: {
             if (is_cursor_anonymous(cursor)) {
@@ -599,14 +596,14 @@ static void push_declaration_inclusion_status(resect_translation_context context
                 status = combine_inclusion_status(kind, context_status, cursor_status);
             }
         }
-            break;
+        break;
         case RESECT_DECL_KIND_PARAMETER:
         case RESECT_DECL_KIND_TEMPLATE_PARAMETER:
         case RESECT_DECL_KIND_METHOD:
         case RESECT_DECL_KIND_FIELD: {
             status = combine_inclusion_status(kind, context_status, cursor_status);
         }
-            break;
+        break;
         case RESECT_DECL_KIND_UNDECLARED:
         case RESECT_DECL_KIND_UNKNOWN:
             if (cursor_status == RESECT_INCLUSION_STATUS_INCLUDED) {
@@ -638,7 +635,6 @@ static bool exclude_decl_if_exclusion_detected(resect_translation_context contex
 void resect_decl_init_template_from_cursor(resect_decl decl,
                                            resect_translation_context context,
                                            CXCursor cursor) {
-
     resect_inclusion_status template_arg_incl_status;
     if (decl->inclusion_status == RESECT_INCLUSION_STATUS_INCLUDED) {
         template_arg_incl_status = RESECT_INCLUSION_STATUS_WEAKLY_ENFORCED;
@@ -677,9 +673,9 @@ static enum CXChildVisitResult find_mangled_name(CXCursor cursor,
     if (clang_getCursorKind(cursor) == CXCursor_Constructor && clang_equalCursors(source, semantic_parent)) {
         assert(mangling_result->mangling == NULL);
         CXStringSet *manglings = clang_Cursor_getCXXManglings(cursor);
-        mangling_result->mangling = manglings->Count > 0 ?
-                                    resect_string_from_c(clang_getCString(manglings->Strings[0])) :
-                                    NULL;
+        mangling_result->mangling = manglings->Count > 0
+                                        ? resect_string_from_c(clang_getCString(manglings->Strings[0]))
+                                        : NULL;
         clang_disposeStringSet(manglings);
     } else {
         clang_visitChildren(cursor, find_mangled_name, data);
@@ -691,7 +687,6 @@ static enum CXChildVisitResult find_mangled_name(CXCursor cursor,
 static resect_string get_cursor_mangling(resect_string decl_name, resect_string decl_namespace, CXCursor cursor) {
     if (convert_cursor_kind(cursor) == RESECT_DECL_KIND_CLASS
         && clang_Type_getSizeOf(clang_getCursorType(cursor)) > 0) {
-
         struct P_function_class_mangling_result mangling_result = {.cursor = cursor, .mangling = NULL};
         clang_visitChildren(cursor, find_mangled_name, &mangling_result);
 
@@ -739,13 +734,13 @@ void resect_decl_init_rest_from_cursor(resect_decl decl,
 
     CXPrintingPolicy pp = clang_getCursorPrintingPolicy(cursor);
     clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_PolishForDeclaration, 1);
-//    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_FullyQualifiedName, 0);
-//    clang_PrintingPolicy_setProperty(pp,CXPrintingPolicy_IncludeTagDefinition, 0);
-//    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_TerseOutput, 0);
-//    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_SuppressSpecifiers, 0);
+    //    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_FullyQualifiedName, 0);
+    //    clang_PrintingPolicy_setProperty(pp,CXPrintingPolicy_IncludeTagDefinition, 0);
+    //    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_TerseOutput, 0);
+    //    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_SuppressSpecifiers, 0);
     clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_SuppressScope, 1);
-//    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_SuppressUnwrittenScope, 0);
-//    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_SuppressImplicitBase, 0);
+    //    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_SuppressUnwrittenScope, 0);
+    //    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_SuppressImplicitBase, 0);
     decl->source = resect_string_from_clang(clang_getCursorPrettyPrinted(cursor, pp));
     clang_PrintingPolicy_dispose(pp);
 
@@ -808,13 +803,14 @@ resect_decl_result resect_decl_create(resect_translation_context context, CXCurs
     if (cursor_kind >= CXCursor_FirstInvalid // ignore invalid cursors
         && cursor_kind <= CXCursor_LastInvalid
         || cursor_kind >= CXCursor_FirstAttr // ignore attributes
-           && cursor_kind <= CXCursor_LastAttr
+        && cursor_kind <= CXCursor_LastAttr
         || cursor_kind >= CXCursor_FirstRef // ignore references
-           && cursor_kind <= CXCursor_LastRef
+        && cursor_kind <= CXCursor_LastRef
         || cursor_kind >= CXCursor_FirstStmt // ignore statements
-           && cursor_kind <= CXCursor_LastStmt
+        && cursor_kind <= CXCursor_LastStmt
         || cursor_kind >= CXCursor_FirstExpr // ignore expressions
-           && cursor_kind <= CXCursor_LastExpr) {
+        && cursor_kind <= CXCursor_LastExpr
+        || cursor_kind == CXCursor_LinkageSpec) {
         /* ignore some kinds for now, but just in case check children */
         clang_visitChildren(cursor, resect_visit_child_declaration, context);
         return result;
@@ -863,10 +859,9 @@ resect_decl_result resect_decl_create(resect_translation_context context, CXCurs
             || registered_decl->inclusion_status == RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED) {
             resect_register_exclusion(context);
             return result;
-        } else {
-            result.decl = registered_decl;
-            return result;
         }
+        result.decl = registered_decl;
+        return result;
     }
 
     struct P_resect_decl_context decl_context = {.exclusion_detected = false};
@@ -948,15 +943,14 @@ resect_decl_result resect_decl_create(resect_translation_context context, CXCurs
 
     if (decl->inclusion_status == RESECT_INCLUSION_STATUS_EXCLUDED) {
         goto done;
-    } else {
-        result.decl = decl;
     }
+    result.decl = decl;
 
     if (decl->inclusion_status == RESECT_INCLUSION_STATUS_INCLUDED && is_kind_exportable(decl->kind)) {
         resect_export_decl(context, decl);
     }
 
-    done:
+done:
     resect_context_pop_state(context);
     pop_cursor_inclusion_status(context);
 
@@ -1257,7 +1251,7 @@ void resect_record_init(resect_translation_context context, resect_decl decl, CX
     decl->data_deallocator = resect_record_data_free;
     decl->data = data;
 
-    struct P_resect_decl_child_visit_data visit_data = {.context =  context, .parent =  decl};
+    struct P_resect_decl_child_visit_data visit_data = {.context = context, .parent = decl};
     clang_visitChildren(cursor, resect_visit_record_child, &visit_data);
 }
 
@@ -1375,7 +1369,7 @@ void resect_visit_function_child(resect_decl_child_visit_data visit_data,
                     resect_collection_add(visit_data->parent->template_parameters, decl);
                 }
             }
-                break;
+            break;
         }
     }
 }
@@ -1491,7 +1485,7 @@ void resect_function_init(resect_translation_context context, resect_decl decl, 
         return;
     }
 
-    struct P_resect_decl_child_visit_data visit_data = {.context = context, .parent =  decl};
+    struct P_resect_decl_child_visit_data visit_data = {.context = context, .parent = decl};
 
     resect_context_push_inclusion_status(context, RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED);
     clang_visitChildren(cursor, resect_visit_function_parameter, &visit_data);
@@ -1745,7 +1739,6 @@ resect_bool resect_macro_is_function_like(resect_decl decl) {
     assert(decl->kind == RESECT_DECL_KIND_MACRO);
     resect_macro_data data = decl->data;
     return data->is_function_like;
-
 }
 
 void resect_macro_data_free(void *data, resect_set deallocated) {
@@ -1860,7 +1853,7 @@ void resect_method_init(resect_translation_context context, resect_decl decl, CX
         return;
     }
 
-    struct P_resect_decl_child_visit_data visit_data = {.context = context, .parent =  decl};
+    struct P_resect_decl_child_visit_data visit_data = {.context = context, .parent = decl};
 
     resect_context_push_inclusion_status(context, RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED);
     clang_visitChildren(cursor, resect_visit_method_parameter, &visit_data);

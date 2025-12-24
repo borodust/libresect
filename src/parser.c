@@ -31,6 +31,10 @@ void resect_options_add_concat(resect_parse_options opts, const char *key, const
     resect_collection_add(opts->args, resect_string_format("%s%s", key, value));
 }
 
+void resect_options_add_string(resect_parse_options opts, resect_string string) {
+    resect_collection_add(opts->args, resect_string_copy(string));
+}
+
 resect_parse_options resect_options_create() {
     resect_parse_options opts = malloc(sizeof(struct P_resect_parse_options));
     opts->args = resect_collection_create();
@@ -48,6 +52,7 @@ resect_parse_options resect_options_create() {
     resect_collection_add(opts->args, resect_string_from_c("-ferror-limit=0"));
     resect_collection_add(opts->args, resect_string_from_c("-fno-implicit-templates"));
     resect_collection_add(opts->args, resect_string_from_c("-fc++-abi=itanium"));
+    resect_collection_add(opts->args, resect_string_from_c("-fsyntax-only"));
 
     return opts;
 }
@@ -115,8 +120,16 @@ resect_collection resect_options_get_enforced_sources(resect_parse_options opts)
     return opts->enforced_source_patterns;
 }
 
+void resect_options_add_resource_path(resect_parse_options opts, const char *path) {
+    resect_options_add(opts, "-resource-dir", path);
+}
+
 void resect_options_add_include_path(resect_parse_options opts, const char *path) {
     resect_options_add(opts, "--include-directory", path);
+}
+
+void resect_options_add_include_file(resect_parse_options opts, const char *filepath) {
+    resect_options_add_concat(opts, "--include=", filepath);
 }
 
 void resect_options_add_framework_path(resect_parse_options opts, const char *framework) {
@@ -136,7 +149,9 @@ void resect_options_add_cpu(resect_parse_options opts, const char *value) {
 }
 
 void resect_options_add_language(resect_parse_options opts, const char *lang) {
-    resect_options_add_concat(opts, "--language=", lang);
+    resect_string str = resect_string_format("-x%s-header", lang);
+    resect_options_add_string(opts, str);
+    resect_string_free(str);
 }
 
 void resect_options_add_define(resect_parse_options opts, const char *name, const char *value) {
@@ -145,7 +160,7 @@ void resect_options_add_define(resect_parse_options opts, const char *name, cons
 }
 
 void resect_options_add_standard(resect_parse_options opts, const char *standard) {
-    resect_options_add_concat(opts, "--std=", standard);
+    resect_options_add_concat(opts, "-std=", standard);
 }
 
 void resect_options_add_target(resect_parse_options opts, const char *target) {
@@ -212,29 +227,22 @@ resect_language resect_unit_get_language(resect_translation_unit unit) {
 }
 
 resect_translation_unit resect_parse(const char *filename, resect_parse_options options) {
-    char **clang_argv;
-    int clang_argc;
-    if (options != NULL) {
-        clang_argc = (int) resect_collection_size(options->args);
-        clang_argv = malloc(clang_argc * sizeof(char *));
+    int clang_argc = (int) resect_collection_size(options->args);
+    char **clang_argv = malloc(clang_argc * sizeof(char *));
 
-        resect_iterator arg_iter = resect_collection_iterator(options->args);
-        int i = 0;
-        while (resect_iterator_next(arg_iter)) {
-            resect_string arg = resect_iterator_value(arg_iter);
-            clang_argv[i++] = (char *) resect_string_to_c(arg);
-        }
-        resect_iterator_free(arg_iter);
-    } else {
-        clang_argc = 0;
-        clang_argv = NULL;
+    resect_iterator arg_iter = resect_collection_iterator(options->args);
+    int i = 0;
+    while (resect_iterator_next(arg_iter)) {
+        resect_string arg = resect_iterator_value(arg_iter);
+        clang_argv[i++] = (char *) resect_string_to_c(arg);
     }
+    resect_iterator_free(arg_iter);
+
 
     resect_translation_context context = resect_context_create(options);
 
     CXIndex index = clang_createIndex(0, options->diagnostics ? 1 : 0);
     clang_toggleCrashRecovery(false);
-
 
     enum CXTranslationUnit_Flags unitFlags = CXTranslationUnit_DetailedPreprocessingRecord |
                                              CXTranslationUnit_KeepGoing |
@@ -252,14 +260,13 @@ resect_translation_unit resect_parse(const char *filename, resect_parse_options 
                                                              NULL,
                                                              0, unitFlags);
 
-    free(clang_argv);
-
     CXCursor cursor = clang_getTranslationUnitCursor(clangUnit);
 
     clang_visitChildren(cursor, resect_visit_context_child, context);
 
     clang_disposeTranslationUnit(clangUnit);
     clang_disposeIndex(index);
+    free(clang_argv);
 
     resect_translation_unit result = malloc(sizeof(struct P_resect_translation_unit));
     result->context = context;

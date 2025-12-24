@@ -447,7 +447,6 @@ resect_string resect_format_cursor_full_name(CXCursor cursor) {
     switch (parent_kind) {
         case CXCursor_ClassDecl:
         case CXCursor_ClassTemplate:
-        case CXCursor_ClassTemplateSpecialization:
         case CXCursor_ClassTemplatePartialSpecialization:
         case CXCursor_UnionDecl:
         case CXCursor_StructDecl: {
