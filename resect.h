@@ -464,7 +464,11 @@ RESECT_API void resect_options_enforce_definition(resect_parse_options opts, con
 
 RESECT_API void resect_options_enforce_source(resect_parse_options opts, const char *source);
 
+RESECT_API void resect_options_add_resource_path(resect_parse_options opts, const char *path);
+
 RESECT_API void resect_options_add_include_path(resect_parse_options opts, const char *path);
+
+RESECT_API void resect_options_add_include_file(resect_parse_options opts, const char *path);
 
 RESECT_API void resect_options_add_framework_path(resect_parse_options opts, const char *framework);
 

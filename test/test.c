@@ -82,14 +82,17 @@ void print_location(resect_decl decl) {
 }
 
 int main(int argc, char **argv) {
-    char *filename = argc > 1 ? argv[1] : "/usr/include/stdlib.h";
+    char *filename = argc > 1 ? argv[1] : "../test/Testo.hpp";
 
     resect_parse_options options = resect_options_create();
     resect_options_add_language(options, "c++");
 
-    resect_options_add_include_path(options, "/usr/local/include/");
-    resect_options_add_include_path(options, "/usr/include/");
-    resect_options_add_include_path(options, "/usr/include/linux/");
+    resect_options_add_resource_path(options, "/usr/lib/clang/21");
+
+    resect_options_add_include_path(options, "/usr/local/include");
+    resect_options_add_include_path(options, "/usr/include");
+
+    resect_options_include_definition(options, "Testo::.*");
 
     resect_options_add_target(options, "x86_64-pc-linux-gnu");
     resect_options_print_diagnostics(options);
@@ -175,4 +178,3 @@ int main(int argc, char **argv) {
 
     return 0;
 }
-

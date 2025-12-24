@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 project(resect C)
 
-set(LIBCLANG_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libclang-bundle/")
-set(LIBCLANG_INCLUDE_DIRS "${LIBCLANG_DIR}/include/")
-set(LIBCLANG_LINK_DIRS "${LIBCLANG_DIR}/lib/")
+find_package(Clang 21.1.0 REQUIRED CONFIG)
+include_directories(${CLANG_INCLUDE_DIRS})
+
 set(THIRD_PARTY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third-party/")
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -36,38 +36,25 @@ add_library(resect SHARED
         src/resect_private.h)
 
 set_target_properties(resect PROPERTIES
-    CMAKE_C_STANDARD 99
-    CMAKE_POSITION_INDEPENDENT_CODE ON
-    CMAKE_INCLUDE_CURRENT_DIR ON
-    LINK_FLAGS_RELEASE -s
-    LINK_WHAT_YOU_USE TRUE)
+        CMAKE_C_STANDARD 99
+        CMAKE_POSITION_INDEPENDENT_CODE ON
+        CMAKE_INCLUDE_CURRENT_DIR ON
+        LINK_FLAGS_RELEASE -s
+        LINK_WHAT_YOU_USE TRUE)
 
 target_include_directories(resect
-  SYSTEM BEFORE PUBLIC "${LIBCLANG_INCLUDE_DIRS}"
         SYSTEM BEFORE PUBLIC "${CMAKE_BINARY_DIR}/third-party/pcre2-10.47/")
 
 target_link_directories(resect
-  PUBLIC "${LIBCLANG_LINK_DIRS}")
+        PUBLIC "${LIBCLANG_LINK_DIRS}")
 
-add_library(resect_clang_static STATIC IMPORTED)
-
-if (APPLE OR UNIX)
-
-    set_target_properties(resect_clang_static PROPERTIES
-        IMPORTED_LOCATION "${LIBCLANG_LINK_DIRS}/libclang_bundled.a")
-
-#    target_link_options(resect PUBLIC "-fuse-ld=gold")
+if (WIN32)
     target_link_libraries(resect PRIVATE
-        stdc++ m dl pthread z)
-elseif(WIN32)
-    set_target_properties(resect_clang_static PROPERTIES
-        IMPORTED_LOCATION "${LIBCLANG_LINK_DIRS}/clang_static_bundled.lib")
-    target_link_libraries(resect PRIVATE
-        version.lib)
-endif()
+            version.lib)
+endif ()
 
 target_link_libraries(resect PRIVATE
-        resect_clang_static
+        libclang
         pcre2-8)
 
 add_executable(resect-test test/test.c)

@@ -14,8 +14,6 @@ It's a work-in-progress library. Neither binary-level nor source-level
 compatibility is guaranteed yet.
 
 ## Building
-Prepare your disk and RAM - we need to build a custom LLVM dist until I push required `libclang` additions into upstream.
-
 
 #### Windows
 Prerequisites
@@ -29,21 +27,13 @@ For x64 arch you will need to use this powershell target
 %SystemRoot%\system32\WindowsPowerShell\v1.0\powershell.exe -noe -c "&{Import-Module """C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"""; Enter-VsDevShell 0c759dbc -DevCmdArguments '-arch=x64'}"
 ```
 
-#### LLVM
-
-```sh
-# getting LLVM sources
-git submodule update --init --recursive
-# building LLVM and static libclang bundle, going for a walk
-./build_clang.sh
-```
 
 #### libresect
 
-Then we can build `resect` using usual cmake magic:
+Build `resect` using usual cmake magic:
 ```sh
-mkdir -p build/resect/ && cd build/resect/
-cmake -DCMAKE_BUILD_TYPE=Release ../../ && cmake --build .
+mkdir -p build/ && cd build/
+cmake -DCMAKE_BUILD_TYPE=Release ../ && cmake --build .
 ```
 
 ## Valgrind check
