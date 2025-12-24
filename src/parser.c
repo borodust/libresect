@@ -233,6 +233,7 @@ resect_translation_unit resect_parse(const char *filename, resect_parse_options 
     resect_translation_context context = resect_context_create(options);
 
     CXIndex index = clang_createIndex(0, options->diagnostics ? 1 : 0);
+    clang_toggleCrashRecovery(false);
 
 
     enum CXTranslationUnit_Flags unitFlags = CXTranslationUnit_DetailedPreprocessingRecord |
