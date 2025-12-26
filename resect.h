@@ -14,6 +14,7 @@
 #endif
 #ifdef __cplusplus
 extern "C" {
+
 #endif
 
 #define resect_true (1)
@@ -434,6 +435,8 @@ RESECT_API resect_bool resect_method_is_pure_virtual(resect_decl decl);
 RESECT_API resect_bool resect_method_is_virtual(resect_decl decl);
 
 RESECT_API resect_bool resect_method_is_const(resect_decl decl);
+
+RESECT_API resect_bool resect_method_is_deleted(resect_decl decl);
 
 /*
  * MACRO
