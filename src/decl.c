@@ -1770,6 +1770,7 @@ typedef struct P_resect_method_data {
     resect_bool pure_virtual;
     resect_bool virtual;
     resect_bool non_mutating;
+    resect_bool deleted;
 } *resect_method_data;
 
 resect_type resect_method_get_result_type(resect_decl decl) {
@@ -1806,6 +1807,12 @@ resect_bool resect_method_is_const(resect_decl decl) {
     assert(decl->kind == RESECT_DECL_KIND_METHOD);
     resect_method_data data = decl->data;
     return data->non_mutating;
+}
+
+resect_bool resect_method_is_deleted(resect_decl decl) {
+    assert(decl->kind == RESECT_DECL_KIND_METHOD);
+    resect_method_data data = decl->data;
+    return data->deleted;
 }
 
 resect_collection resect_method_parameters(resect_decl decl) {
@@ -1846,9 +1853,10 @@ void resect_method_init(resect_translation_context context, resect_decl decl, CX
     data->function_data = resect_function_data_create(context, cursor);
     resect_context_pop_inclusion_status(context);
 
-    data->virtual = clang_CXXMethod_isVirtual(cursor);
-    data->pure_virtual = clang_CXXMethod_isPureVirtual(cursor);
-    data->non_mutating = clang_CXXMethod_isConst(cursor);
+    data->virtual = clang_CXXMethod_isVirtual(cursor) > 0;
+    data->pure_virtual = clang_CXXMethod_isPureVirtual(cursor) > 0;
+    data->non_mutating = clang_CXXMethod_isConst(cursor) > 0;
+    data->deleted = clang_CXXMethod_isDeleted(cursor) > 0;
 
     decl->data_deallocator = resect_method_data_free;
     decl->data = data;
