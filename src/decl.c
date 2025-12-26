@@ -701,7 +701,11 @@ static resect_string get_cursor_mangling(resect_string decl_name, resect_string 
 void resect_decl_init_rest_from_cursor(resect_decl decl,
                                        resect_translation_context context,
                                        CXCursor cursor) {
-    decl->name = resect_string_from_clang(clang_getCursorSpelling(cursor));
+    if (is_cursor_anonymous(cursor)) {
+        decl->name = resect_string_from_c("");
+    } else {
+        decl->name = resect_string_from_clang(clang_getCursorSpelling(cursor));
+    }
     decl->location = resect_location_from_cursor(cursor);
     decl->comment = resect_string_from_clang(clang_Cursor_getRawCommentText(cursor));
 
