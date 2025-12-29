@@ -17,6 +17,8 @@ struct P_resect_translation_context {
 
     resect_collection state_stack;
     resect_collection garbage;
+
+    CXPrintingPolicy printing_policy;
 };
 
 struct P_resect_garbage {
@@ -164,6 +166,22 @@ resect_collection resect_create_decl_collection(resect_translation_context conte
     resect_collection collection = resect_collection_create();
     resect_set_add_to_collection(context->exposed_decls, collection);
     return collection;
+}
+
+void resect_context_init_printing_policy(resect_translation_context context, CXCursor cursor) {
+    assert(context->printing_policy == NULL);
+    context->printing_policy = clang_getCursorPrintingPolicy(cursor);
+}
+
+void resect_context_release_printing_policy(resect_translation_context context) {
+    if (context->printing_policy) {
+        clang_PrintingPolicy_dispose(context->printing_policy);
+        context->printing_policy = NULL;
+    }
+}
+
+CXPrintingPolicy resect_context_get_printing_policy(resect_translation_context context) {
+    return context->printing_policy;
 }
 
 enum CXChildVisitResult resect_visit_context_child(CXCursor cursor,

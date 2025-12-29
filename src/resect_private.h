@@ -131,6 +131,12 @@ resect_translation_context resect_context_create(resect_parse_options opts);
 
 resect_collection resect_create_decl_collection(resect_translation_context context);
 
+void resect_context_init_printing_policy(resect_translation_context context, CXCursor cursor);
+
+void resect_context_release_printing_policy(resect_translation_context context);
+
+CXPrintingPolicy resect_context_get_printing_policy(resect_translation_context context);
+
 void resect_context_free(resect_translation_context context, resect_set deallocated);
 
 enum CXChildVisitResult resect_visit_context_child(CXCursor cursor,
