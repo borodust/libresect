@@ -1018,6 +1018,10 @@ const char *resect_decl_get_name(resect_decl decl) {
     return resect_string_to_c(decl->name);
 }
 
+resect_bool resect_decl_is_anonymous(resect_decl decl) {
+    return resect_string_equal_c(decl->name, "");
+}
+
 const char *resect_decl_get_namespace(resect_decl decl) {
     return resect_string_to_c(decl->namespace);
 }
