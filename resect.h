@@ -316,6 +316,8 @@ RESECT_API const char *resect_decl_get_id(resect_decl decl);
 
 RESECT_API const char *resect_decl_get_name(resect_decl decl);
 
+RESECT_API resect_bool resect_decl_is_anonymous(resect_decl decl);
+
 RESECT_API const char *resect_decl_get_namespace(resect_decl decl);
 
 RESECT_API const char *resect_decl_get_mangled_name(resect_decl decl);
