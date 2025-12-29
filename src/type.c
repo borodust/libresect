@@ -315,7 +315,8 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
 
     resect_type type = malloc(sizeof(struct P_resect_type));
     type->kind = convert_type_kind(clang_type.kind);
-    type->name = resect_string_from_clang(clang_getTypeSpelling(clang_type));
+    type->name = resect_string_from_clang(clang_getFullyQualifiedName(clang_type,
+        resect_context_get_printing_policy(context), 0));
 
     long long int size = clang_Type_getSizeOf(clang_type);
     if (size <= 0) {

@@ -261,9 +261,9 @@ resect_translation_unit resect_parse(const char *filename, resect_parse_options 
                                                              0, unitFlags);
 
     CXCursor cursor = clang_getTranslationUnitCursor(clangUnit);
-
+    resect_context_init_printing_policy(context, cursor);
     clang_visitChildren(cursor, resect_visit_context_child, context);
-
+    resect_context_release_printing_policy(context);
     clang_disposeTranslationUnit(clangUnit);
     clang_disposeIndex(index);
     free(clang_argv);
