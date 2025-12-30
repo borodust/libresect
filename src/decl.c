@@ -1134,19 +1134,19 @@ resect_collection resect_record_parents(resect_decl decl) {
     return data->parents;
 }
 
-long long resect_field_get_offset(resect_decl field_decl) {
+long long resect_field_decl_get_offset(resect_decl field_decl) {
     assert(field_decl->kind == RESECT_DECL_KIND_FIELD);
     resect_field_data data = field_decl->data;
     return data->offset;
 }
 
-resect_bool resect_field_is_bitfield(resect_decl field_decl) {
+resect_bool resect_field_decl_is_bitfield(resect_decl field_decl) {
     assert(field_decl->kind == RESECT_DECL_KIND_FIELD);
     resect_field_data data = field_decl->data;
     return data->bitfield;
 }
 
-long long resect_field_get_width(resect_decl field_decl) {
+long long resect_field_decl_get_width(resect_decl field_decl) {
     assert(field_decl->kind == RESECT_DECL_KIND_FIELD);
     resect_field_data data = field_decl->data;
     return data->width;

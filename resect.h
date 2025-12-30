@@ -220,6 +220,7 @@ typedef struct P_resect_location *resect_location;
 typedef struct P_resect_decl *resect_decl;
 typedef struct P_resect_type *resect_type;
 typedef struct P_resect_template_argument *resect_template_argument;
+typedef struct P_resect_field* resect_field;
 
 /*
  * COLLECTION
@@ -267,6 +268,12 @@ RESECT_API resect_bool resect_type_is_pod(resect_type decl);
 RESECT_API resect_collection resect_type_template_arguments(resect_type type);
 
 RESECT_API resect_bool resect_type_is_undeclared(resect_type type);
+
+RESECT_API const char *resect_field_get_name(resect_field field);
+
+RESECT_API resect_type resect_field_get_type(resect_field field);
+
+RESECT_API long long resect_field_get_offset(resect_field field);
 
 /*
  * TEMPLATE ARGUMENT
@@ -360,11 +367,11 @@ RESECT_API resect_language resect_unit_get_language(resect_translation_unit unit
 /*
  * RECORD
  */
-RESECT_API long long resect_field_get_offset(resect_decl decl);
+RESECT_API long long resect_field_decl_get_offset(resect_decl decl);
 
-RESECT_API resect_bool resect_field_is_bitfield(resect_decl decl);
+RESECT_API resect_bool resect_field_decl_is_bitfield(resect_decl decl);
 
-RESECT_API long long resect_field_get_width(resect_decl decl);
+RESECT_API long long resect_field_decl_get_width(resect_decl decl);
 
 RESECT_API resect_collection resect_record_fields(resect_decl decl);
 

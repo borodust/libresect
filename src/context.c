@@ -11,6 +11,7 @@
 struct P_resect_translation_context {
     resect_set exposed_decls;
     resect_table decl_table;
+    resect_table type_table;
     resect_table template_parameter_table;
     resect_language language;
     resect_filtering_context filtering;
@@ -30,6 +31,7 @@ resect_translation_context resect_context_create(resect_parse_options opts) {
     resect_translation_context context = malloc(sizeof(struct P_resect_translation_context));
     context->exposed_decls = resect_set_create();
     context->decl_table = resect_table_create();
+    context->type_table = resect_table_create();
     context->template_parameter_table = resect_table_create();
     context->language = RESECT_LANGUAGE_UNKNOWN;
 
@@ -38,6 +40,7 @@ resect_translation_context resect_context_create(resect_parse_options opts) {
     context->state_stack = resect_collection_create();
 
     context->garbage = resect_collection_create();
+    context->printing_policy = NULL;
 
     return context;
 }
@@ -47,6 +50,13 @@ void resect_decl_table_free(void *context, void *value) {
     resect_decl decl = value;
 
     resect_decl_free(decl, deallocated);
+}
+
+void resect_type_table_free(void *context, void *value) {
+    resect_set deallocated = context;
+    resect_type type = value;
+
+    resect_type_free(type, deallocated);
 }
 
 static void free_garbage_collection(resect_collection garbage_collection, resect_set deallocated) {
@@ -83,6 +93,7 @@ void resect_context_free(resect_translation_context context, resect_set dealloca
     resect_filtering_context_free(context->filtering);
 
     resect_table_free(context->decl_table, resect_decl_table_free, deallocated);
+    resect_table_free(context->type_table, resect_type_table_free, deallocated);
     resect_table_free(context->template_parameter_table, NULL, NULL);
 
     resect_set_free(context->exposed_decls);
@@ -147,6 +158,14 @@ void resect_register_decl(resect_translation_context context, resect_string decl
 
 resect_decl resect_find_decl(resect_translation_context context, resect_string decl_id) {
     return resect_table_get(context->decl_table, resect_string_to_c(decl_id));
+}
+
+void resect_register_type(resect_translation_context context, resect_string fqn, resect_type type) {
+    resect_table_put_if_absent(context->type_table, resect_string_to_c(fqn), type);
+}
+
+resect_type resect_find_type(resect_translation_context context, resect_string fqn) {
+    return resect_table_get(context->type_table, resect_string_to_c(fqn));
 }
 
 void resect_register_template_parameter(resect_translation_context context, resect_string name, resect_decl decl) {
