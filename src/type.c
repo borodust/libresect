@@ -11,6 +11,12 @@
 /*
  * TYPE
  */
+struct P_resect_field {
+    resect_type type;
+    resect_string name;
+    long long offset;
+};
+
 struct P_resect_type {
     resect_type_kind kind;
     resect_string name;
@@ -18,6 +24,8 @@ struct P_resect_type {
     unsigned int alignment;
     resect_type_category category;
     resect_collection fields;
+    resect_collection base_classes;
+    resect_collection methods;
     resect_bool const_qualified;
     resect_bool pod;
     resect_bool undeclared;
@@ -39,7 +47,9 @@ void resect_type_free(resect_type type, resect_set deallocated) {
     }
 
     resect_string_free(type->name);
-    resect_decl_collection_free(type->fields, deallocated);
+    resect_field_collection_free(type->fields, deallocated);
+    resect_type_collection_free(type->base_classes, deallocated);
+    resect_type_collection_free(type->methods, deallocated);
     resect_template_argument_collection_free(type->template_arguments, deallocated);
 
     if (type->decl != NULL) {
@@ -47,6 +57,46 @@ void resect_type_free(resect_type type, resect_set deallocated) {
     }
 
     free(type);
+}
+
+resect_field resect_field_create(resect_translation_context context,
+                                 CXType parent,
+                                 CXType clang_field,
+                                 resect_string name) {
+    resect_field field = malloc(sizeof(struct P_resect_field));
+    field->type = resect_type_create(context, clang_field);
+    field->name = resect_string_copy(name);
+    field->offset = clang_Type_getOffsetOf(parent, resect_string_to_c(name));
+    return field;
+}
+
+
+const char *resect_field_get_name(resect_field field) {
+    return resect_string_to_c(field->name);
+}
+
+resect_type resect_field_get_type(resect_field field) {
+    return field->type;
+}
+
+long long resect_field_get_offset(resect_field field) {
+    return field->offset;
+}
+
+void resect_field_free(resect_field field, resect_set deallocated) {
+    resect_type_free(field->type, deallocated);
+    resect_string_free(field->name);
+    free(field);
+}
+
+void resect_field_collection_free(resect_collection fields, resect_set deallocated) {
+    resect_iterator iter = resect_collection_iterator(fields);
+    while (resect_iterator_next(iter)) {
+        resect_field field = resect_iterator_value(iter);
+        resect_field_free(field, deallocated);
+    }
+    resect_iterator_free(iter);
+    resect_collection_free(fields);
 }
 
 void resect_type_collection_free(resect_collection types, resect_set deallocated) {
@@ -71,16 +121,40 @@ resect_type_kind convert_type_kind(enum CXTypeKind kind) {
 typedef struct P_resect_type_visit_data {
     resect_type type;
     resect_translation_context context;
+    CXType parent;
 } *resect_type_visit_data;
 
 enum CXVisitorResult visit_type_fields(CXCursor cursor, CXClientData data) {
     resect_type_visit_data visit_data = data;
 
-    resect_decl field_decl = resect_decl_create(visit_data->context, cursor).decl;
+    CXType clang_type = clang_getCursorType(cursor);
     resect_reset_registered_exclusion(visit_data->context);
-    if (field_decl != NULL) {
-        resect_collection_add(visit_data->type->fields, field_decl);
-    }
+
+    resect_string name = resect_string_from_clang(clang_getCursorDisplayName(cursor));
+    resect_field field = resect_field_create(visit_data->context, visit_data->parent, clang_type, name);
+    resect_string_free(name);
+
+    resect_collection_add(visit_data->type->fields, field);
+
+    return CXVisit_Continue;
+}
+
+enum CXVisitorResult visit_type_base_classes(CXCursor cursor, CXClientData data) {
+    resect_type_visit_data visit_data = data;
+
+    resect_type class_type = resect_type_create(visit_data->context, clang_getCursorType(cursor));
+    resect_reset_registered_exclusion(visit_data->context);
+    resect_collection_add(visit_data->type->base_classes, class_type);
+
+    return CXVisit_Continue;
+}
+
+enum CXVisitorResult visit_type_methods(CXCursor cursor, CXClientData data) {
+    resect_type_visit_data visit_data = data;
+
+    resect_type method_type = resect_type_create(visit_data->context, clang_getCursorType(cursor));
+    resect_reset_registered_exclusion(visit_data->context);
+    resect_collection_add(visit_data->type->methods, method_type);
 
     return CXVisit_Continue;
 }
@@ -293,6 +367,19 @@ void resect_init_template_args_from_type(resect_translation_context context,
     }
 }
 
+static resect_string resect_string_fqn_from_type(resect_translation_context context, CXType clang_type) {
+    return resect_string_from_clang(clang_getFullyQualifiedName(clang_type,
+                                                                resect_context_get_printing_policy(
+                                                                    context),
+                                                                0));
+}
+
+static resect_type find_registered_type(resect_translation_context context, CXType clang_type) {
+    resect_string fqn = resect_string_fqn_from_type(context, clang_type);
+    resect_type registered_type = resect_find_type(context, fqn);
+    resect_string_free(fqn);
+    return registered_type;
+}
 
 /*
  * TYPE CONSTRUCTOR
@@ -307,16 +394,21 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
                 return resect_type_create(context, canonical_type);
             }
         }
-            break;
+        break;
         case CXType_Attributed:
             // skip attributes
             return resect_type_create(context, clang_Type_getModifiedType(clang_type));
     }
 
+    resect_type found_type = find_registered_type(context, clang_type);
+    if (found_type != NULL) {
+        return found_type;
+    }
+
     resect_type type = malloc(sizeof(struct P_resect_type));
     type->kind = convert_type_kind(clang_type.kind);
-    type->name = resect_string_from_clang(clang_getFullyQualifiedName(clang_type,
-        resect_context_get_printing_policy(context), 0));
+    type->name = resect_string_fqn_from_type(context, clang_type);
+    resect_register_type(context, type->name, type);
 
     long long int size = clang_Type_getSizeOf(clang_type);
     if (size <= 0) {
@@ -328,6 +420,8 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
         type->alignment = 8 * filter_valid_value(clang_Type_getAlignOf(clang_type));
     }
     type->fields = resect_collection_create();
+    type->base_classes = resect_collection_create();
+    type->methods = resect_collection_create();
     type->const_qualified = clang_isConstQualifiedType(clang_type);
     type->pod = clang_isPODType(clang_type);
     type->template_arguments = resect_collection_create();
@@ -429,8 +523,12 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
 
     if (type->decl != NULL) {
         resect_context_push_inclusion_status(context, resect_decl_get_inclusion_status(type->decl));
-        struct P_resect_type_visit_data visit_data = {type = type, context = context};
+        struct P_resect_type_visit_data visit_data = {.type = type, .context = context, .parent = clang_type};
+
         clang_Type_visitFields(clang_type, visit_type_fields, &visit_data);
+        clang_visitCXXBaseClasses(clang_type, visit_type_base_classes, &visit_data);
+        clang_visitCXXMethods(clang_type, visit_type_methods, &visit_data);
+
         resect_context_pop_inclusion_status(context);
     }
 
@@ -438,7 +536,6 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
         resect_decl param = NULL;
         if (clang_isConstQualifiedType(clang_type)
             && strlen(resect_string_to_c(type->name)) > CONST_QUALIFIER_LENGTH) {
-
             resect_string unqualified_name = resect_substring(type->name, CONST_QUALIFIER_LENGTH, -1);
             param = resect_find_template_parameter(context, unqualified_name);
             resect_string_free(unqualified_name);
@@ -476,12 +573,11 @@ long long resect_type_alignof(resect_type type) {
 
 long long resect_type_offsetof(resect_type type, const char *field_name) {
     resect_iterator iterator = resect_collection_iterator(type->fields);
-
     long long result = -1;
     while (resect_iterator_next(iterator)) {
-        resect_decl field_decl = resect_iterator_value(iterator);
-        if (strcmp(resect_decl_get_name(field_decl), field_name) == 0) {
-            result = resect_field_get_offset(field_decl);
+        resect_field field = resect_iterator_value(iterator);
+        if (resect_string_equal_c(field->name, field_name)) {
+            result = field->offset;
             break;
         }
     }

@@ -145,6 +145,8 @@ enum CXChildVisitResult resect_visit_context_child(CXCursor cursor,
 
 void resect_register_decl(resect_translation_context context, resect_string id, resect_decl decl);
 
+void resect_register_type(resect_translation_context context, resect_string fqn, resect_type type);
+
 void resect_register_decl_language(resect_translation_context context, resect_language language);
 
 resect_language resect_get_assumed_language(resect_translation_context context);
@@ -160,6 +162,8 @@ resect_inclusion_status resect_context_pop_inclusion_status(resect_translation_c
 void resect_export_decl(resect_translation_context context, resect_decl decl);
 
 resect_decl resect_find_decl(resect_translation_context context, resect_string decl_id);
+
+resect_type resect_find_type(resect_translation_context context, resect_string fqn);
 
 void resect_register_template_parameter(resect_translation_context context, resect_string name, resect_decl decl);
 
@@ -181,6 +185,10 @@ resect_type resect_type_create(resect_translation_context context, CXType canoni
 void resect_type_free(resect_type type, resect_set deallocated);
 
 void resect_type_collection_free(resect_collection types, resect_set deallocated);
+
+resect_field resect_field_create(resect_translation_context context, CXType parent, CXType field, resect_string name);
+
+void resect_field_collection_free(resect_collection fields, resect_set deallocated);
 
 /*
  * DECLARATION
