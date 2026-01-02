@@ -49,19 +49,6 @@ resect_location resect_location_from_cursor(CXCursor cursor) {
     return result;
 }
 
-static resect_string resect_location_hash_from_cursor(CXCursor cursor) {
-    resect_location location = resect_location_from_cursor(cursor);
-    resect_string location_string = resect_location_to_string(location);
-
-    resect_string location_hash =
-            resect_string_format("%lld", resect_hash(resect_string_to_c(location_string)));
-
-    resect_string_free(location_string);
-    resect_location_free(location);
-    return location_hash;
-}
-
-
 void resect_location_free(resect_location location) {
     resect_string_free(location->name);
     free(location);
@@ -160,11 +147,6 @@ void resect_template_argument_free(resect_template_argument arg, resect_set deal
     free(arg);
 }
 
-static bool is_type_invalid(resect_type type) {
-    return type == NULL
-           || (!resect_type_is_undeclared(type) && resect_type_get_declaration(type) == NULL);
-}
-
 void resect_init_template_args_from_cursor(resect_translation_context context,
                                            resect_collection args,
                                            CXCursor cursor) {
@@ -188,6 +170,7 @@ void resect_init_template_args_from_cursor(resect_translation_context context,
             case RESECT_TEMPLATE_ARGUMENT_KIND_INTEGRAL:
                 arg_value = clang_Cursor_getTemplateArgumentValue(cursor, i);
                 break;
+            default: ;
         }
 
         resect_collection_add(args, resect_template_argument_create(arg_kind, arg_type, arg_value, i));
@@ -349,9 +332,8 @@ resect_bool resect_is_forward_declaration(CXCursor cursor) {
 resect_bool resect_is_specialized(CXCursor cursor) {
     if (clang_equalCursors(clang_getSpecializedCursorTemplate(cursor), clang_getNullCursor())) {
         return resect_false;
-    } else {
-        return resect_true;
     }
+    return resect_true;
 }
 
 void resect_extract_decl_namespace(resect_collection namespace_queue, CXCursor cursor) {
@@ -400,6 +382,7 @@ resect_decl resect_find_owner(resect_translation_context context, CXCursor curso
             resect_context_pop_inclusion_status(context);
             return owner;
         }
+        default: ;
     }
 
     return resect_find_owner(context, parent);
@@ -842,6 +825,7 @@ resect_decl_result resect_decl_create(resect_translation_context context, CXCurs
                 return result;
             }
         }
+        default: ;
     }
 
     switch (cursor_kind) {
@@ -852,6 +836,7 @@ resect_decl_result resect_decl_create(resect_translation_context context, CXCurs
             /* we might encounter exposed declarations within unexposed one, e.g. inside extern "C"/"C++" block */
             clang_visitChildren(cursor, resect_visit_child_declaration, context);
             return result;
+        default: ;
     }
 
     resect_decl_kind kind = convert_cursor_kind(cursor);
@@ -865,6 +850,7 @@ resect_decl_result resect_decl_create(resect_translation_context context, CXCurs
             return result;
         }
         result.decl = registered_decl;
+
         return result;
     }
 
@@ -934,6 +920,7 @@ resect_decl_result resect_decl_create(resect_translation_context context, CXCurs
         case RESECT_DECL_KIND_TEMPLATE_PARAMETER:
             resect_template_parameter_init(context, decl, cursor);
             break;
+        default: ;
     }
 
     if (exclude_decl_if_exclusion_detected(context, decl)) {
@@ -1229,6 +1216,7 @@ enum CXChildVisitResult resect_visit_record_child(CXCursor cursor, CXCursor pare
             case RESECT_DECL_KIND_TEMPLATE_PARAMETER:
                 resect_collection_add(visit_data->parent->template_parameters, decl);
                 break;
+            default: ;
         }
     }
 
@@ -1254,7 +1242,7 @@ void resect_record_init(resect_translation_context context, resect_decl decl, CX
     data->methods = resect_collection_create();
     data->fields = resect_collection_create();
     data->parents = resect_collection_create();
-    data->abstract = clang_CXXRecord_isAbstract(cursor);
+    data->abstract = convert_bool_from_uint(clang_CXXRecord_isAbstract(cursor));
 
     decl->data_deallocator = resect_record_data_free;
     decl->data = data;
@@ -1364,6 +1352,7 @@ void resect_visit_function_child(resect_decl_child_visit_data visit_data,
             if (resect_is_exclusion_detected(visit_data->context)) {
                 return;
             }
+        default: ;
     }
 
     if (decl_result.decl != NULL) {
@@ -1378,6 +1367,7 @@ void resect_visit_function_child(resect_decl_child_visit_data visit_data,
                 }
             }
             break;
+            default: ;
         }
     }
 }
@@ -1475,7 +1465,7 @@ resect_function_data resect_function_data_create(resect_translation_context cont
     data->calling_convention = convert_calling_convention(clang_getFunctionTypeCallingConv(functionType));
     data->variadic = clang_isFunctionTypeVariadic(functionType) != 0 ? resect_true : resect_false;
     data->result_type = resect_type_create(context, clang_getResultType(functionType));
-    data->inlined = clang_Cursor_isFunctionInlined(cursor);
+    data->inlined = convert_bool_from_uint(clang_Cursor_isFunctionInlined(cursor));
 
     return data;
 }

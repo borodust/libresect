@@ -70,15 +70,6 @@ resect_bool resect_set_add(resect_set set, void *value);
 void resect_set_add_to_collection(resect_set set, resect_collection collection);
 
 /*
- * ITERATOR
- */
-resect_bool resect_iterator_next(resect_iterator iter);
-
-void *resect_iterator_value(resect_iterator iter);
-
-void resect_iterator_free(resect_iterator iter);
-
-/*
  * HASH TABLE
  */
 typedef struct P_resect_table *resect_table;
@@ -247,8 +238,6 @@ long long filter_valid_value(long long value);
 
 void resect_string_collection_free(resect_collection collection);
 
-resect_string resect_extract_decl_id(CXCursor cursor);
-
 resect_string resect_format_cursor_full_name(CXCursor cursor);
 
 unsigned long resect_hash(const char *str);
@@ -268,5 +257,7 @@ resect_collection resect_options_get_excluded_sources(resect_parse_options opts)
 resect_collection resect_options_get_enforced_definitions(resect_parse_options opts);
 
 resect_collection resect_options_get_enforced_sources(resect_parse_options opts);
+
+resect_bool convert_bool_from_uint(unsigned int val);
 
 #endif //RESECT_PRIVATE_H

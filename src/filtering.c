@@ -143,7 +143,7 @@ static bool match_pattern_collection(resect_collection collection, const char *s
         }
     }
 
-    done:
+done:
     resect_iterator_free(iter);
     return result;
 }
