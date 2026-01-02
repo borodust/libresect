@@ -131,8 +131,8 @@ resect_inclusion_status resect_cursor_inclusion_status(resect_translation_contex
     resect_string source = format_cursor_source(cursor);
 
     resect_inclusion_status result = resect_filtering_explicit_inclusion_status(context->filtering,
-                                                                                resect_string_to_c(full_name),
-                                                                                resect_string_to_c(source));
+        resect_string_to_c(full_name),
+        resect_string_to_c(source));
 
     resect_string_free(full_name);
     resect_string_free(source);
@@ -190,6 +190,9 @@ resect_collection resect_create_decl_collection(resect_translation_context conte
 void resect_context_init_printing_policy(resect_translation_context context, CXCursor cursor) {
     assert(context->printing_policy == NULL);
     context->printing_policy = clang_getCursorPrintingPolicy(cursor);
+    clang_PrintingPolicy_setProperty(context->printing_policy,
+                                     CXPrintingPolicy_FullyQualifiedName,
+                                     resect_true);
 }
 
 void resect_context_release_printing_policy(resect_translation_context context) {

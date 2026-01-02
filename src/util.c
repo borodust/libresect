@@ -567,3 +567,7 @@ unsigned long resect_hash(const char *str) {
 
     return hash;
 }
+
+resect_bool convert_bool_from_uint(unsigned int val) {
+    return val ? resect_true : resect_false;
+}
