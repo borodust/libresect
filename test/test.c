@@ -9,7 +9,7 @@ void print_record_fields(resect_collection fields) {
     resect_iterator field_iter = resect_collection_iterator(fields);
     while (resect_iterator_next(field_iter)) {
         resect_decl field = resect_iterator_value(field_iter);
-        printf(" FIELD: %s {offset: %lld} \n", resect_decl_get_name(field), resect_field_get_offset(field));
+        printf(" FIELD: %s {offset: %lld} \n", resect_decl_get_name(field), resect_field_decl_get_offset(field));
     }
     resect_iterator_free(field_iter);
 }
@@ -81,10 +81,27 @@ void print_location(resect_decl decl) {
            resect_location_line(loc));
 }
 
+void print_owner(resect_decl decl) {
+    resect_decl owner = resect_decl_get_owner(decl);
+    if (owner != NULL) {
+        resect_type owner_type = resect_decl_get_type(owner);
+        if (strcmp(resect_type_get_name(owner_type), "") == 0) {
+            printf("  OWNER DECL: %s::%s\n",
+                   resect_decl_get_namespace(owner),
+                   resect_decl_get_name(owner));
+        } else {
+            printf("  OWNER TYPE: %s\n",
+                   resect_type_get_name(owner_type));
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     char *filename = argc > 1 ? argv[1] : "../test/Testo.hpp";
 
     resect_parse_options options = resect_options_create();
+    resect_options_include_definition(options, "Testo::.*");
+
     resect_options_add_language(options, "c++");
 
     resect_options_add_resource_path(options, "/usr/lib/clang/21");
@@ -154,6 +171,7 @@ int main(int argc, char **argv) {
                        resect_type_get_kind(resect_typedef_get_aliased_type(decl)),
                        resect_type_sizeof(resect_typedef_get_aliased_type(decl)));
                 print_location(decl);
+                print_owner(decl);
                 break;
             case RESECT_DECL_KIND_CLASS:
                 printf("CLASS: %s::%s [%lld] (%s)\n",
