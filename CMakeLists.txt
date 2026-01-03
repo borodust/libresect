@@ -27,13 +27,13 @@ add_subdirectory("${THIRD_PARTY_DIR}/pcre2-10.47/")
 #
 add_library(resect SHARED
         resect.h
+        src/resect_private.h
         src/parser.c
         src/decl.c
         src/type.c
         src/context.c
         src/util.c
-        src/filtering.c
-        src/resect_private.h)
+        src/filtering.c)
 
 set_target_properties(resect PROPERTIES
         CMAKE_C_STANDARD 99

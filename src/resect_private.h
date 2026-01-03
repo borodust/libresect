@@ -89,6 +89,12 @@ void resect_table_free(resect_table table, void (*value_destructor)(void *, void
 /*
  * FILTERING
  */
+typedef enum {
+    RESECT_FILTER_STATUS_IGNORED = 0,
+    RESECT_FILTER_STATUS_EXCLUDED = 1,
+    RESECT_FILTER_STATUS_INCLUDED = 2,
+    RESECT_FILTER_STATUS_ENFORCED = 3,
+} resect_filter_status;
 
 typedef struct P_resect_filtering_context *resect_filtering_context;
 
@@ -96,9 +102,9 @@ resect_filtering_context resect_filtering_context_create(resect_parse_options op
 
 void resect_filtering_context_free(resect_filtering_context context);
 
-resect_inclusion_status resect_filtering_explicit_inclusion_status(resect_filtering_context context,
-                                                                   const char *declaration_name,
-                                                                   const char *declaration_source);
+resect_filter_status resect_filtering_status(resect_filtering_context context,
+                                             const char *declaration_name,
+                                             const char *declaration_source);
 
 
 resect_inclusion_status resect_filtering_inclusion_status(resect_filtering_context context);
@@ -136,13 +142,15 @@ enum CXChildVisitResult resect_visit_context_child(CXCursor cursor,
 
 void resect_register_decl(resect_translation_context context, resect_string id, resect_decl decl);
 
+void promote_eligible_decl(resect_translation_context context, resect_decl decl, resect_inclusion_status new_status);
+
 void resect_register_type(resect_translation_context context, resect_string fqn, resect_type type);
 
 void resect_register_decl_language(resect_translation_context context, resect_language language);
 
 resect_language resect_get_assumed_language(resect_translation_context context);
 
-resect_inclusion_status resect_cursor_inclusion_status(resect_translation_context context, CXCursor cursor);
+resect_filter_status resect_cursor_filter_status(resect_translation_context context, CXCursor cursor);
 
 resect_inclusion_status resect_context_inclusion_status(resect_translation_context context);
 

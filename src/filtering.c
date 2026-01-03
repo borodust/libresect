@@ -148,25 +148,25 @@ done:
     return result;
 }
 
-resect_inclusion_status resect_filtering_explicit_inclusion_status(resect_filtering_context context,
+resect_filter_status resect_filtering_status(resect_filtering_context context,
                                                                    const char *declaration_name,
                                                                    const char *declaration_source) {
     if (match_pattern_collection(context->enforced_definition_patterns, declaration_name)
         || match_pattern_collection(context->enforced_source_patterns, declaration_source)) {
-        return RESECT_INCLUSION_STATUS_INCLUDED;
+        return RESECT_FILTER_STATUS_ENFORCED;
     }
 
     if (match_pattern_collection(context->excluded_definition_patterns, declaration_name)
         || match_pattern_collection(context->excluded_source_patterns, declaration_source)) {
-        return RESECT_INCLUSION_STATUS_EXCLUDED;
+        return RESECT_FILTER_STATUS_EXCLUDED;
     }
 
     if (match_pattern_collection(context->included_definition_patterns, declaration_name)
         || match_pattern_collection(context->included_source_patterns, declaration_source)) {
-        return RESECT_INCLUSION_STATUS_INCLUDED;
+        return RESECT_FILTER_STATUS_INCLUDED;
     }
 
-    return RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED;
+    return RESECT_FILTER_STATUS_IGNORED;
 }
 
 resect_inclusion_status resect_filtering_inclusion_status(resect_filtering_context context) {
