@@ -236,6 +236,7 @@ struct P_resect_decl {
 
     resect_string source;
 
+    resect_filter_status filter_status;
     resect_inclusion_status inclusion_status;
 
     void *data;
@@ -404,9 +405,23 @@ static bool is_kind_exportable(resect_decl_kind kind) {
     }
 }
 
+static resect_inclusion_status inclusion_status_from_filter(resect_filter_status filter_status) {
+    switch (filter_status) {
+        case RESECT_FILTER_STATUS_IGNORED:
+            return RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED;
+        case RESECT_FILTER_STATUS_EXCLUDED:
+            return RESECT_INCLUSION_STATUS_EXCLUDED;
+        case RESECT_FILTER_STATUS_INCLUDED:
+        case RESECT_FILTER_STATUS_ENFORCED:
+            return RESECT_INCLUSION_STATUS_INCLUDED;
+        default:
+            assert(!"Unhandled filter status");
+    }
+}
+
 static resect_inclusion_status combine_inclusion_status(resect_decl_kind kind,
                                                         resect_inclusion_status context_status,
-                                                        resect_inclusion_status cursor_status) {
+                                                        resect_filter_status cursor_status) {
     switch (kind) {
         case RESECT_DECL_KIND_STRUCT:
         case RESECT_DECL_KIND_UNION:
@@ -418,29 +433,29 @@ static resect_inclusion_status combine_inclusion_status(resect_decl_kind kind,
         case RESECT_DECL_KIND_TYPEDEF: {
             switch (context_status) {
                 case RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED: {
-                    if (cursor_status == RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED) {
+                    if (cursor_status == RESECT_FILTER_STATUS_IGNORED) {
                         return RESECT_INCLUSION_STATUS_EXCLUDED;
                     }
-                    return cursor_status;
+                    return inclusion_status_from_filter(cursor_status);
                 }
                 case RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED: {
-                    if (cursor_status == RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED) {
+                    if (cursor_status == RESECT_FILTER_STATUS_IGNORED) {
                         return RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED;
                     }
-                    return cursor_status;
+                    return inclusion_status_from_filter(cursor_status);
                 }
                 case RESECT_INCLUSION_STATUS_WEAKLY_ENFORCED: {
-                    if (cursor_status == RESECT_INCLUSION_STATUS_INCLUDED) {
+                    if (cursor_status == RESECT_FILTER_STATUS_INCLUDED
+                        || cursor_status == RESECT_FILTER_STATUS_ENFORCED) {
                         return RESECT_INCLUSION_STATUS_INCLUDED;
                     }
                     return RESECT_INCLUSION_STATUS_WEAKLY_ENFORCED;
                 }
                 case RESECT_INCLUSION_STATUS_INCLUDED: {
-                    if (cursor_status == RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED
-                        || cursor_status == RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED) {
+                    if (cursor_status == RESECT_FILTER_STATUS_IGNORED) {
                         return RESECT_INCLUSION_STATUS_INCLUDED;
                     }
-                    return cursor_status;
+                    return inclusion_status_from_filter(cursor_status);
                 }
                 default:
                     return RESECT_INCLUSION_STATUS_EXCLUDED;
@@ -450,14 +465,14 @@ static resect_inclusion_status combine_inclusion_status(resect_decl_kind kind,
             switch (context_status) {
                 case RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED:
                 case RESECT_INCLUSION_STATUS_WEAKLY_ENFORCED: {
-                    if (cursor_status == RESECT_INCLUSION_STATUS_INCLUDED) {
+                    if (cursor_status == RESECT_FILTER_STATUS_INCLUDED) {
                         return RESECT_INCLUSION_STATUS_INCLUDED;
                     }
                     return RESECT_INCLUSION_STATUS_EXCLUDED;
                 }
                 case RESECT_INCLUSION_STATUS_INCLUDED: {
-                    if (cursor_status != RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED) {
-                        return cursor_status;
+                    if (cursor_status != RESECT_FILTER_STATUS_IGNORED) {
+                        return inclusion_status_from_filter(cursor_status);
                     }
                     return RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED;
                 }
@@ -468,20 +483,20 @@ static resect_inclusion_status combine_inclusion_status(resect_decl_kind kind,
         case RESECT_DECL_KIND_METHOD: {
             switch (context_status) {
                 case RESECT_INCLUSION_STATUS_WEAKLY_ENFORCED: {
-                    if (cursor_status == RESECT_INCLUSION_STATUS_INCLUDED) {
+                    if (cursor_status == RESECT_FILTER_STATUS_INCLUDED) {
                         return RESECT_INCLUSION_STATUS_INCLUDED;
                     }
                     return RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED;
                 }
                 case RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED: {
-                    if (cursor_status == RESECT_INCLUSION_STATUS_INCLUDED) {
+                    if (cursor_status == RESECT_FILTER_STATUS_INCLUDED) {
                         return RESECT_INCLUSION_STATUS_INCLUDED;
                     }
                     return RESECT_INCLUSION_STATUS_EXCLUDED;
                 }
                 case RESECT_INCLUSION_STATUS_INCLUDED: {
-                    if (cursor_status != RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED) {
-                        return cursor_status;
+                    if (cursor_status != RESECT_FILTER_STATUS_IGNORED) {
+                        return inclusion_status_from_filter(cursor_status);
                     }
                     return RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED;
                 }
@@ -496,10 +511,11 @@ static resect_inclusion_status combine_inclusion_status(resect_decl_kind kind,
         case RESECT_DECL_KIND_ENUM_CONSTANT: {
             if (context_status == RESECT_INCLUSION_STATUS_WEAKLY_ENFORCED) {
                 return RESECT_INCLUSION_STATUS_INCLUDED;
-            } else if (cursor_status == RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED) {
+            }
+            if (cursor_status == RESECT_FILTER_STATUS_IGNORED) {
                 return context_status;
             }
-            return cursor_status;
+            return inclusion_status_from_filter(cursor_status);
         }
         default:
             return RESECT_INCLUSION_STATUS_EXCLUDED;
@@ -532,12 +548,12 @@ static bool is_cursor_anonymous(CXCursor cursor) {
     return result;
 }
 
-static void push_declaration_inclusion_status(resect_translation_context context,
-                                              resect_decl_kind kind,
-                                              CXCursor cursor) {
+static resect_inclusion_status calc_declaration_inclusion_status(resect_translation_context context,
+                                                                 resect_decl_kind kind,
+                                                                 CXCursor cursor) {
     resect_inclusion_status status = RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED;
     resect_inclusion_status context_status = resect_context_inclusion_status(context);
-    resect_inclusion_status cursor_status = resect_cursor_inclusion_status(context, cursor);
+    resect_filter_status cursor_status = resect_cursor_filter_status(context, cursor);
     switch (kind) {
         case RESECT_DECL_KIND_STRUCT:
         case RESECT_DECL_KIND_UNION:
@@ -548,7 +564,7 @@ static void push_declaration_inclusion_status(resect_translation_context context
         case RESECT_DECL_KIND_TYPEDEF:
         case RESECT_DECL_KIND_MACRO: {
             if (is_cursor_anonymous(cursor)) {
-                if (cursor_status == RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED) {
+                if (cursor_status == RESECT_FILTER_STATUS_IGNORED) {
                     switch (context_status) {
                         case RESECT_INCLUSION_STATUS_INCLUDED:
                             status = RESECT_INCLUSION_STATUS_INCLUDED;
@@ -560,7 +576,7 @@ static void push_declaration_inclusion_status(resect_translation_context context
                             status = context_status;
                     }
                 } else {
-                    status = cursor_status;
+                    status = inclusion_status_from_filter(cursor_status);
                 }
             } else {
                 status = combine_inclusion_status(kind, context_status, cursor_status);
@@ -570,10 +586,10 @@ static void push_declaration_inclusion_status(resect_translation_context context
 
         case RESECT_DECL_KIND_ENUM: {
             if (is_cursor_anonymous(cursor)) {
-                if (cursor_status == RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED) {
+                if (cursor_status == RESECT_FILTER_STATUS_IGNORED) {
                     status = RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED;
                 } else {
-                    status = cursor_status;
+                    status = inclusion_status_from_filter(cursor_status);
                 }
             } else {
                 status = combine_inclusion_status(kind, context_status, cursor_status);
@@ -589,7 +605,7 @@ static void push_declaration_inclusion_status(resect_translation_context context
         break;
         case RESECT_DECL_KIND_UNDECLARED:
         case RESECT_DECL_KIND_UNKNOWN:
-            if (cursor_status == RESECT_INCLUSION_STATUS_INCLUDED) {
+            if (cursor_status == RESECT_FILTER_STATUS_INCLUDED) {
                 status = RESECT_INCLUSION_STATUS_INCLUDED;
             } else {
                 status = RESECT_INCLUSION_STATUS_EXCLUDED;
@@ -599,12 +615,7 @@ static void push_declaration_inclusion_status(resect_translation_context context
     if (status == RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED) {
         assert(!"Failed to figure out proper inclusion status");
     }
-    resect_context_push_inclusion_status(context, status);
-}
-
-
-static void pop_cursor_inclusion_status(resect_translation_context context) {
-    resect_context_pop_inclusion_status(context);
+    return status;
 }
 
 static bool exclude_decl_if_exclusion_detected(resect_translation_context context, resect_decl decl) {
@@ -842,10 +853,17 @@ resect_decl_result resect_decl_create(resect_translation_context context, CXCurs
     resect_decl_kind kind = convert_cursor_kind(cursor);
     result.kind = kind;
 
+    resect_filter_status filter_status = resect_cursor_filter_status(context, cursor);
+    resect_inclusion_status inclusion_status = calc_declaration_inclusion_status(context, kind, cursor);
+    if (inclusion_status == RESECT_INCLUSION_STATUS_EXCLUDED) {
+        resect_register_exclusion(context);
+        return result;
+    }
+
     resect_decl registered_decl = find_registered_decl(context, cursor);
     if (registered_decl != NULL) {
-        if (registered_decl->inclusion_status == RESECT_INCLUSION_STATUS_EXCLUDED
-            || registered_decl->inclusion_status == RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED) {
+        promote_eligible_decl(context, registered_decl, inclusion_status);
+        if (registered_decl->inclusion_status == RESECT_INCLUSION_STATUS_EXCLUDED) {
             resect_register_exclusion(context);
             return result;
         }
@@ -857,18 +875,14 @@ resect_decl_result resect_decl_create(resect_translation_context context, CXCurs
     struct P_resect_decl_context decl_context = {.exclusion_detected = false};
     resect_context_push_state(context, &decl_context);
 
-    push_declaration_inclusion_status(context, kind, cursor);
-    resect_inclusion_status inclusion_status = resect_context_inclusion_status(context);
-
-    if (inclusion_status == RESECT_INCLUSION_STATUS_EXCLUDED) {
-        goto done;
-    }
+    resect_context_push_inclusion_status(context, inclusion_status);
 
     resect_decl decl = malloc(sizeof(struct P_resect_decl));
     memset(decl, 0, sizeof(struct P_resect_decl));
 
     decl->id = resect_extract_decl_id(cursor);
     decl->kind = kind;
+    decl->filter_status = filter_status;
     decl->inclusion_status = inclusion_status;
 
     resect_register_decl(context, decl->id, decl);
@@ -943,7 +957,7 @@ resect_decl_result resect_decl_create(resect_translation_context context, CXCurs
 
 done:
     resect_context_pop_state(context);
-    pop_cursor_inclusion_status(context);
+    resect_context_pop_inclusion_status(context);
 
     if (result.decl == NULL) {
         // be aware that we specifically use parent decl context here
@@ -1908,4 +1922,10 @@ resect_template_parameter_kind resect_template_parameter_get_kind(resect_decl de
     assert(decl->kind == RESECT_DECL_KIND_TEMPLATE_PARAMETER);
     resect_template_parameter_data data = decl->data;
     return data->kind;
+}
+
+void promote_eligible_decl(resect_translation_context context, resect_decl decl, resect_inclusion_status new_status) {
+    if (decl != NULL && decl->inclusion_status < new_status) {
+        decl->inclusion_status = new_status;
+    }
 }

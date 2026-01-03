@@ -292,7 +292,7 @@ void resect_function_proto_init(resect_translation_context context,
                                 CXType clangType) {
     resect_function_proto_data data = malloc(sizeof(struct P_resect_function_proto_data));
     data->result_type = resect_type_create(context, clang_getResultType(clangType));
-    data->variadic = clang_isFunctionTypeVariadic(clangType);
+    data->variadic = convert_bool_from_uint(clang_isFunctionTypeVariadic(clangType));
     data->parameters = resect_collection_create();
 
     int arg_count = clang_getNumArgTypes(clangType);
@@ -551,14 +551,14 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
     if (type->decl != NULL) {
         resect_init_template_args_from_type(context, type->template_arguments, clang_type);
 
-        resect_context_push_inclusion_status(context, resect_decl_get_inclusion_status(type->decl));
+        resect_inclusion_status inclusion_status = resect_decl_get_inclusion_status(type->decl);
         struct P_resect_type_visit_data visit_data = {.type = type, .context = context, .parent = clang_type};
 
-        clang_Type_visitFields(clang_type, visit_type_fields, &visit_data);
-        clang_visitCXXBaseClasses(clang_type, visit_type_base_classes, &visit_data);
-        clang_visitCXXMethods(clang_type, visit_type_methods, &visit_data);
-
-        resect_context_pop_inclusion_status(context);
+        if (inclusion_status == RESECT_INCLUSION_STATUS_INCLUDED) {
+            clang_Type_visitFields(clang_type, visit_type_fields, &visit_data);
+            clang_visitCXXBaseClasses(clang_type, visit_type_base_classes, &visit_data);
+            clang_visitCXXMethods(clang_type, visit_type_methods, &visit_data);
+        }
     }
 
     return type;

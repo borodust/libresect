@@ -126,11 +126,11 @@ static resect_string format_cursor_source(CXCursor cursor) {
     return source;
 }
 
-resect_inclusion_status resect_cursor_inclusion_status(resect_translation_context context, CXCursor cursor) {
+resect_filter_status resect_cursor_filter_status(resect_translation_context context, CXCursor cursor) {
     resect_string full_name = resect_format_cursor_full_name(cursor);
     resect_string source = format_cursor_source(cursor);
 
-    resect_inclusion_status result = resect_filtering_explicit_inclusion_status(context->filtering,
+    resect_filter_status result = resect_filtering_status(context->filtering,
         resect_string_to_c(full_name),
         resect_string_to_c(source));
 
