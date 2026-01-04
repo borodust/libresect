@@ -76,7 +76,7 @@ void print_template_parameters(resect_decl decl) {
 }
 
 void print_specializations(resect_decl decl) {
-    resect_collection specializations = resect_decl_template_specialization(decl);
+    resect_collection specializations = resect_decl_template_specializations(decl);
     resect_iterator specialization_iter = resect_collection_iterator(specializations);
     while (resect_iterator_next(specialization_iter)) {
         resect_type template_specialization = resect_iterator_value(specialization_iter);

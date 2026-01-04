@@ -1083,7 +1083,7 @@ resect_collection resect_decl_template_parameters(resect_decl decl) {
     return decl->template_parameters;
 }
 
-resect_collection resect_decl_template_specialization(resect_decl decl) {
+resect_collection resect_decl_template_specializations(resect_decl decl) {
     return decl->specializations;
 }
 
