@@ -230,6 +230,7 @@ struct P_resect_decl {
     resect_decl template;
     resect_bool partial;
     resect_bool forward;
+    resect_collection instantiations;
 
     resect_decl owner;
     resect_type type;
@@ -715,10 +716,12 @@ void resect_decl_init_rest_from_cursor(resect_decl decl,
     decl->template = NULL;
     decl->template_parameters = resect_collection_create();
     decl->template_arguments = resect_collection_create();
+    decl->instantiations = resect_collection_create();
     decl->partial = cursor.kind == CXCursor_ClassTemplatePartialSpecialization;
     decl->forward = resect_is_forward_declaration(cursor);
 
     switch (clang_getCursorKind(cursor)) {
+        case CXCursor_FunctionTemplate:
         case CXCursor_ClassTemplate:
         case CXCursor_ClassTemplatePartialSpecialization:
             decl->is_template = resect_true;
@@ -739,11 +742,32 @@ void resect_decl_init_rest_from_cursor(resect_decl decl,
     clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_SuppressScope, 1);
     //    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_SuppressUnwrittenScope, 0);
     //    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_SuppressImplicitBase, 0);
+    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_FullyQualifiedName, 1);
     decl->source = resect_string_from_clang(clang_getCursorPrettyPrinted(cursor, pp));
     clang_PrintingPolicy_dispose(pp);
 
     decl->data_deallocator = NULL;
     decl->data = NULL;
+}
+
+void resect_decl_register_instantiation(resect_decl decl, resect_type instantiation) {
+    assert(decl != NULL
+        && resect_decl_is_template(decl)
+        && instantiation != NULL);
+
+    resect_collection_add(decl->instantiations, instantiation);
+}
+
+resect_decl resect_decl_get_root_template(resect_decl decl) {
+    if (resect_collection_size(decl->template_arguments) > 0) {
+        return resect_decl_get_root_template(decl->template);
+    }
+
+    if (decl->is_template) {
+        return decl;
+    }
+
+    return NULL;
 }
 
 void resect_record_init(resect_translation_context context, resect_decl decl, CXCursor cursor);
@@ -874,7 +898,6 @@ resect_decl_result resect_decl_create(resect_translation_context context, CXCurs
 
     struct P_resect_decl_context decl_context = {.exclusion_detected = false};
     resect_context_push_state(context, &decl_context);
-
     resect_context_push_inclusion_status(context, inclusion_status);
 
     resect_decl decl = malloc(sizeof(struct P_resect_decl));
@@ -986,6 +1009,7 @@ void resect_decl_free(resect_decl decl, resect_set deallocated) {
 
     resect_decl_collection_free(decl->template_parameters, deallocated);
     resect_template_argument_collection_free(decl->template_arguments, deallocated);
+    resect_type_collection_free(decl->instantiations, deallocated);
 
     if (decl->template != NULL) {
         resect_decl_free(decl->template, deallocated);
@@ -1057,6 +1081,10 @@ resect_bool resect_decl_is_template(resect_decl decl) {
 
 resect_collection resect_decl_template_parameters(resect_decl decl) {
     return decl->template_parameters;
+}
+
+resect_collection resect_decl_template_instantiations(resect_decl decl) {
+    return decl->instantiations;
 }
 
 resect_collection resect_decl_template_arguments(resect_decl decl) {

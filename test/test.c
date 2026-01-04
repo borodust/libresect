@@ -3,6 +3,7 @@
 //
 #include "../resect.h"
 #include <stdio.h>
+#include <string.h>
 
 
 void print_record_fields(resect_collection fields) {
@@ -72,6 +73,17 @@ void print_template_parameters(resect_decl decl) {
                resect_decl_get_name(template_param));
     }
     resect_iterator_free(param_iter);
+}
+
+void print_instantiations(resect_decl decl) {
+    resect_collection instantiations = resect_decl_template_instantiations(decl);
+    resect_iterator instantiation_iter = resect_collection_iterator(instantiations);
+    while (resect_iterator_next(instantiation_iter)) {
+        resect_type template_instantiation = resect_iterator_value(instantiation_iter);
+        printf(" TEMPLATE INSTANTIATION: %s\n",
+               resect_type_get_name(template_instantiation));
+    }
+    resect_iterator_free(instantiation_iter);
 }
 
 void print_location(resect_decl decl) {
@@ -189,6 +201,7 @@ int main(int argc, char **argv) {
                 break;
         }
         print_template_parameters(decl);
+        print_instantiations(decl);
     }
     resect_iterator_free(decl_iter);
 
