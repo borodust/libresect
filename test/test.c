@@ -75,15 +75,15 @@ void print_template_parameters(resect_decl decl) {
     resect_iterator_free(param_iter);
 }
 
-void print_instantiations(resect_decl decl) {
-    resect_collection instantiations = resect_decl_template_instantiations(decl);
-    resect_iterator instantiation_iter = resect_collection_iterator(instantiations);
-    while (resect_iterator_next(instantiation_iter)) {
-        resect_type template_instantiation = resect_iterator_value(instantiation_iter);
-        printf(" TEMPLATE INSTANTIATION: %s\n",
-               resect_type_get_name(template_instantiation));
+void print_specializations(resect_decl decl) {
+    resect_collection specializations = resect_decl_template_specialization(decl);
+    resect_iterator specialization_iter = resect_collection_iterator(specializations);
+    while (resect_iterator_next(specialization_iter)) {
+        resect_type template_specialization = resect_iterator_value(specialization_iter);
+        printf(" TEMPLATE SPECIALIZATION: %s\n",
+               resect_type_get_name(template_specialization));
     }
-    resect_iterator_free(instantiation_iter);
+    resect_iterator_free(specialization_iter);
 }
 
 void print_location(resect_decl decl) {
@@ -201,7 +201,7 @@ int main(int argc, char **argv) {
                 break;
         }
         print_template_parameters(decl);
-        print_instantiations(decl);
+        print_specializations(decl);
     }
     resect_iterator_free(decl_iter);
 
