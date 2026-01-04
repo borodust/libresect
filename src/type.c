@@ -552,7 +552,7 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
         resect_init_template_args_from_type(context, type->template_arguments, clang_type);
         resect_decl root_template = resect_decl_get_root_template(type->decl);
         if (root_template != NULL) {
-            resect_decl_register_instantiation(root_template, type);
+            resect_decl_register_specialization(root_template, type);
         }
 
         resect_inclusion_status inclusion_status = resect_decl_get_inclusion_status(type->decl);
