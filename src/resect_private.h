@@ -227,8 +227,6 @@ bool resect_is_exclusion_detected(resect_translation_context translation_context
 
 void resect_decl_register_specialization(resect_decl decl, resect_type specialization);
 
-resect_decl resect_decl_get_root_template(resect_decl decl);
-
 /*
  * TEMPLATE ARGUMENT
  */
