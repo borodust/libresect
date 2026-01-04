@@ -337,6 +337,8 @@ RESECT_API resect_access_specifier resect_decl_get_access_specifier(resect_decl 
 
 RESECT_API resect_decl resect_decl_get_template(resect_decl decl);
 
+RESECT_API resect_decl resect_decl_get_root_template(resect_decl decl);
+
 RESECT_API resect_bool resect_decl_is_partially_specialized(resect_decl decl);
 
 RESECT_API resect_bool resect_decl_is_template(resect_decl decl);
