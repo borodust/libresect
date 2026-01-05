@@ -33,6 +33,7 @@ struct P_resect_type {
 
     resect_decl decl;
 
+    resect_bool initialized;
     resect_data_deallocator data_deallocator;
     void *data;
 };
@@ -141,8 +142,8 @@ enum CXVisitorResult visit_type_fields(CXCursor cursor, CXClientData data) {
 enum CXVisitorResult visit_type_base_classes(CXCursor cursor, CXClientData data) {
     resect_type_visit_data visit_data = data;
 
-    resect_type class_type = resect_type_create(visit_data->context, clang_getCursorType(cursor));
     resect_reset_registered_exclusion(visit_data->context);
+    resect_type class_type = resect_type_create(visit_data->context, clang_getCursorType(cursor));
     resect_collection_add(visit_data->type->base_classes, class_type);
 
     return CXVisit_Continue;
@@ -151,8 +152,8 @@ enum CXVisitorResult visit_type_base_classes(CXCursor cursor, CXClientData data)
 enum CXVisitorResult visit_type_methods(CXCursor cursor, CXClientData data) {
     resect_type_visit_data visit_data = data;
 
-    resect_type method_type = resect_type_create(visit_data->context, clang_getCursorType(cursor));
     resect_reset_registered_exclusion(visit_data->context);
+    resect_type method_type = resect_type_create(visit_data->context, clang_getCursorType(cursor));
     resect_collection_add(visit_data->type->methods, method_type);
 
     return CXVisit_Continue;
@@ -360,9 +361,8 @@ void resect_init_template_args_from_type(resect_translation_context context,
                                         resect_collection_pop_last(args));
             }
             return;
-        } else {
-            resect_collection_add(args, resect_template_argument_create(arg_kind, arg_type, arg_value, i));
         }
+        resect_collection_add(args, resect_template_argument_create(arg_kind, arg_type, arg_value, i));
     }
 }
 
@@ -461,10 +461,16 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
 
     resect_type found_type = find_registered_type(context, clang_type);
     if (found_type != NULL) {
+        if (found_type->decl == NULL
+            && !found_type->undeclared
+            && found_type->initialized) {
+            resect_register_exclusion(context);
+        }
         return found_type;
     }
 
     resect_type type = malloc(sizeof(struct P_resect_type));
+    type->initialized = false;
     type->kind = convert_type_kind(clang_type.kind);
     type->category = get_type_category(type->kind);
     type->name = resect_string_fqn_from_type(context, clang_type);
@@ -502,11 +508,8 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
         type->decl = NULL;
     } else {
         type->undeclared = resect_false;
-        if (resect_is_exclusion_detected(context)) {
-            type->decl = NULL;
-        } else {
-            type->decl = resect_decl_create(context, declaration_cursor).decl;
-        }
+        resect_reset_registered_exclusion(context);
+        type->decl = resect_decl_create(context, declaration_cursor).decl;
     }
     resect_context_pop_inclusion_status(context);
 
@@ -548,6 +551,8 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
             }
     }
 
+    type->initialized = true;
+
     if (type->decl != NULL) {
         resect_init_template_args_from_type(context, type->template_arguments, clang_type);
         resect_decl root_template = resect_decl_get_root_template(type->decl);
@@ -564,7 +569,6 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
             clang_visitCXXMethods(clang_type, visit_type_methods, &visit_data);
         }
     }
-
     return type;
 }
 
