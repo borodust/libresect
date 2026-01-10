@@ -124,7 +124,7 @@ typedef struct P_resect_type_visit_data {
     CXType parent;
 } *resect_type_visit_data;
 
-enum CXVisitorResult visit_type_fields(CXCursor cursor, CXClientData data) {
+enum CXVisitorResult visit_type_field(CXCursor cursor, CXClientData data) {
     resect_type_visit_data visit_data = data;
 
     CXType clang_type = clang_getCursorType(cursor);
@@ -134,27 +134,33 @@ enum CXVisitorResult visit_type_fields(CXCursor cursor, CXClientData data) {
     resect_field field = resect_field_create(visit_data->context, visit_data->parent, clang_type, name);
     resect_string_free(name);
 
-    resect_collection_add(visit_data->type->fields, field);
+    if (!resect_is_exclusion_detected(visit_data->context)) {
+        resect_collection_add(visit_data->type->fields, field);
+    }
 
     return CXVisit_Continue;
 }
 
-enum CXVisitorResult visit_type_base_classes(CXCursor cursor, CXClientData data) {
+enum CXVisitorResult visit_type_base_class(CXCursor cursor, CXClientData data) {
     resect_type_visit_data visit_data = data;
 
     resect_reset_registered_exclusion(visit_data->context);
     resect_type class_type = resect_type_create(visit_data->context, clang_getCursorType(cursor));
-    resect_collection_add(visit_data->type->base_classes, class_type);
+    if (!resect_is_exclusion_detected(visit_data->context)) {
+        resect_collection_add(visit_data->type->base_classes, class_type);
+    }
 
     return CXVisit_Continue;
 }
 
-enum CXVisitorResult visit_type_methods(CXCursor cursor, CXClientData data) {
+enum CXVisitorResult visit_type_method(CXCursor cursor, CXClientData data) {
     resect_type_visit_data visit_data = data;
 
     resect_reset_registered_exclusion(visit_data->context);
     resect_type method_type = resect_type_create(visit_data->context, clang_getCursorType(cursor));
-    resect_collection_add(visit_data->type->methods, method_type);
+    if (!resect_is_exclusion_detected(visit_data->context)) {
+        resect_collection_add(visit_data->type->methods, method_type);
+    }
 
     return CXVisit_Continue;
 }
@@ -474,7 +480,6 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
     type->kind = convert_type_kind(clang_type.kind);
     type->category = get_type_category(type->kind);
     type->name = resect_string_fqn_from_type(context, clang_type);
-    resect_register_type(context, type->name, type);
 
     long long int size = clang_Type_getSizeOf(clang_type);
     if (size <= 0) {
@@ -495,6 +500,8 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
 
     type->data_deallocator = NULL;
     type->data = NULL;
+
+    resect_register_type(context, type->name, type);
 
     resect_inclusion_status current_inclusion_status = resect_context_inclusion_status(context);
     if (type->category == RESECT_TYPE_CATEGORY_UNIQUE) {
@@ -564,9 +571,10 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
         struct P_resect_type_visit_data visit_data = {.type = type, .context = context, .parent = clang_type};
 
         if (inclusion_status == RESECT_INCLUSION_STATUS_INCLUDED) {
-            clang_Type_visitFields(clang_type, visit_type_fields, &visit_data);
-            clang_visitCXXBaseClasses(clang_type, visit_type_base_classes, &visit_data);
-            clang_visitCXXMethods(clang_type, visit_type_methods, &visit_data);
+            clang_Type_visitFields(clang_type, visit_type_field, &visit_data);
+            clang_visitCXXBaseClasses(clang_type, visit_type_base_class, &visit_data);
+            clang_visitCXXMethods(clang_type, visit_type_method, &visit_data);
+            resect_reset_registered_exclusion(context);
         }
     }
     return type;
