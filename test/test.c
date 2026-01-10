@@ -1,6 +1,8 @@
 //
 // Created by borodust on 12/27/19.
 //
+#include <assert.h>
+
 #include "../resect.h"
 #include <stdio.h>
 #include <string.h>
@@ -96,6 +98,10 @@ void print_location(resect_decl decl) {
 void print_owner(resect_decl decl) {
     resect_decl owner = resect_decl_get_owner(decl);
     if (owner != NULL) {
+        resect_inclusion_status owner_inclusion_status = resect_decl_get_inclusion_status(owner);
+        assert(owner_inclusion_status == RESECT_INCLUSION_STATUS_INCLUDED ||
+            owner_inclusion_status == RESECT_INCLUSION_STATUS_WEAKLY_ENFORCED);
+
         resect_type owner_type = resect_decl_get_type(owner);
         if (strcmp(resect_type_get_name(owner_type), "") == 0) {
             printf("  OWNER DECL: %s::%s\n",
@@ -136,6 +142,8 @@ int main(int argc, char **argv) {
     resect_iterator decl_iter = resect_collection_iterator(decls);
     while (resect_iterator_next(decl_iter)) {
         resect_decl decl = resect_iterator_value(decl_iter);
+
+        assert(resect_decl_get_inclusion_status(decl) == RESECT_INCLUSION_STATUS_INCLUDED);
 
         switch (resect_decl_get_kind(decl)) {
             case RESECT_DECL_KIND_STRUCT:
@@ -183,7 +191,6 @@ int main(int argc, char **argv) {
                        resect_type_get_kind(resect_typedef_get_aliased_type(decl)),
                        resect_type_sizeof(resect_typedef_get_aliased_type(decl)));
                 print_location(decl);
-                print_owner(decl);
                 break;
             case RESECT_DECL_KIND_CLASS:
                 printf("CLASS: %s::%s [%lld] (%s)\n",
@@ -200,6 +207,7 @@ int main(int argc, char **argv) {
                        resect_decl_get_name(decl));
                 break;
         }
+        print_owner(decl);
         print_template_parameters(decl);
         print_specializations(decl);
     }
