@@ -520,6 +520,14 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
     }
     resect_context_pop_inclusion_status(context);
 
+    if (type->decl) {
+        resect_context_push_inclusion_status(context, resect_decl_get_inclusion_status(type->decl));
+    } else if (type->undeclared == resect_true) {
+        resect_context_push_inclusion_status(context, resect_context_inclusion_status(context));
+    } else {
+        resect_context_push_inclusion_status(context, RESECT_INCLUSION_STATUS_EXCLUDED);
+    }
+
     if (type->kind == RESECT_TYPE_KIND_UNKNOWN && type->decl == NULL) {
         resect_decl param = NULL;
         if (clang_isConstQualifiedType(clang_type)
@@ -539,9 +547,7 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
 
     switch (type->kind) {
         case RESECT_TYPE_KIND_FUNCTIONPROTO:
-            if (type->decl) resect_context_push_inclusion_status(context, resect_decl_get_inclusion_status(type->decl));
             resect_function_proto_init(context, type, clang_type);
-            if (type->decl) resect_context_pop_inclusion_status(context);
             break;
         default:
             switch (type->category) {
@@ -567,7 +573,7 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
             resect_decl_register_specialization(root_template, type);
         }
 
-        resect_inclusion_status inclusion_status = resect_decl_get_inclusion_status(type->decl);
+        resect_inclusion_status inclusion_status = resect_context_inclusion_status(context);
         struct P_resect_type_visit_data visit_data = {.type = type, .context = context, .parent = clang_type};
 
         if (inclusion_status == RESECT_INCLUSION_STATUS_INCLUDED) {
@@ -577,6 +583,7 @@ resect_type resect_type_create(resect_translation_context context, CXType clang_
             resect_reset_registered_exclusion(context);
         }
     }
+    resect_context_pop_inclusion_status(context);
     return type;
 }
 
