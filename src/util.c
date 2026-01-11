@@ -1,12 +1,12 @@
 #include "../resect.h"
 
-#include <stdlib.h>
 #include <assert.h>
-#include <string.h>
 #include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
 
-#include "uthash.h"
 #include "resect_private.h"
+#include "uthash.h"
 
 /*
  * STRING
@@ -90,9 +90,7 @@ resect_string resect_string_append(resect_string string, const char *postfix) {
     return string;
 }
 
-size_t resect_string_length(resect_string string) {
-    return strlen(string->value);
-}
+size_t resect_string_length(resect_string string) { return strlen(string->value); }
 
 resect_string resect_string_copy(resect_string string) {
     assert(string != NULL);
@@ -108,9 +106,7 @@ resect_string resect_substring(resect_string string, long long start, long long 
     return resect_string_update_by_length(resect_string_create(len), c_str + start, len);
 }
 
-resect_string resect_ensure_string(resect_string string) {
-    return string == NULL ? resect_string_create(0) : string;
-}
+resect_string resect_ensure_string(resect_string string) { return string == NULL ? resect_string_create(0) : string; }
 
 resect_string resect_ensure_string_default_length(resect_string string, int length) {
     return string == NULL ? resect_string_create(length + 1) : string;
@@ -127,9 +123,7 @@ resect_string resect_ensure_string_default_value(resect_string string, const cha
     }
 }
 
-resect_string resect_string_from_c(const char *string) {
-    return resect_ensure_string_default_value(NULL, string);
-}
+resect_string resect_string_from_c(const char *string) { return resect_ensure_string_default_value(NULL, string); }
 
 resect_string resect_ensure_string_from_clang(resect_string provided, CXString from) {
     resect_string result = resect_ensure_string(provided);
@@ -138,9 +132,7 @@ resect_string resect_ensure_string_from_clang(resect_string provided, CXString f
     return result;
 }
 
-resect_string resect_string_from_clang(CXString from) {
-    return resect_ensure_string_from_clang(NULL, from);
-}
+resect_string resect_string_from_clang(CXString from) { return resect_ensure_string_from_clang(NULL, from); }
 
 resect_string resect_string_format(const char *format, ...) {
     if (format == NULL) {
@@ -161,9 +153,7 @@ resect_string resect_string_format(const char *format, ...) {
     return result;
 }
 
-resect_bool resect_string_equal_c(resect_string this, const char *that) {
-    return strcmp(this->value, that) == 0;
-}
+resect_bool resect_string_equal_c(resect_string this, const char *that) { return strcmp(this->value, that) == 0; }
 
 resect_bool resect_string_starts_with_c(resect_string this, const char *prefix) {
     return strncmp(prefix, this->value, strlen(prefix)) == 0;
@@ -252,9 +242,7 @@ void *resect_collection_peek_last(resect_collection collection) {
     return collection->tail->value;
 }
 
-unsigned int resect_collection_size(resect_collection collection) {
-    return collection->size;
-}
+unsigned int resect_collection_size(resect_collection collection) { return collection->size; }
 
 /*
  * ITERATOR
@@ -291,9 +279,7 @@ void *resect_iterator_value(resect_iterator iter) {
     return iter->current->value;
 }
 
-void resect_iterator_free(resect_iterator iter) {
-    free(iter);
-}
+void resect_iterator_free(resect_iterator iter) { free(iter); }
 
 /*
  * SET
@@ -312,6 +298,10 @@ resect_set resect_set_create() {
     resect_set set = malloc(sizeof(struct P_resect_set));
     set->head = NULL;
     return set;
+}
+
+unsigned int resect_set_size(resect_set set) {
+    return HASH_COUNT(set->head);
 }
 
 resect_bool resect_set_contains(resect_set set, void *value) {
@@ -341,8 +331,21 @@ void resect_set_free(resect_set set) {
 
 void resect_set_add_to_collection(resect_set set, resect_collection collection) {
     struct P_resect_set_item *element, *tmp;
-    HASH_ITER(hh, set->head, element, tmp) {
-        resect_collection_add(collection, element->key);
+    HASH_ITER(hh, set->head, element, tmp) { resect_collection_add(collection, element->key); }
+}
+
+/**
+ *
+ * @param item_visitor return false to unterrupt visit process
+ * @param context visit data passed to item_visitor
+ */
+void resect_visit_set(resect_set set, resect_bool (*item_visitor)(void *ctx, void *item), void *context) {
+    assert(item_visitor != NULL);
+    struct P_resect_set_item *entry, *tmp;
+    HASH_ITER(hh, set->head, entry, tmp) {
+        if (!item_visitor(context, entry->key)) {
+            break;
+        }
     }
 }
 
@@ -384,6 +387,41 @@ resect_bool resect_table_put_if_absent(resect_table table, const char *key, void
     return resect_true;
 }
 
+void *resect_table_put(resect_table table, const char *key, void *value) {
+    struct P_resect_table_entry *new_entry = NULL;
+    new_entry = malloc(sizeof(struct P_resect_table_entry));
+    new_entry->value = value;
+
+    size_t key_len = strlen(key);
+    new_entry->key = malloc(sizeof(char) * (key_len + 1));
+    strcpy(new_entry->key, key);
+
+    struct P_resect_table_entry *prev_entry = NULL;
+    HASH_REPLACE_STR(table->head, key, new_entry, prev_entry);
+
+    void *prev_value = NULL;
+    if (prev_entry != NULL) {
+        prev_value = prev_entry->value;
+        free(prev_entry->key);
+        free(prev_entry);
+    }
+
+    return prev_value;
+}
+
+bool resect_table_remove(resect_table table, const char *key) {
+    struct P_resect_table_entry *entry = NULL;
+    HASH_FIND_STR(table->head, key, entry);
+    if (entry == NULL) {
+        return false;
+    }
+
+    HASH_DEL(table->head, entry);
+    free(entry->key);
+    free(entry);
+    return true;
+}
+
 void *resect_table_get(resect_table table, const char *key) {
     struct P_resect_table_entry *entry = NULL;
     HASH_FIND_STR(table->head, key, entry);
@@ -391,9 +429,12 @@ void *resect_table_get(resect_table table, const char *key) {
     return entry != NULL ? entry->value : NULL;
 }
 
-void resect_visit_table(resect_table table,
-                        resect_bool (*entry_visitor)(void *, const char *, void *),
-                        void *context) {
+/**
+ *
+ * @param entry_visitor return false to unterrupt visit process
+ * @param context visit data passed to entry_visitor
+ */
+void resect_visit_table(resect_table table, resect_bool (*entry_visitor)(void *, const char *, void *), void *context) {
     assert(entry_visitor != NULL);
     struct P_resect_table_entry *entry, *tmp;
     HASH_ITER(hh, table->head, entry, tmp) {
@@ -402,6 +443,17 @@ void resect_visit_table(resect_table table,
         }
     }
 }
+
+static resect_bool printf_table_entry(void *ctx, const char *key, void *value) {
+    fprintf(stderr, "  \"%s\": %p\n", key, value);
+}
+
+void resect_print_table(resect_table table) {
+    fprintf(stderr, "Table: %p\n", table);
+    resect_visit_table(table, printf_table_entry, NULL);
+}
+
+unsigned int resect_table_size(resect_table table) { return HASH_COUNT(table->head); }
 
 void resect_table_free(resect_table table, void (*value_destructor)(void *, void *), void *context) {
     struct P_resect_table_entry *entry, *tmp;
@@ -419,9 +471,7 @@ void resect_table_free(resect_table table, void (*value_destructor)(void *, void
 /*
  * UTIL
  */
-long long filter_valid_value(long long value) {
-    return value < 0 ? 0 : value;
-}
+long long filter_valid_value(long long value) { return value < 0 ? 0 : value; }
 
 void resect_string_collection_free(resect_collection collection) {
     resect_iterator arg_iter = resect_collection_iterator(collection);
@@ -453,9 +503,8 @@ resect_string resect_format_cursor_full_name(CXCursor cursor) {
             resect_string parent_full_name = resect_format_cursor_full_name(parent);
             resect_string name = resect_string_from_clang(clang_getCursorSpelling(cursor));
 
-            resect_string full_name = resect_string_format("%s::%s",
-                                                           resect_string_to_c(parent_full_name),
-                                                           resect_string_to_c(name));
+            resect_string full_name =
+                    resect_string_format("%s::%s", resect_string_to_c(parent_full_name), resect_string_to_c(name));
 
             resect_string_free(name);
             resect_string_free(parent_full_name);
@@ -491,10 +540,8 @@ static void append_anonymous_decl_id(resect_string id, const char *infix, CXCurs
         resect_string parent_id = resect_extract_decl_id(parent);
 
         resect_location loc = resect_location_from_cursor(cursor);
-        resect_string postfix = resect_string_format(":%s:%d:%d",
-                                                     infix,
-                                                     resect_location_line(loc),
-                                                     resect_location_column(loc));
+        resect_string postfix =
+                resect_string_format(":%s:%d:%d", infix, resect_location_line(loc), resect_location_column(loc));
 
         resect_string_append(id, resect_string_to_c(parent_id));
         resect_string_append(id, resect_string_to_c(postfix));
@@ -511,17 +558,15 @@ static void append_cursor_full_name(resect_string id, CXCursor cursor) {
         goto done;
     }
 
-    resect_string cursor_kind =
-            resect_string_from_clang(clang_getCursorKindSpelling(clang_getCursorKind(cursor)));
-    resect_string decl_id = resect_string_format("claw_did$%s$%s",
-                                                 resect_string_to_c(cursor_kind),
-                                                 resect_string_to_c(full_name));
+    resect_string cursor_kind = resect_string_from_clang(clang_getCursorKindSpelling(clang_getCursorKind(cursor)));
+    resect_string decl_id =
+            resect_string_format("claw_did$%s$%s", resect_string_to_c(cursor_kind), resect_string_to_c(full_name));
     resect_string_append(id, resect_string_to_c(decl_id));
 
     resect_string_free(decl_id);
     resect_string_free(cursor_kind);
 
-    done:
+done:
     resect_string_free(full_name);
 }
 
@@ -537,10 +582,10 @@ resect_string resect_extract_decl_id(CXCursor cursor) {
         case CXCursor_ParmDecl: // nameless param with no USR?
             append_anonymous_decl_id(id, "parm", cursor);
             return id;
-        case CXCursor_FieldDecl:  // anonymous struct/union?
+        case CXCursor_FieldDecl: // anonymous struct/union?
             append_anonymous_decl_id(id, "field", cursor);
             return id;
-        default:  // as a last resort, lets try extracting cursor's full type name
+        default: // as a last resort, lets try extracting cursor's full type name
         {
             append_cursor_full_name(id, cursor);
             if (resect_string_length(id) > 0) {
@@ -561,13 +606,11 @@ unsigned long resect_hash(const char *str) {
     unsigned long hash = 0;
     int c;
 
-    while ((c = (unsigned char)*str++)) {
+    while ((c = (unsigned char) *str++)) {
         hash = c + (hash << 6) + (hash << 16) - hash;
     }
 
     return hash;
 }
 
-resect_bool convert_bool_from_uint(unsigned int val) {
-    return val ? resect_true : resect_false;
-}
+resect_bool convert_bool_from_uint(unsigned int val) { return val ? resect_true : resect_false; }

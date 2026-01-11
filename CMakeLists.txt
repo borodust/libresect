@@ -33,7 +33,8 @@ add_library(resect SHARED
         src/type.c
         src/context.c
         src/util.c
-        src/filtering.c)
+        src/filtering.c
+        src/shaking.c)
 
 set_target_properties(resect PROPERTIES
         CMAKE_C_STANDARD 99

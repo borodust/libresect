@@ -120,6 +120,10 @@ resect_collection resect_options_get_enforced_sources(resect_parse_options opts)
     return opts->enforced_source_patterns;
 }
 
+resect_bool resect_options_is_diagnostics_enabled(resect_parse_options opts) {
+    return opts->diagnostics;
+}
+
 void resect_options_add_resource_path(resect_parse_options opts, const char *path) {
     resect_options_add(opts, "-resource-dir", path);
 }
@@ -238,8 +242,6 @@ resect_translation_unit resect_parse(const char *filename, resect_parse_options 
     }
     resect_iterator_free(arg_iter);
 
-    resect_translation_context context = resect_context_create(options);
-
     CXIndex index = clang_createIndex(0, options->diagnostics ? 1 : 0);
     clang_toggleCrashRecovery(false);
 
@@ -260,16 +262,38 @@ resect_translation_unit resect_parse(const char *filename, resect_parse_options 
                                                              0, unitFlags);
 
     CXCursor cursor = clang_getTranslationUnitCursor(clangUnit);
-    resect_context_init_printing_policy(context, cursor);
-    clang_visitChildren(cursor, resect_visit_context_child, context);
-    resect_context_release_printing_policy(context);
+
+
+    resect_shaking_context shaking_context = resect_shaking_context_create(options);
+    resect_visit_context shake_visit_context = resect_visit_context_create(resect_decl_shake);
+    resect_visit_cursor_children(shake_visit_context, cursor, shaking_context);
+    resect_visit_context_free(shake_visit_context);
+
+    resect_inclusion_registry inclusion_registry =
+            resect_inclusion_registry_create(shaking_context);
+    resect_shaking_context_free(shaking_context);
+
+    resect_translation_context translation_context = resect_context_create(options, inclusion_registry);
+    resect_context_init_printing_policy(translation_context, cursor);
+
+    resect_visit_context parse_visit_context =
+            resect_visit_context_create(resect_decl_parse);
+    resect_decl_visit_data decl_visit_data =
+            resect_decl_visit_data_create(translation_context);
+    resect_visit_cursor_children(parse_visit_context, cursor, decl_visit_data);
+    resect_visit_decl_data_free(decl_visit_data);
+    resect_visit_context_free(parse_visit_context);
+
+    resect_context_release_printing_policy(translation_context);
     clang_disposeTranslationUnit(clangUnit);
     clang_disposeIndex(index);
     free(clang_argv);
 
     resect_translation_unit result = malloc(sizeof(struct P_resect_translation_unit));
-    result->context = context;
-    result->declarations = resect_create_decl_collection(context);
+    result->context = translation_context;
+    result->declarations = resect_create_decl_collection(translation_context);
+
+    resect_inclusion_registry_free(inclusion_registry);
 
     return result;
 }
