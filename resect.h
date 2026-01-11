@@ -206,11 +206,10 @@ typedef enum {
 } resect_option_intrinsic;
 
 typedef enum {
-    RESECT_INCLUSION_STATUS_EXCLUDED = 0,
-    RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED = 1,
-    RESECT_INCLUSION_STATUS_WEAKLY_INCLUDED = 2,
-    RESECT_INCLUSION_STATUS_WEAKLY_ENFORCED = 3,
-    RESECT_INCLUSION_STATUS_INCLUDED = 4
+    RESECT_INCLUSION_STATUS_UNKNOWN = 0,
+    RESECT_INCLUSION_STATUS_INCLUDED = 1,
+    RESECT_INCLUSION_STATUS_EXCLUDED = 2,
+    RESECT_INCLUSION_STATUS_ENFORCED = 3
 } resect_inclusion_status;
 
 typedef struct P_resect_translation_unit *resect_translation_unit;
@@ -358,8 +357,6 @@ RESECT_API const char *resect_decl_get_source(resect_decl decl);
 RESECT_API resect_linkage_kind resect_decl_get_linkage(resect_decl decl);
 
 RESECT_API resect_bool resect_decl_is_forward(resect_decl decl);
-
-RESECT_API resect_inclusion_status resect_decl_get_inclusion_status(resect_decl decl);
 
 /*
  * TRANSLATION UNIT

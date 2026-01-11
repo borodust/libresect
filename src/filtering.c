@@ -16,8 +16,6 @@ struct P_resect_filtering_context {
     resect_collection excluded_source_patterns;
     resect_collection enforced_definition_patterns;
     resect_collection enforced_source_patterns;
-
-    resect_collection status_stack;
 };
 
 static void print_pcre_error(int errornumber, size_t erroroffset) {
@@ -80,33 +78,8 @@ resect_filtering_context resect_filtering_context_create(resect_parse_options op
     context->enforced_source_patterns =
             compile_pattern_collection(resect_options_get_enforced_sources(options));
 
-    context->status_stack = resect_collection_create();
-    resect_collection_add(context->status_stack, (void *) RESECT_INCLUSION_STATUS_WEAKLY_EXCLUDED);
-
     return context;
 }
-
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wvoid-pointer-to-enum-cast"
-
-static resect_inclusion_status current_inclusion_status(resect_filtering_context context) {
-    return (resect_inclusion_status) resect_collection_peek_last(context->status_stack);
-}
-
-static void push_inclusion_status(resect_filtering_context context,
-                                  resect_inclusion_status status) {
-    resect_collection_add(context->status_stack, (void *) status);
-}
-
-static resect_inclusion_status pop_inclusion_status(resect_filtering_context context) {
-    resect_collection status_stack = context->status_stack;
-    if (resect_collection_size(status_stack) <= 1) {
-        assert(!"Inclusion status stack exhausted");
-    }
-    return (resect_inclusion_status) resect_collection_pop_last(status_stack);
-}
-
-#pragma clang diagnostic pop
 
 void resect_filtering_context_free(resect_filtering_context context) {
     free_pattern_collection(context->included_definition_patterns);
@@ -116,7 +89,6 @@ void resect_filtering_context_free(resect_filtering_context context) {
     free_pattern_collection(context->enforced_definition_patterns);
     free_pattern_collection(context->enforced_source_patterns);
 
-    resect_collection_free(context->status_stack);
     free(context);
 }
 
@@ -149,8 +121,8 @@ done:
 }
 
 resect_filter_status resect_filtering_status(resect_filtering_context context,
-                                                                   const char *declaration_name,
-                                                                   const char *declaration_source) {
+                                             const char *declaration_name,
+                                             const char *declaration_source) {
     if (match_pattern_collection(context->enforced_definition_patterns, declaration_name)
         || match_pattern_collection(context->enforced_source_patterns, declaration_source)) {
         return RESECT_FILTER_STATUS_ENFORCED;
@@ -168,17 +140,4 @@ resect_filter_status resect_filtering_status(resect_filtering_context context,
 
     return RESECT_FILTER_STATUS_IGNORED;
 }
-
-resect_inclusion_status resect_filtering_inclusion_status(resect_filtering_context context) {
-    return current_inclusion_status(context);
-}
-
-void resect_filtering_push_inclusion_status(resect_filtering_context context, resect_inclusion_status status) {
-    push_inclusion_status(context, status);
-}
-
-resect_inclusion_status resect_filtering_pop_inclusion_status(resect_filtering_context context) {
-    return pop_inclusion_status(context);
-}
-
 #endif // RESECT_FILTERING_H

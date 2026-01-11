@@ -3,21 +3,48 @@
 
 #include <string>
 #include <iostream>
+#include <memory>
 
+
+namespace Andre {
+  class Deig {
+  public:
+    using Delt = std::shared_ptr<Andre::Deig>;
+    void kokk();
+  };
+
+  class Topping {
+
+  };
+}
 namespace Testo {
-    class Testo
-    {
-    public:
-        int yo;
+  class Testo {
+  public:
+    using WeakTopping = std::weak_ptr<Andre::Topping>;
 
-        void hei();
-    protected:
-        std::string hello;
-    };
+    int yo;
 
-    void Testo::hei()
-    {
-        std::cout << "Hello World!" << std::endl;
-    }
+    void hei();
+    Andre::Deig toDeig();
+
+    void adapt(std::unique_ptr<Andre::Topping> topping);
+
+    std::shared_ptr<Andre::Deig> share();
+
+    Andre::Deig::Delt shareMore();
+
+    bool accept(Andre::Deig::Delt);
+
+    using UniqueTopping = std::unique_ptr<Andre::Topping>;
+    UniqueTopping getTopping();
+
+    WeakTopping getMehTopping();
+  protected:
+    std::string hello;
+  };
+
+  void Testo::hei() {
+    std::cout << "Hello World!" << std::endl;
+  }
 }
 #endif

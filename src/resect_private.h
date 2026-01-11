@@ -63,11 +63,17 @@ resect_set resect_set_create();
 
 void resect_set_free(resect_set set);
 
+unsigned int resect_set_size(resect_set set);
+
 resect_bool resect_set_contains(resect_set set, void *value);
 
 resect_bool resect_set_add(resect_set set, void *value);
 
+void resect_set_remove_all(resect_set set);
+
 void resect_set_add_to_collection(resect_set set, resect_collection collection);
+
+void resect_visit_set(resect_set set, resect_bool (*item_visitor)(void *ctx, void *item), void *context);
 
 /*
  * HASH TABLE
@@ -78,11 +84,22 @@ resect_table resect_table_create();
 
 resect_bool resect_table_put_if_absent(resect_table table, const char *key, void *value);
 
+/**
+ * @return previous value or NULL when no key found
+ */
+void *resect_table_put(resect_table table, const char *key, void *value);
+
 void *resect_table_get(resect_table table, const char *key);
+
+bool resect_table_remove(resect_table table, const char *key);
 
 void resect_visit_table(resect_table table,
                         resect_bool (*entry_visitor)(void *, const char *, void *),
                         void *context);
+
+unsigned int resect_table_size(resect_table table);
+
+void resect_print_table(resect_table table);
 
 void resect_table_free(resect_table table, void (*value_destructor)(void *, void *), void *context);
 
@@ -106,16 +123,34 @@ resect_filter_status resect_filtering_status(resect_filtering_context context,
                                              const char *declaration_name,
                                              const char *declaration_source);
 
+/*
+ * TREE SHAKING
+*/
 
-resect_inclusion_status resect_filtering_inclusion_status(resect_filtering_context context);
+typedef struct P_resect_visit_context *resect_visit_context;
 
-void resect_filtering_push_inclusion_status(resect_filtering_context context, resect_inclusion_status status);
+typedef struct P_resect_inclusion_registry *resect_inclusion_registry;
 
-resect_inclusion_status resect_filtering_pop_inclusion_status(resect_filtering_context context);
+typedef void (*resect_declaration_visitor)(resect_visit_context ctx, CXCursor cursor, void *data);
+
+typedef struct P_resect_shaking_context *resect_shaking_context;
+
+resect_shaking_context resect_shaking_context_create(resect_parse_options opts);
+
+void resect_shaking_context_free(resect_shaking_context ctx);
+
+void resect_decl_shake(resect_visit_context visit_context, CXCursor cursor, void *data);
+
+resect_inclusion_registry resect_inclusion_registry_create(resect_shaking_context shaking_context);
+
+bool resect_inclusion_registry_decl_included(resect_inclusion_registry, const char *decl_id);
+
+void resect_inclusion_registry_free(resect_inclusion_registry registry);
 
 /*
  * CONTEXT
- */
+*/
+
 typedef struct P_resect_translation_context *resect_translation_context;
 
 enum P_resect_garbage_kind {
@@ -124,7 +159,7 @@ enum P_resect_garbage_kind {
     RESECT_GARBAGE_KIND_TYPE,
 };
 
-resect_translation_context resect_context_create(resect_parse_options opts);
+resect_translation_context resect_context_create(resect_parse_options opts, resect_inclusion_registry registry);
 
 resect_collection resect_create_decl_collection(resect_translation_context context);
 
@@ -136,13 +171,7 @@ CXPrintingPolicy resect_context_get_printing_policy(resect_translation_context c
 
 void resect_context_free(resect_translation_context context, resect_set deallocated);
 
-enum CXChildVisitResult resect_visit_context_child(CXCursor cursor,
-                                                   CXCursor parent,
-                                                   CXClientData data);
-
 void resect_register_decl(resect_translation_context context, resect_string id, resect_decl decl);
-
-void promote_eligible_decl(resect_translation_context context, resect_decl decl, resect_inclusion_status new_status);
 
 void resect_register_type(resect_translation_context context, resect_string fqn, resect_type type);
 
@@ -150,13 +179,7 @@ void resect_register_decl_language(resect_translation_context context, resect_la
 
 resect_language resect_get_assumed_language(resect_translation_context context);
 
-resect_filter_status resect_cursor_filter_status(resect_translation_context context, CXCursor cursor);
-
-resect_inclusion_status resect_context_inclusion_status(resect_translation_context context);
-
-void resect_context_push_inclusion_status(resect_translation_context context, resect_inclusion_status status);
-
-resect_inclusion_status resect_context_pop_inclusion_status(resect_translation_context context);
+bool resect_is_decl_included(resect_translation_context context, resect_string decl_id);
 
 void resect_export_decl(resect_translation_context context, resect_decl decl);
 
@@ -168,30 +191,46 @@ void resect_register_template_parameter(resect_translation_context context, rese
 
 resect_decl resect_find_template_parameter(resect_translation_context context, resect_string name);
 
-void *resect_context_current_state(resect_translation_context context);
-
-void resect_context_push_state(resect_translation_context context, void *value);
-
-void *resect_context_pop_state(resect_translation_context context);
-
 void resect_register_garbage(resect_translation_context context, enum P_resect_garbage_kind kind, void *garbage);
+
+void resect_context_flush_template_parameters(resect_translation_context context);
+
+resect_visit_context resect_visit_context_create(resect_declaration_visitor visitor);
+
+void resect_visit_context_free(resect_visit_context ctx);
+
+void resect_visit_cursor_children(resect_visit_context context, CXCursor cursor, void *data);
+
+void resect_visit_cursor(resect_visit_context context, CXCursor cursor, void *data);
+
+CXCursor resect_find_declaration_owning_cursor(CXCursor cursor);
 
 /*
  * TYPE
  */
-resect_type resect_type_create(resect_translation_context context, CXType canonical_type);
+resect_type resect_type_create(resect_visit_context visit_context, resect_translation_context context,
+                               CXType canonical_type);
 
 void resect_type_free(resect_type type, resect_set deallocated);
 
 void resect_type_collection_free(resect_collection types, resect_set deallocated);
 
-resect_field resect_field_create(resect_translation_context context, CXType parent, CXType field, resect_string name);
+resect_field resect_field_create(resect_visit_context visit_context, resect_translation_context context, CXType parent,
+                                 CXType field, resect_string name);
 
 void resect_field_collection_free(resect_collection fields, resect_set deallocated);
+
+resect_type_kind convert_type_kind(enum CXTypeKind kind);
+
+resect_type_category get_type_category(resect_type_kind kind);
+
 
 /*
  * DECLARATION
  */
+
+typedef struct P_resect_decl_visit_data *resect_decl_visit_data;
+
 typedef void (*resect_data_deallocator)(void *data, resect_set deallocated);
 
 typedef struct {
@@ -199,15 +238,13 @@ typedef struct {
     resect_decl decl;
 } resect_decl_result;
 
-resect_decl_result resect_decl_create(resect_translation_context context, CXCursor cursor);
+resect_decl_result resect_decl_create(resect_visit_context visit_context,
+                                      resect_translation_context context,
+                                      CXCursor cursor);
 
 void resect_decl_free(resect_decl decl, resect_set deallocated);
 
 void resect_decl_collection_free(resect_collection decls, resect_set deallocated);
-
-enum CXChildVisitResult resect_visit_child_declaration(CXCursor cursor,
-                                                       CXCursor parent,
-                                                       CXClientData data);
 
 resect_string resect_location_to_string(resect_location location);
 
@@ -219,13 +256,21 @@ void resect_location_free(resect_location location);
 
 resect_string resect_extract_decl_id(CXCursor cursor);
 
-void resect_register_exclusion(resect_translation_context translation_context);
-
-void resect_reset_registered_exclusion(resect_translation_context translation_context);
-
-bool resect_is_exclusion_detected(resect_translation_context translation_context);
-
 void resect_decl_register_specialization(resect_decl decl, resect_type specialization);
+
+resect_bool resect_is_forward_declaration(CXCursor cursor);
+
+resect_bool resect_is_specialized(CXCursor cursor);
+
+resect_decl_kind convert_cursor_kind(CXCursor cursor);
+
+bool is_cursor_anonymous(CXCursor cursor);
+
+void resect_decl_parse(resect_visit_context visit_context, CXCursor cursor, void *data);
+
+resect_decl_visit_data resect_decl_visit_data_create(resect_translation_context context);
+
+void resect_visit_decl_data_free(resect_decl_visit_data data);
 
 /*
  * TEMPLATE ARGUMENT
@@ -241,6 +286,7 @@ void resect_template_argument_collection_free(resect_collection args, resect_set
 
 resect_template_argument_kind convert_template_argument_kind(enum CXTemplateArgumentKind kind);
 
+
 /*
  * UTIL
  */
@@ -249,6 +295,8 @@ long long filter_valid_value(long long value);
 void resect_string_collection_free(resect_collection collection);
 
 resect_string resect_format_cursor_full_name(CXCursor cursor);
+
+resect_string resect_format_cursor_source(CXCursor cursor);
 
 unsigned long resect_hash(const char *str);
 
@@ -267,6 +315,8 @@ resect_collection resect_options_get_excluded_sources(resect_parse_options opts)
 resect_collection resect_options_get_enforced_definitions(resect_parse_options opts);
 
 resect_collection resect_options_get_enforced_sources(resect_parse_options opts);
+
+resect_bool resect_options_is_diagnostics_enabled(resect_parse_options opts);
 
 resect_bool convert_bool_from_uint(unsigned int val);
 

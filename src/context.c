@@ -14,9 +14,9 @@ struct P_resect_translation_context {
     resect_table type_table;
     resect_table template_parameter_table;
     resect_language language;
-    resect_filtering_context filtering;
 
-    resect_collection state_stack;
+    resect_inclusion_registry inclusion_registry;
+
     resect_collection garbage;
 
     CXPrintingPolicy printing_policy;
@@ -27,7 +27,8 @@ struct P_resect_garbage {
     void *data;
 };
 
-resect_translation_context resect_context_create(resect_parse_options opts) {
+resect_translation_context resect_context_create(resect_parse_options opts,
+                                                 resect_inclusion_registry registry) {
     resect_translation_context context = malloc(sizeof(struct P_resect_translation_context));
     context->exposed_decls = resect_set_create();
     context->decl_table = resect_table_create();
@@ -35,9 +36,7 @@ resect_translation_context resect_context_create(resect_parse_options opts) {
     context->template_parameter_table = resect_table_create();
     context->language = RESECT_LANGUAGE_UNKNOWN;
 
-    context->filtering = resect_filtering_context_create(opts);
-
-    context->state_stack = resect_collection_create();
+    context->inclusion_registry = registry;
 
     context->garbage = resect_collection_create();
     context->printing_policy = NULL;
@@ -87,11 +86,6 @@ void resect_context_free(resect_translation_context context, resect_set dealloca
         return;
     }
 
-    assert(resect_collection_size(context->state_stack) == 0);
-    resect_collection_free(context->state_stack);
-
-    resect_filtering_context_free(context->filtering);
-
     resect_table_free(context->decl_table, resect_decl_table_free, deallocated);
     resect_table_free(context->type_table, resect_type_table_free, deallocated);
     resect_table_free(context->template_parameter_table, NULL, NULL);
@@ -101,6 +95,10 @@ void resect_context_free(resect_translation_context context, resect_set dealloca
     free_garbage_collection(context->garbage, deallocated);
 
     free(context);
+}
+
+bool resect_is_decl_included(resect_translation_context context, resect_string decl_id) {
+    return resect_inclusion_registry_decl_included(context->inclusion_registry, resect_string_to_c(decl_id));
 }
 
 void resect_export_decl(resect_translation_context context, resect_decl decl) {
@@ -118,38 +116,12 @@ resect_language resect_get_assumed_language(resect_translation_context context) 
     return context->language;
 }
 
-static resect_string format_cursor_source(CXCursor cursor) {
+resect_string resect_format_cursor_source(CXCursor cursor) {
     resect_location location = resect_location_from_cursor(cursor);
     resect_string source = resect_string_from_c(resect_location_name(location));
     resect_location_free(location);
 
     return source;
-}
-
-resect_filter_status resect_cursor_filter_status(resect_translation_context context, CXCursor cursor) {
-    resect_string full_name = resect_format_cursor_full_name(cursor);
-    resect_string source = format_cursor_source(cursor);
-
-    resect_filter_status result = resect_filtering_status(context->filtering,
-        resect_string_to_c(full_name),
-        resect_string_to_c(source));
-
-    resect_string_free(full_name);
-    resect_string_free(source);
-
-    return result;
-}
-
-resect_inclusion_status resect_context_inclusion_status(resect_translation_context context) {
-    return resect_filtering_inclusion_status(context->filtering);
-}
-
-void resect_context_push_inclusion_status(resect_translation_context context, resect_inclusion_status status) {
-    resect_filtering_push_inclusion_status(context->filtering, status);
-}
-
-resect_inclusion_status resect_context_pop_inclusion_status(resect_translation_context context) {
-    return resect_filtering_pop_inclusion_status(context->filtering);
 }
 
 void resect_register_decl(resect_translation_context context, resect_string decl_id, resect_decl decl) {
@@ -206,27 +178,6 @@ CXPrintingPolicy resect_context_get_printing_policy(resect_translation_context c
     return context->printing_policy;
 }
 
-enum CXChildVisitResult resect_visit_context_child(CXCursor cursor,
-                                                   CXCursor parent,
-                                                   CXClientData data) {
-    resect_translation_context context = data;
-    resect_visit_child_declaration(cursor, parent, context);
-    resect_context_flush_template_parameters(context);
-    return CXChildVisit_Continue;
-}
-
-void *resect_context_current_state(resect_translation_context context) {
-    return resect_collection_peek_last(context->state_stack);
-}
-
-void resect_context_push_state(resect_translation_context context, void *value) {
-    resect_collection_add(context->state_stack, value);
-}
-
-void *resect_context_pop_state(resect_translation_context context) {
-    return resect_collection_pop_last(context->state_stack);
-}
-
 void resect_register_garbage(resect_translation_context context, enum P_resect_garbage_kind kind, void *garbage) {
     struct P_resect_garbage *garbage_holder = malloc(sizeof(struct P_resect_garbage));
 
@@ -234,4 +185,131 @@ void resect_register_garbage(resect_translation_context context, enum P_resect_g
     garbage_holder->data = garbage;
 
     resect_collection_add(context->garbage, garbage_holder);
+}
+
+/*
+ * COMMON VISIT
+*/
+typedef struct P_resect_visit_context {
+    resect_declaration_visitor visitor;
+} *resect_visit_context;
+
+typedef struct {
+    resect_visit_context context;
+    void *data;
+} resect_child_visitor_data;
+
+void resect_visit_cursor_for_declaration(resect_visit_context context, CXCursor cursor, void *data);
+
+enum CXChildVisitResult resect_visit_cursor_child_for_declaration(CXCursor cursor,
+                                                                  CXCursor parent,
+                                                                  CXClientData data);
+
+resect_visit_context resect_visit_context_create(resect_declaration_visitor visitor) {
+    resect_visit_context context = malloc(sizeof(struct P_resect_visit_context));
+    context->visitor = visitor;
+    return context;
+}
+
+void resect_visit_context_free(resect_visit_context context) {
+    free(context);
+}
+
+void resect_visit_cursor_children(resect_visit_context context, CXCursor cursor, void *data) {
+    resect_child_visitor_data visitor_data = {.context = context, .data = data};
+    clang_visitChildren(cursor, resect_visit_cursor_child_for_declaration, &visitor_data);
+}
+
+void resect_visit_cursor(resect_visit_context context, CXCursor cursor, void *data) {
+    resect_visit_cursor_for_declaration(context, cursor, data);
+}
+
+enum CXChildVisitResult resect_visit_cursor_child_for_declaration(CXCursor cursor,
+                                                                  CXCursor parent,
+                                                                  CXClientData data) {
+    resect_child_visitor_data *visitor_data = data;
+    resect_visit_cursor_for_declaration(visitor_data->context, cursor, visitor_data->data);
+    return CXChildVisit_Continue;
+}
+
+CXCursor resect_find_declaration_owning_cursor(CXCursor cursor) {
+    if (clang_Cursor_isNull(cursor)) {
+        return cursor;
+    }
+
+    CXCursor parent = clang_getCursorSemanticParent(cursor);
+    switch (convert_cursor_kind(parent)) {
+        case RESECT_DECL_KIND_STRUCT:
+        case RESECT_DECL_KIND_UNION:
+        case RESECT_DECL_KIND_CLASS:
+            return parent;
+        default: ;
+    }
+
+    return resect_find_declaration_owning_cursor(parent);
+}
+
+void resect_visit_cursor_for_declaration(resect_visit_context context, CXCursor cursor, void *data) {
+    if (clang_Cursor_isNull(cursor) || cursor.kind == CXCursor_NoDeclFound) {
+        return;
+    }
+
+    resect_child_visitor_data visitor_data = {.context = context, .data = data};
+
+    enum CXCursorKind cursor_kind = clang_getCursorKind(cursor);
+
+    if (cursor_kind >= CXCursor_FirstInvalid // ignore invalid cursors
+        && cursor_kind <= CXCursor_LastInvalid
+        || cursor_kind >= CXCursor_FirstAttr // ignore attributes
+        && cursor_kind <= CXCursor_LastAttr
+        || cursor_kind >= CXCursor_FirstRef // ignore references
+        && cursor_kind <= CXCursor_LastRef
+        || cursor_kind >= CXCursor_FirstStmt // ignore statements
+        && cursor_kind <= CXCursor_LastStmt
+        || cursor_kind >= CXCursor_FirstExpr // ignore expressions
+        && cursor_kind <= CXCursor_LastExpr
+        || cursor_kind == CXCursor_LinkageSpec) {
+        /* ignore some kinds for now, but just in case check children */
+        clang_visitChildren(cursor, resect_visit_cursor_child_for_declaration, &visitor_data);
+        return;
+    }
+
+    if (resect_is_forward_declaration(cursor)) {
+        CXCursor definition = clang_getCursorDefinition(cursor);
+        if ((clang_getCursorKind(definition) < CXCursor_FirstInvalid
+             || clang_getCursorKind(definition) > CXCursor_LastInvalid)
+            && !clang_equalCursors(cursor, definition)) {
+            resect_visit_cursor_for_declaration(context, definition, data);
+            return;
+        }
+    }
+
+    switch (cursor_kind) {
+        case CXCursor_FieldDecl:
+        case CXCursor_ParmDecl:
+        case CXCursor_TemplateTemplateParameter:
+        case CXCursor_TemplateTypeParameter:
+        case CXCursor_NonTypeTemplateParameter: {
+            CXCursor parent = clang_getCursorSemanticParent(cursor);
+            if (clang_getCursorKind(parent) == CXCursor_TranslationUnit) {
+                /* the hell is that even, but that happens, lets check children though */
+                clang_visitChildren(cursor, resect_visit_cursor_child_for_declaration, &visitor_data);
+                return;
+            }
+        }
+        default: ;
+    }
+
+    switch (cursor_kind) {
+        case CXCursor_Namespace:
+        case CXCursor_UnexposedDecl:
+        case CXCursor_MacroExpansion:
+        case CXCursor_InclusionDirective:
+            /* we might encounter exposed declarations within unexposed one, e.g. inside extern "C"/"C++" block */
+            clang_visitChildren(cursor, resect_visit_cursor_child_for_declaration, &visitor_data);
+            return;
+        default: ;
+    }
+
+    context->visitor(context, cursor, data);
 }
