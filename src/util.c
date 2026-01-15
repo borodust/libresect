@@ -8,6 +8,9 @@
 #include "resect_private.h"
 #include "uthash.h"
 
+#define PCRE2_CODE_UNIT_WIDTH 8
+#include <pcre2.h>
+
 /*
  * STRING
  */
@@ -300,9 +303,7 @@ resect_set resect_set_create() {
     return set;
 }
 
-unsigned int resect_set_size(resect_set set) {
-    return HASH_COUNT(set->head);
-}
+unsigned int resect_set_size(resect_set set) { return HASH_COUNT(set->head); }
 
 resect_bool resect_set_contains(resect_set set, void *value) {
     resect_set_item entry;
@@ -468,6 +469,97 @@ void resect_table_free(resect_table table, void (*value_destructor)(void *, void
     free(table);
 }
 
+/*
+ * PATTERN
+ */
+typedef struct P_resect_pattern {
+    pcre2_code *compiled;
+} *resect_pattern;
+
+void print_pcre_error(int errornumber, size_t erroroffset) {
+    PCRE2_UCHAR buffer[256];
+    pcre2_get_error_message(errornumber, buffer, sizeof(buffer));
+    fprintf(stderr, "PCRE2 compilation failed at offset %d: %s\n", (int) erroroffset, buffer);
+}
+
+resect_pattern resect_pattern_create(resect_string pattern) {
+    return resect_pattern_create_c(resect_string_to_c(pattern));
+}
+
+resect_pattern resect_pattern_create_c(const char* pattern) {
+    resect_pattern result = malloc(sizeof(struct P_resect_pattern));
+
+    int errornumber;
+    PCRE2_SIZE erroroffset;
+    pcre2_code *compiled = pcre2_compile((PCRE2_SPTR) (pattern), PCRE2_ZERO_TERMINATED, PCRE2_UTF,
+                                         &errornumber, &erroroffset, NULL);
+    if (compiled == NULL) {
+        print_pcre_error(errornumber, erroroffset);
+        // FIXME: add better error reporting
+        assert(!"Failed to parse inclusion/exclusion pattern");
+    }
+    result->compiled = compiled;
+    return result;
+}
+
+bool resect_pattern_match(resect_pattern pattern, resect_string subject) {
+    return resect_pattern_match_c(pattern, resect_string_to_c(subject));
+}
+
+bool resect_pattern_match_c(resect_pattern pattern, const char *subject) {
+    pcre2_code *compiled = pattern->compiled;
+    pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(compiled, NULL);
+
+    int rc = pcre2_match(compiled, (PCRE2_SPTR) subject, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
+    pcre2_match_data_free(match_data);
+
+    if (rc >= 0) {
+        return true;
+    }
+
+    return false;
+}
+
+bool resect_pattern_find(resect_pattern pattern, resect_string subject, resect_string out) {
+    return resect_pattern_find_c(pattern, resect_string_to_c(subject), out);
+}
+
+bool resect_pattern_find_c(resect_pattern pattern, const char *subject, resect_string substring_result) {
+    bool result = false;
+    pcre2_code *compiled = pattern->compiled;
+    pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(compiled, NULL);
+
+
+    int rc = pcre2_match(compiled, (PCRE2_SPTR) subject, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
+
+    if (rc < 0) {
+        if (rc != PCRE2_ERROR_NOMATCH) {
+            fprintf(stderr, "PCRE2 error when finding substring in %s\n", subject);
+        }
+        goto done;
+    }
+
+    PCRE2_UCHAR *substring;
+    PCRE2_SIZE substring_length = -1;
+    rc = pcre2_substring_get_bynumber(match_data, 0, &substring, &substring_length);
+    if (rc != 0) {
+        fprintf(stderr, "PCRE2 failed to get substring from %s with error %d\n", subject, rc);
+        goto done;
+    }
+
+    result = true;
+    resect_string_update_by_length(substring_result, substring, substring_length);
+    pcre2_substring_free(substring);
+
+done:
+    pcre2_match_data_free(match_data);
+    return result;
+}
+
+void resect_pattern_free(resect_pattern pattern) {
+    pcre2_code_free(pattern->compiled);
+    free(pattern);
+}
 /*
  * UTIL
  */

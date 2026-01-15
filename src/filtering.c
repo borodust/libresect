@@ -1,11 +1,7 @@
 #ifndef RESECT_FILTERING_H
 #define RESECT_FILTERING_H
 
-#define PCRE2_CODE_UNIT_WIDTH 8
-
-#include <pcre2.h>
-#include <assert.h>
-#include <string.h>
+#include <stdlib.h>
 
 #include "resect_private.h"
 
@@ -18,33 +14,13 @@ struct P_resect_filtering_context {
     resect_collection enforced_source_patterns;
 };
 
-static void print_pcre_error(int errornumber, size_t erroroffset) {
-    PCRE2_UCHAR buffer[256];
-    pcre2_get_error_message(errornumber, buffer, sizeof(buffer));
-    fprintf(stderr, "PCRE2 compilation failed at offset %d: %s\n", (int) erroroffset,
-            buffer);
-}
-
 static resect_collection compile_pattern_collection(resect_collection collection) {
     resect_collection result = resect_collection_create();
 
     resect_iterator iter = resect_collection_iterator(collection);
     while (resect_iterator_next(iter)) {
         resect_string pattern = resect_iterator_value(iter);
-
-        int errornumber;
-        PCRE2_SIZE erroroffset;
-        pcre2_code *compiled = pcre2_compile((PCRE2_SPTR) (resect_string_to_c(pattern)),
-                                             PCRE2_ZERO_TERMINATED,
-                                             PCRE2_UTF,
-                                             &errornumber, &erroroffset,
-                                             NULL);
-        if (compiled == NULL) {
-            print_pcre_error(errornumber, erroroffset);
-            // FIXME: add better error reporting
-            assert(!"Failed to parse inclusion/exclusion pattern");
-        }
-
+        resect_pattern compiled = resect_pattern_create(pattern);
         resect_collection_add(result, compiled);
     }
     resect_iterator_free(iter);
@@ -55,11 +31,10 @@ static resect_collection compile_pattern_collection(resect_collection collection
 static void free_pattern_collection(resect_collection collection) {
     resect_iterator iter = resect_collection_iterator(collection);
     while (resect_iterator_next(iter)) {
-        pcre2_code *compiled = resect_iterator_value(iter);
-        pcre2_code_free(compiled);
+        resect_pattern compiled = resect_iterator_value(iter);
+        resect_pattern_free(compiled);
     }
     resect_iterator_free(iter);
-
     resect_collection_free(collection);
 }
 
@@ -67,16 +42,13 @@ resect_filtering_context resect_filtering_context_create(resect_parse_options op
     resect_filtering_context context = malloc(sizeof(struct P_resect_filtering_context));
     context->included_definition_patterns =
             compile_pattern_collection(resect_options_get_included_definitions(options));
-    context->included_source_patterns =
-            compile_pattern_collection(resect_options_get_included_sources(options));
+    context->included_source_patterns = compile_pattern_collection(resect_options_get_included_sources(options));
     context->excluded_definition_patterns =
             compile_pattern_collection(resect_options_get_excluded_definitions(options));
-    context->excluded_source_patterns =
-            compile_pattern_collection(resect_options_get_excluded_sources(options));
+    context->excluded_source_patterns = compile_pattern_collection(resect_options_get_excluded_sources(options));
     context->enforced_definition_patterns =
             compile_pattern_collection(resect_options_get_enforced_definitions(options));
-    context->enforced_source_patterns =
-            compile_pattern_collection(resect_options_get_enforced_sources(options));
+    context->enforced_source_patterns = compile_pattern_collection(resect_options_get_enforced_sources(options));
 
     return context;
 }
@@ -97,44 +69,31 @@ static bool match_pattern_collection(resect_collection collection, const char *s
 
     resect_iterator iter = resect_collection_iterator(collection);
     while (resect_iterator_next(iter)) {
-        pcre2_code *compiled = resect_iterator_value(iter);
-        pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(compiled, NULL);
-
-        int rc = pcre2_match(compiled,
-                             (PCRE2_SPTR) subject,
-                             PCRE2_ZERO_TERMINATED,
-                             0,
-                             0,
-                             match_data,
-                             NULL);
-        pcre2_match_data_free(match_data);
-
-        if (rc >= 0) {
+        resect_pattern compiled = resect_iterator_value(iter);
+        if (resect_pattern_match_c(compiled, subject)) {
             result = true;
             goto done;
         }
     }
-
 done:
     resect_iterator_free(iter);
     return result;
 }
 
-resect_filter_status resect_filtering_status(resect_filtering_context context,
-                                             const char *declaration_name,
+resect_filter_status resect_filtering_status(resect_filtering_context context, const char *declaration_name,
                                              const char *declaration_source) {
-    if (match_pattern_collection(context->enforced_definition_patterns, declaration_name)
-        || match_pattern_collection(context->enforced_source_patterns, declaration_source)) {
+    if (match_pattern_collection(context->enforced_definition_patterns, declaration_name) ||
+        match_pattern_collection(context->enforced_source_patterns, declaration_source)) {
         return RESECT_FILTER_STATUS_ENFORCED;
     }
 
-    if (match_pattern_collection(context->excluded_definition_patterns, declaration_name)
-        || match_pattern_collection(context->excluded_source_patterns, declaration_source)) {
+    if (match_pattern_collection(context->excluded_definition_patterns, declaration_name) ||
+        match_pattern_collection(context->excluded_source_patterns, declaration_source)) {
         return RESECT_FILTER_STATUS_EXCLUDED;
     }
 
-    if (match_pattern_collection(context->included_definition_patterns, declaration_name)
-        || match_pattern_collection(context->included_source_patterns, declaration_source)) {
+    if (match_pattern_collection(context->included_definition_patterns, declaration_name) ||
+        match_pattern_collection(context->included_source_patterns, declaration_source)) {
         return RESECT_FILTER_STATUS_INCLUDED;
     }
 

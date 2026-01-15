@@ -44,7 +44,12 @@ set_target_properties(resect PROPERTIES
         LINK_WHAT_YOU_USE TRUE)
 
 target_include_directories(resect
-        SYSTEM BEFORE PUBLIC "${CMAKE_BINARY_DIR}/third-party/pcre2-10.47/")
+        SYSTEM BEFORE PUBLIC
+        "${CMAKE_BINARY_DIR}/third-party/pcre2-10.47/"
+        "${THIRD_PARTY_DIR}/uthash/")
+
+target_include_directories(resect
+        SYSTEM BEFORE PUBLIC "${CMAKE_BINARY_DIR}/third-party/uthash/")
 
 target_link_directories(resect
         PUBLIC "${LIBCLANG_LINK_DIRS}")
