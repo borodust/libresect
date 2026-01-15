@@ -205,6 +205,8 @@ void resect_visit_cursor(resect_visit_context context, CXCursor cursor, void *da
 
 CXCursor resect_find_declaration_owning_cursor(CXCursor cursor);
 
+bool resect_context_extract_valid_decl_name(resect_translation_context context, resect_string name, resect_string out);
+
 /*
  * TYPE
  */
@@ -319,5 +321,33 @@ resect_collection resect_options_get_enforced_sources(resect_parse_options opts)
 resect_bool resect_options_is_diagnostics_enabled(resect_parse_options opts);
 
 resect_bool convert_bool_from_uint(unsigned int val);
+
+/*
+ * PATTERN
+*/
+typedef struct P_resect_pattern *resect_pattern;
+
+resect_pattern resect_pattern_create(resect_string pattern);
+
+resect_pattern resect_pattern_create_c(const char* pattern);
+
+void resect_pattern_free(resect_pattern pattern);
+
+bool resect_pattern_match(resect_pattern pattern, resect_string subject);
+
+bool resect_pattern_match_c(resect_pattern pattern, const char* subject);
+
+/**
+ * @param out updated with matched substring if match is found
+ * @return true, if match found and substring successfully put into result, false if no match found or error
+ */
+bool resect_pattern_find(resect_pattern pattern, resect_string subject, resect_string out);
+
+/**
+ * @param out updated with matched substring if match is found
+ * @return true, if match found and substring successfully put into result, false if no match found or error
+ */
+bool resect_pattern_find_c(resect_pattern pattern, const char *subject, resect_string out);
+
 
 #endif //RESECT_PRIVATE_H

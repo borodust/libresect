@@ -20,6 +20,8 @@ struct P_resect_translation_context {
     resect_collection garbage;
 
     CXPrintingPolicy printing_policy;
+
+    resect_pattern decl_name_pattern;
 };
 
 struct P_resect_garbage {
@@ -40,6 +42,8 @@ resect_translation_context resect_context_create(resect_parse_options opts,
 
     context->garbage = resect_collection_create();
     context->printing_policy = NULL;
+
+    context->decl_name_pattern = resect_pattern_create_c("^operator.+|[~\\w]+");
 
     return context;
 }
@@ -93,6 +97,8 @@ void resect_context_free(resect_translation_context context, resect_set dealloca
     resect_set_free(context->exposed_decls);
 
     free_garbage_collection(context->garbage, deallocated);
+
+    resect_pattern_free(context->decl_name_pattern);
 
     free(context);
 }
@@ -185,6 +191,12 @@ void resect_register_garbage(resect_translation_context context, enum P_resect_g
     garbage_holder->data = garbage;
 
     resect_collection_add(context->garbage, garbage_holder);
+}
+
+bool resect_context_extract_valid_decl_name(resect_translation_context context,
+    resect_string name,
+    resect_string out) {
+    return resect_pattern_find(context->decl_name_pattern, name, out);
 }
 
 /*

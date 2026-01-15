@@ -247,20 +247,10 @@ static void resect_investigate_function(resect_visit_context visit_context, rese
                                         CXCursor cursor);
 
 static void resect_investigate_typedef(resect_visit_context visit_context, resect_shaking_context context,
-CXCursor cursor);
+                                       CXCursor cursor);
 
-static void resect_investigate_parameter(resect_visit_context visit_context, resect_shaking_context context,
-CXCursor cursor);
-
-static void resect_investigate_field(resect_visit_context visit_context, resect_shaking_context context,
-                                         CXCursor cursor);
-
-static void resect_maybe_investigate_template(resect_visit_context visit_context, resect_shaking_context context,
-                                              CXCursor cursor);
-
-static void resect_investigate_template_parameter(resect_visit_context visit_context, resect_shaking_context context,
-CXCursor cursor);
-
+static void resect_investigate_template_specializations(resect_visit_context visit_context,
+                                                        resect_shaking_context context, CXCursor cursor);
 
 void resect_investigate_decl(resect_visit_context visit_context, resect_shaking_context shaking_context,
                              CXCursor cursor) {
@@ -303,18 +293,14 @@ void resect_investigate_decl(resect_visit_context visit_context, resect_shaking_
             resect_investigate_typedef(visit_context, shaking_context, cursor);
             break;
         case RESECT_DECL_KIND_PARAMETER:
-            resect_investigate_parameter(visit_context, shaking_context, cursor);
-            break;
         case RESECT_DECL_KIND_FIELD:
-            resect_investigate_field(visit_context, shaking_context, cursor);
-            break;
         case RESECT_DECL_KIND_TEMPLATE_PARAMETER:
-            resect_investigate_template_parameter(visit_context, shaking_context, cursor);
+            resect_investigate_type(visit_context, shaking_context, clang_getCursorType(cursor));
             break;
         default:;
     }
 
-    resect_maybe_investigate_template(visit_context, shaking_context, cursor);
+    resect_investigate_template_specializations(visit_context, shaking_context, cursor);
 
 done:
     resect_string_free(decl_id);
@@ -369,10 +355,14 @@ static void resect_investigate_enum(resect_visit_context visit_context, resect_s
     resect_shaking_context_pop_link(context);
 }
 
-enum CXChildVisitResult resect_investigate_function_parameter(CXCursor cursor, CXCursor parent, CXClientData data) {
+enum CXChildVisitResult resect_investigate_function_child(CXCursor cursor, CXCursor parent, CXClientData data) {
     resect_investigate_child_data *visit_data = data;
-    if (clang_getCursorKind(cursor) == CXCursor_ParmDecl) {
-        resect_visit_cursor(visit_data->visit_context, cursor, visit_data->shaking_context);
+    switch (convert_cursor_kind(cursor)) {
+        case RESECT_DECL_KIND_PARAMETER:
+        case RESECT_DECL_KIND_TEMPLATE_PARAMETER:
+            resect_visit_cursor(visit_data->visit_context, cursor, visit_data->shaking_context);
+            break;
+        default:;
     }
     return CXChildVisit_Continue;
 }
@@ -382,28 +372,13 @@ static void resect_investigate_function(resect_visit_context visit_context, rese
     resect_investigate_function_type(visit_context, context, clang_getCursorType(cursor));
 
     resect_investigate_child_data visit_data = {.visit_context = visit_context, .shaking_context = context};
-    clang_visitChildren(cursor, resect_investigate_function_parameter, &visit_data);
+    clang_visitChildren(cursor, resect_investigate_function_child, &visit_data);
 }
 
 static void resect_investigate_typedef(resect_visit_context visit_context, resect_shaking_context context,
                                        CXCursor cursor) {
     CXType canonical_type = clang_getCanonicalType(clang_getTypedefDeclUnderlyingType(cursor));
     resect_investigate_type(visit_context, context, canonical_type);
-}
-
-static void resect_investigate_parameter(resect_visit_context visit_context, resect_shaking_context context,
-                                         CXCursor cursor) {
-    resect_investigate_type(visit_context, context, clang_getCursorType(cursor));
-}
-
-static void resect_investigate_template_parameter(resect_visit_context visit_context, resect_shaking_context context,
-                                         CXCursor cursor) {
-    resect_investigate_type(visit_context, context, clang_getCursorType(cursor));
-}
-
-static void resect_investigate_field(resect_visit_context visit_context, resect_shaking_context context,
-                                     CXCursor cursor) {
-    resect_investigate_type(visit_context, context, clang_getCursorType(cursor));
 }
 
 void resect_investigate_template_arguments(resect_visit_context visit_context, resect_shaking_context context,
@@ -426,8 +401,8 @@ void resect_investigate_template_arguments(resect_visit_context visit_context, r
     }
 }
 
-static void resect_maybe_investigate_template(resect_visit_context visit_context, resect_shaking_context context,
-                                              CXCursor cursor) {
+static void resect_investigate_template_specializations(resect_visit_context visit_context,
+                                                        resect_shaking_context context, CXCursor cursor) {
     if (resect_is_specialized(cursor)) {
         resect_investigate_template_arguments(visit_context, context, cursor);
 
