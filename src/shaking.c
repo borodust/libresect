@@ -345,12 +345,12 @@ static enum CXChildVisitResult resect_investigate_enum_child(CXCursor cursor, CX
 
 static void resect_investigate_enum(resect_visit_context visit_context, resect_shaking_context context,
                                     CXCursor cursor) {
-    resect_shaking_context_push_root_link(context);
     CXType enum_type = clang_getEnumDeclIntegerType(cursor);
     resect_investigate_type(visit_context, context, enum_type);
 
     resect_investigate_child_data visit_data = {.visit_context = visit_context, .shaking_context = context};
 
+    resect_shaking_context_push_root_link(context);
     clang_visitChildren(cursor, resect_investigate_enum_child, &visit_data);
     resect_shaking_context_pop_link(context);
 }
