@@ -222,6 +222,9 @@ void resect_decl_shake(resect_visit_context visit_context, CXCursor cursor, void
 }
 
 static resect_filter_status resect_cursor_filter_status(resect_filtering_context filtering, CXCursor cursor) {
+    if (clang_getCXXAccessSpecifier(cursor) == CX_CXXPrivate) {
+        return RESECT_FILTER_STATUS_EXCLUDED;
+    }
     resect_string full_name = resect_format_cursor_full_name(cursor);
     resect_string source = resect_format_cursor_source(cursor);
 
