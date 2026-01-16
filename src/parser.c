@@ -12,7 +12,7 @@
 struct P_resect_parse_options {
     resect_collection args;
     resect_bool single;
-    resect_bool diagnostics;
+    resect_diagnostics_level diagnostics_level;
 
     resect_collection included_definition_patterns;
     resect_collection included_source_patterns;
@@ -39,7 +39,7 @@ resect_parse_options resect_options_create() {
     resect_parse_options opts = malloc(sizeof(struct P_resect_parse_options));
     opts->args = resect_collection_create();
     opts->single = resect_false;
-    opts->diagnostics = resect_false;
+    opts->diagnostics_level = RESECT_DIAGNOSTICS_NONE;
 
     opts->included_definition_patterns = resect_collection_create();
     opts->included_source_patterns = resect_collection_create();
@@ -120,8 +120,8 @@ resect_collection resect_options_get_enforced_sources(resect_parse_options opts)
     return opts->enforced_source_patterns;
 }
 
-resect_bool resect_options_is_diagnostics_enabled(resect_parse_options opts) {
-    return opts->diagnostics;
+resect_diagnostics_level resect_options_current_diagnostics_level(resect_parse_options opts) {
+    return opts->diagnostics_level;
 }
 
 void resect_options_add_resource_path(resect_parse_options opts, const char *path) {
@@ -211,7 +211,11 @@ void resect_options_single_header(resect_parse_options opts) {
 }
 
 void resect_options_print_diagnostics(resect_parse_options opts) {
-    opts->diagnostics = resect_true;
+    opts->diagnostics_level = RESECT_DIAGNOSTICS_WARNING;
+}
+
+void resect_options_diagnostics_level(resect_parse_options opts, resect_diagnostics_level level) {
+    opts->diagnostics_level = level;
 }
 
 /*
@@ -242,7 +246,8 @@ resect_translation_unit resect_parse(const char *filename, resect_parse_options 
     }
     resect_iterator_free(arg_iter);
 
-    CXIndex index = clang_createIndex(0, options->diagnostics ? 1 : 0);
+    CXIndex index = clang_createIndex(0,
+        (options->diagnostics_level >= RESECT_DIAGNOSTICS_WARNING) ? 1 : 0);
     clang_toggleCrashRecovery(false);
 
     enum CXTranslationUnit_Flags unitFlags = CXTranslationUnit_DetailedPreprocessingRecord |

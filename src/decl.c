@@ -303,9 +303,9 @@ resect_string resect_format_cursor_namespace(CXCursor cursor) {
     while (resect_iterator_next(iter)) {
         resect_string namespace = resect_iterator_value(iter);
         if (i > 0) {
-            resect_string_append(result, "::");
+            resect_string_append_c(result, "::");
         }
-        resect_string_append(result, resect_string_to_c(namespace));
+        resect_string_append_c(result, resect_string_to_c(namespace));
         ++i;
     }
     resect_iterator_free(iter);
@@ -1311,11 +1311,11 @@ void resect_variable_init(resect_visit_context visit_context, resect_translation
         case CXEval_ObjCStrLiteral:
         case CXEval_StrLiteral:
             data->kind = RESECT_VARIABLE_TYPE_STRING;
-            resect_string_update(data->string_value, clang_EvalResult_getAsStr(value));
+            resect_string_update_c(data->string_value, clang_EvalResult_getAsStr(value));
             break;
         case CXEval_Other:
             data->kind = RESECT_VARIABLE_TYPE_OTHER;
-            resect_string_update(data->string_value, clang_EvalResult_getAsStr(value));
+            resect_string_update_c(data->string_value, clang_EvalResult_getAsStr(value));
         default:
             data->kind = RESECT_VARIABLE_TYPE_UNKNOWN;
     }

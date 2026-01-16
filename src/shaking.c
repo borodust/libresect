@@ -159,7 +159,7 @@ typedef struct P_resect_shaking_context {
     resect_string root_decl_id;
     resect_collection /*resect_string*/ bound_parents; // reversed edges, not semantic decl parents
 
-    resect_bool print_diagnostics;
+    resect_diagnostics_level diagnostics_level;
 } *resect_shaking_context;
 
 resect_shaking_context resect_shaking_context_create(resect_parse_options opts) {
@@ -174,7 +174,7 @@ resect_shaking_context resect_shaking_context_create(resect_parse_options opts) 
 
     resect_decl_graph_add_node(context->decl_graph, context->root_decl_id, RESECT_FILTER_STATUS_INCLUDED);
 
-    context->print_diagnostics = resect_options_is_diagnostics_enabled(opts);
+    context->diagnostics_level = resect_options_current_diagnostics_level(opts);
     return context;
 }
 
@@ -255,6 +255,9 @@ static void resect_investigate_typedef(resect_visit_context visit_context, resec
 static void resect_investigate_template_specializations(resect_visit_context visit_context,
                                                         resect_shaking_context context, CXCursor cursor);
 
+static void resect_investigate_owner(resect_visit_context visit_context, resect_shaking_context context,
+                                     CXCursor cursor);
+
 void resect_investigate_decl(resect_visit_context visit_context, resect_shaking_context shaking_context,
                              CXCursor cursor) {
     resect_string decl_id = resect_extract_decl_id(cursor);
@@ -279,6 +282,9 @@ void resect_investigate_decl(resect_visit_context visit_context, resect_shaking_
         goto done;
     }
 
+    resect_investigate_owner(visit_context, shaking_context, cursor);
+    resect_investigate_template_specializations(visit_context, shaking_context, cursor);
+
     switch (decl_kind) {
         case RESECT_DECL_KIND_STRUCT:
         case RESECT_DECL_KIND_CLASS:
@@ -302,8 +308,6 @@ void resect_investigate_decl(resect_visit_context visit_context, resect_shaking_
             break;
         default:;
     }
-
-    resect_investigate_template_specializations(visit_context, shaking_context, cursor);
 
 done:
     resect_string_free(decl_id);
@@ -403,6 +407,18 @@ void resect_investigate_template_arguments(resect_visit_context visit_context, r
         }
     }
 }
+
+static void resect_investigate_owner(resect_visit_context visit_context, resect_shaking_context context,
+                                     CXCursor cursor) {
+    CXCursor owning_cursor = resect_find_declaration_owning_cursor(cursor);
+    if (clang_Cursor_isNull(owning_cursor)) {
+        return;
+    }
+
+    // link to current declaration
+    resect_visit_cursor(visit_context, owning_cursor, context);
+}
+
 
 static void resect_investigate_template_specializations(resect_visit_context visit_context,
                                                         resect_shaking_context context, CXCursor cursor) {
@@ -819,7 +835,7 @@ static void resect_shaking_context__init_registry_table(resect_shaking_context s
     resect_set_free(visited_nodes);
     resect_set_free(affected_edges);
 
-    if (shaking_context->print_diagnostics) {
+    if (shaking_context->diagnostics_level >= RESECT_DIAGNOSTICS_ALL) {
         resect_visit_table(registry, printf_registry, NULL);
     }
 
