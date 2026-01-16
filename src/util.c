@@ -70,12 +70,15 @@ resect_string resect_string_update_by_length(resect_string string, const char *n
     return string;
 }
 
-resect_string resect_string_update(resect_string string, const char *new_value) {
+resect_string resect_string_update_c(resect_string string, const char *new_value) {
     return resect_string_update_by_length(string, new_value, -1);
 }
 
+resect_string resect_string_append(resect_string string, resect_string postfix) {
+    return resect_string_append_c(string, resect_string_to_c(postfix));
+}
 
-resect_string resect_string_append(resect_string string, const char *postfix) {
+resect_string resect_string_append_c(resect_string string, const char *postfix) {
     assert(string != NULL);
     size_t add_len = strlen(postfix);
     if (add_len == 0) {
@@ -119,7 +122,7 @@ resect_string resect_ensure_string_default_value(resect_string string, const cha
     if (string == NULL) {
         resect_string result;
         result = resect_string_create(0);
-        resect_string_update(result, default_value);
+        resect_string_update_c(result, default_value);
         return result;
     } else {
         return string;
@@ -130,7 +133,7 @@ resect_string resect_string_from_c(const char *string) { return resect_ensure_st
 
 resect_string resect_ensure_string_from_clang(resect_string provided, CXString from) {
     resect_string result = resect_ensure_string(provided);
-    resect_string_update(result, clang_getCString(from));
+    resect_string_update_c(result, clang_getCString(from));
     clang_disposeString(from);
     return result;
 }
@@ -610,15 +613,15 @@ resect_string resect_format_cursor_full_name(CXCursor cursor) {
     {
         resect_string namespace = resect_format_cursor_namespace(cursor);
         if (resect_string_length(namespace) > 0) {
-            resect_string_append(full_name, resect_string_to_c(namespace));
-            resect_string_append(full_name, "::");
+            resect_string_append_c(full_name, resect_string_to_c(namespace));
+            resect_string_append_c(full_name, "::");
         }
         resect_string_free(namespace);
     }
 
     {
         resect_string name = resect_string_from_clang(clang_getCursorSpelling(cursor));
-        resect_string_append(full_name, resect_string_to_c(name));
+        resect_string_append_c(full_name, resect_string_to_c(name));
         resect_string_free(name);
     }
 
@@ -635,8 +638,8 @@ static void append_anonymous_decl_id(resect_string id, const char *infix, CXCurs
         resect_string postfix =
                 resect_string_format(":%s:%d:%d", infix, resect_location_line(loc), resect_location_column(loc));
 
-        resect_string_append(id, resect_string_to_c(parent_id));
-        resect_string_append(id, resect_string_to_c(postfix));
+        resect_string_append_c(id, resect_string_to_c(parent_id));
+        resect_string_append_c(id, resect_string_to_c(postfix));
 
         resect_string_free(postfix);
         resect_string_free(parent_id);
@@ -653,7 +656,7 @@ static void append_cursor_full_name(resect_string id, CXCursor cursor) {
     resect_string cursor_kind = resect_string_from_clang(clang_getCursorKindSpelling(clang_getCursorKind(cursor)));
     resect_string decl_id =
             resect_string_format("claw_did$%s$%s", resect_string_to_c(cursor_kind), resect_string_to_c(full_name));
-    resect_string_append(id, resect_string_to_c(decl_id));
+    resect_string_append_c(id, resect_string_to_c(decl_id));
 
     resect_string_free(decl_id);
     resect_string_free(cursor_kind);

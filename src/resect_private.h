@@ -21,9 +21,11 @@ resect_string resect_string_from_c(const char *string);
 
 resect_string resect_string_copy(resect_string string);
 
-resect_string resect_string_update(resect_string string, const char *new);
+resect_string resect_string_update_c(resect_string string, const char *new);
 
-resect_string resect_string_append(resect_string string, const char *postfix);
+resect_string resect_string_append_c(resect_string string, const char *postfix);
+
+resect_string resect_string_append(resect_string string, resect_string postfix);
 
 size_t resect_string_length(resect_string string);
 
@@ -173,7 +175,7 @@ void resect_context_free(resect_translation_context context, resect_set dealloca
 
 void resect_register_decl(resect_translation_context context, resect_string id, resect_decl decl);
 
-void resect_register_type(resect_translation_context context, resect_string fqn, resect_type type);
+void resect_register_type(resect_translation_context context, resect_string id, resect_type type);
 
 void resect_register_decl_language(resect_translation_context context, resect_language language);
 
@@ -318,7 +320,7 @@ resect_collection resect_options_get_enforced_definitions(resect_parse_options o
 
 resect_collection resect_options_get_enforced_sources(resect_parse_options opts);
 
-resect_bool resect_options_is_diagnostics_enabled(resect_parse_options opts);
+resect_diagnostics_level resect_options_current_diagnostics_level(resect_parse_options opts);
 
 resect_bool convert_bool_from_uint(unsigned int val);
 

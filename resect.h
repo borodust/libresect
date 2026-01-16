@@ -212,6 +212,15 @@ typedef enum {
     RESECT_INCLUSION_STATUS_ENFORCED = 3
 } resect_inclusion_status;
 
+typedef enum {
+    RESECT_DIAGNOSTICS_NONE = 0,
+    RESECT_DIAGNOSTICS_ERROR = 1,
+    RESECT_DIAGNOSTICS_WARNING = 2,
+    RESECT_DIAGNOSTICS_INFO = 3,
+    RESECT_DIAGNOSTICS_DEBUG = 4,
+    RESECT_DIAGNOSTICS_ALL = 5
+} resect_diagnostics_level;
+
 typedef struct P_resect_translation_unit *resect_translation_unit;
 typedef struct P_resect_collection *resect_collection;
 typedef struct P_resect_iterator *resect_iterator;
@@ -504,6 +513,8 @@ RESECT_API void resect_options_add_intrinsics(resect_parse_options opts, const c
 RESECT_API void resect_options_single_header(resect_parse_options opts);
 
 RESECT_API void resect_options_print_diagnostics(resect_parse_options opts);
+
+RESECT_API void resect_options_diagnostics_level(resect_parse_options opts, resect_diagnostics_level level);
 
 RESECT_API void resect_options_intrinsic(resect_parse_options opts, resect_option_intrinsic intrinsic);
 

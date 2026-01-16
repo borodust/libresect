@@ -138,8 +138,8 @@ resect_decl resect_find_decl(resect_translation_context context, resect_string d
     return resect_table_get(context->decl_table, resect_string_to_c(decl_id));
 }
 
-void resect_register_type(resect_translation_context context, resect_string fqn, resect_type type) {
-    resect_table_put_if_absent(context->type_table, resect_string_to_c(fqn), type);
+void resect_register_type(resect_translation_context context, resect_string id, resect_type type) {
+    resect_table_put_if_absent(context->type_table, resect_string_to_c(id), type);
 }
 
 resect_type resect_find_type(resect_translation_context context, resect_string fqn) {
