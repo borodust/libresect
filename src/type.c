@@ -448,11 +448,12 @@ resect_type resect_type_create(resect_visit_context visit_context, resect_transl
             if (CXType_Unexposed != canonical_type.kind) {
                 return resect_type_create(visit_context, context, canonical_type);
             }
-        } break;
+        }
+        break;
         case CXType_Attributed:
             // skip attributes
             return resect_type_create(visit_context, context, clang_Type_getModifiedType(clang_type));
-        default:;
+        default: ;
     }
 
     resect_string type_id = resect_extract_type_id(context, clang_type);
@@ -544,11 +545,9 @@ resect_type resect_type_create(resect_visit_context visit_context, resect_transl
         }
 
         struct P_resect_type_visit_data visit_data = {
-                .type = type, .visit_context = visit_context, .context = context, .parent = clang_type};
+            .type = type, .visit_context = visit_context, .context = context, .parent = clang_type
+        };
 
-        if (resect_string_equal_c(type->name, "glm::vec<2, float>")) {
-            resect_string_to_c(type->name);
-        }
         clang_Type_visitFields(clang_type, visit_type_field, &visit_data);
         clang_visitCXXBaseClasses(clang_type, visit_type_base_class, &visit_data);
         clang_visitCXXMethods(clang_type, visit_type_method, &visit_data);
@@ -585,6 +584,10 @@ long long resect_type_offsetof(resect_type type, const char *field_name) {
 
 resect_collection resect_type_fields(resect_type type) { return type->fields; }
 
+resect_collection resect_type_base_classes(resect_type type) { return type->base_classes; }
+
+resect_collection resect_type_methods(resect_type type) { return type->methods; }
+
 resect_bool resect_type_is_const_qualified(resect_type type) { return type->const_qualified; }
 
 resect_bool resect_type_is_pod(resect_type type) { return type->pod; }
@@ -594,3 +597,8 @@ resect_decl resect_type_get_declaration(resect_type type) { return type->decl; }
 resect_type_category resect_type_get_category(resect_type type) { return type->category; }
 
 resect_collection resect_type_template_arguments(resect_type type) { return type->template_arguments; }
+
+resect_string resect_type_pretty_print(resect_translation_context context, CXType type) {
+    return resect_string_from_clang(clang_getTypePrettyPrinted(type,
+                                                               resect_context_get_printing_policy(context)));
+}

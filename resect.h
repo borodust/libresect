@@ -241,6 +241,8 @@ RESECT_API void *resect_iterator_value(resect_iterator iter);
 
 RESECT_API void resect_iterator_free(resect_iterator iter);
 
+RESECT_API unsigned int resect_collection_size(resect_collection collection);
+
 /*
  * LOCATION
  */
@@ -264,6 +266,10 @@ RESECT_API long long resect_type_alignof(resect_type type);
 RESECT_API long long resect_type_offsetof(resect_type type, const char *field_name);
 
 RESECT_API resect_collection resect_type_fields(resect_type type);
+
+RESECT_API resect_collection resect_type_base_classes(resect_type type);
+
+RESECT_API resect_collection resect_type_methods(resect_type type);
 
 RESECT_API resect_decl resect_type_get_declaration(resect_type type);
 

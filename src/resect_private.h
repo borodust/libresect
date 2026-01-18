@@ -209,6 +209,8 @@ CXCursor resect_find_declaration_owning_cursor(CXCursor cursor);
 
 bool resect_context_extract_valid_decl_name(resect_translation_context context, resect_string name, resect_string out);
 
+resect_string resect_cursor_pretty_print(resect_translation_context context, CXCursor cursor);
+
 /*
  * TYPE
  */
@@ -227,6 +229,10 @@ void resect_field_collection_free(resect_collection fields, resect_set deallocat
 resect_type_kind convert_type_kind(enum CXTypeKind kind);
 
 resect_type_category get_type_category(resect_type_kind kind);
+
+resect_string resect_type_pretty_print(resect_translation_context context, CXType type);
+
+static resect_string resect_string_fqn_from_type(resect_translation_context context, CXType clang_type);
 
 
 /*
