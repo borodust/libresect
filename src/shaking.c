@@ -227,7 +227,6 @@ static resect_filter_status resect_cursor_filter_status(resect_filtering_context
     }
     resect_string full_name = resect_format_cursor_full_name(cursor);
     resect_string source = resect_format_cursor_source(cursor);
-
     resect_filter_status result =
             resect_filtering_status(filtering, resect_string_to_c(full_name), resect_string_to_c(source));
 
