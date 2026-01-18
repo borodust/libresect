@@ -577,6 +577,16 @@ void resect_string_collection_free(resect_collection collection) {
     resect_collection_free(collection);
 }
 
+resect_string get_type_fqn(CXCursor cursor, CXType type) {
+    CXPrintingPolicy pp = clang_getCursorPrintingPolicy(cursor);
+    clang_PrintingPolicy_setProperty(pp,
+                                     CXPrintingPolicy_FullyQualifiedName,
+                                     resect_true);
+    resect_string fqn = resect_string_from_clang(clang_getFullyQualifiedName(type, pp, 0));
+    clang_PrintingPolicy_dispose(pp);
+    return fqn;
+}
+
 resect_string resect_format_cursor_full_name(CXCursor cursor) {
     if (clang_Cursor_isNull(cursor) || clang_getCursorKind(cursor) == CXCursor_TranslationUnit) {
         return resect_string_from_c("");
@@ -588,15 +598,33 @@ resect_string resect_format_cursor_full_name(CXCursor cursor) {
         return resect_format_cursor_full_name(parent);
     }
 
-    enum CXCursorKind parent_kind = clang_getCursorKind(parent);
-    switch (parent_kind) {
-        case CXCursor_ClassDecl:
-        case CXCursor_ClassTemplate:
-        case CXCursor_ClassTemplatePartialSpecialization:
-        case CXCursor_UnionDecl:
-        case CXCursor_StructDecl: {
+    resect_string fqn = get_type_fqn(cursor, clang_getCursorType(cursor));
+    switch (convert_cursor_kind(cursor)) {
+        case RESECT_DECL_KIND_STRUCT:
+        case RESECT_DECL_KIND_UNION:
+        case RESECT_DECL_KIND_CLASS:
+        case RESECT_DECL_KIND_ENUM:
+        case RESECT_DECL_KIND_TYPEDEF: {
+            if (!resect_string_equal_c(fqn, "")) {
+                return fqn;
+            }
+        }
+        default: ;
+    }
+            resect_string_free(fqn);
+
+    switch (convert_cursor_kind(parent)) {
+        case RESECT_DECL_KIND_STRUCT:
+        case RESECT_DECL_KIND_UNION:
+        case RESECT_DECL_KIND_CLASS: {
             resect_string parent_full_name = resect_format_cursor_full_name(parent);
-            resect_string name = resect_string_from_clang(clang_getCursorSpelling(cursor));
+            resect_string name;
+            CXType type = clang_getCursorType(cursor);
+            if (clang_Cursor_isAnonymous(clang_getTypeDeclaration(type))) {
+                name = resect_string_from_c("");
+            } else {
+                name = resect_string_from_clang(clang_getCursorDisplayName(cursor));
+            }
 
             resect_string full_name =
                     resect_string_format("%s::%s", resect_string_to_c(parent_full_name), resect_string_to_c(name));
@@ -606,6 +634,7 @@ resect_string resect_format_cursor_full_name(CXCursor cursor) {
 
             return full_name;
         }
+            default:;
     }
 
     resect_string full_name = resect_string_from_c("");
@@ -620,7 +649,7 @@ resect_string resect_format_cursor_full_name(CXCursor cursor) {
     }
 
     {
-        resect_string name = resect_string_from_clang(clang_getCursorSpelling(cursor));
+        resect_string name = resect_string_from_clang(clang_getCursorDisplayName(cursor));
         resect_string_append_c(full_name, resect_string_to_c(name));
         resect_string_free(name);
     }

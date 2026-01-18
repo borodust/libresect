@@ -111,7 +111,6 @@ void resect_init_template_args_from_cursor(resect_visit_context visit_context, r
 
         resect_type arg_type = NULL;
         long long int arg_value = 0;
-
         switch (arg_kind) {
             case RESECT_TEMPLATE_ARGUMENT_KIND_TEMPLATE_EXPANSION:
             case RESECT_TEMPLATE_ARGUMENT_KIND_TEMPLATE:
@@ -426,6 +425,11 @@ resect_bool resect_cursor_is_template(CXCursor cursor) {
     }
 }
 
+resect_string resect_cursor_pretty_print(resect_translation_context context, CXCursor cursor) {
+    return resect_string_from_clang(clang_getCursorPrettyPrinted(cursor,
+                                                                 resect_context_get_printing_policy(context)));
+}
+
 void resect_decl_init_rest_from_cursor(resect_decl decl, resect_translation_context context, CXCursor cursor) {
     if (is_cursor_anonymous(cursor)) {
         decl->name = resect_string_from_c("");
@@ -467,12 +471,7 @@ void resect_decl_init_rest_from_cursor(resect_decl decl, resect_translation_cont
 
     decl->owner = NULL;
 
-    CXPrintingPolicy pp = clang_getCursorPrintingPolicy(cursor);
-    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_PolishForDeclaration, 1);
-    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_SuppressScope, 1);
-    clang_PrintingPolicy_setProperty(pp, CXPrintingPolicy_FullyQualifiedName, 1);
-    decl->source = resect_string_from_clang(clang_getCursorPrettyPrinted(cursor, pp));
-    clang_PrintingPolicy_dispose(pp);
+    decl->source = resect_cursor_pretty_print(context, cursor);
 
     decl->data_deallocator = NULL;
     decl->data = NULL;
@@ -595,8 +594,6 @@ void resect_decl__create(resect_visit_context visit_context, resect_translation_
 
     resect_decl_init_rest_from_cursor(decl, context, cursor);
 
-    decl->type = resect_type_create(visit_context, context, clang_getCursorType(cursor));
-
     switch (decl->kind) {
         case RESECT_DECL_KIND_STRUCT:
         case RESECT_DECL_KIND_CLASS:
@@ -648,6 +645,8 @@ void resect_decl__create(resect_visit_context visit_context, resect_translation_
     }
 
     resect_decl_init_template_from_cursor(visit_context, decl, context, cursor);
+
+    decl->type = resect_type_create(visit_context, context, clang_getCursorType(cursor));
 
     result->decl = decl;
 

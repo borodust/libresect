@@ -326,6 +326,9 @@ static enum CXChildVisitResult resect_investigate_record_child(CXCursor cursor, 
     switch (cursor_kind) {
         case CXCursor_Constructor:
         case CXCursor_Destructor:
+        case CXCursor_TemplateTemplateParameter:
+        case CXCursor_NonTypeTemplateParameter:
+        case CXCursor_TemplateTypeParameter:
             resect_visit_cursor(visit_data->visit_context, cursor, visit_data->shaking_context);
             return CXChildVisit_Continue;
         default:;
