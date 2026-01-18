@@ -489,7 +489,7 @@ resect_pattern resect_pattern_create(resect_string pattern) {
     return resect_pattern_create_c(resect_string_to_c(pattern));
 }
 
-resect_pattern resect_pattern_create_c(const char* pattern) {
+resect_pattern resect_pattern_create_c(const char *pattern) {
     resect_pattern result = malloc(sizeof(struct P_resect_pattern));
 
     int errornumber;
@@ -563,6 +563,7 @@ void resect_pattern_free(resect_pattern pattern) {
     pcre2_code_free(pattern->compiled);
     free(pattern);
 }
+
 /*
  * UTIL
  */
@@ -577,7 +578,7 @@ void resect_string_collection_free(resect_collection collection) {
     resect_collection_free(collection);
 }
 
-resect_string get_type_fqn(CXCursor cursor, CXType type) {
+resect_string extract_type_fqn(CXCursor cursor, CXType type) {
     CXPrintingPolicy pp = clang_getCursorPrintingPolicy(cursor);
     clang_PrintingPolicy_setProperty(pp,
                                      CXPrintingPolicy_FullyQualifiedName,
@@ -587,74 +588,141 @@ resect_string get_type_fqn(CXCursor cursor, CXType type) {
     return fqn;
 }
 
+
+static void append_function_proto(resect_string name, CXCursor cursor);
+static void append_cursor_parent(resect_string name, CXCursor cursor, CXCursor parent);
+
+static void append_cursor_spelling(resect_string name, CXCursor cursor) {
+    resect_string spelling = resect_string_from_clang(clang_getCursorSpelling(cursor));
+    resect_string_append(name, spelling);
+    resect_string_free(spelling);
+}
+
+static resect_string extract_full_name(CXCursor cursor) {
+    resect_string full_name = resect_string_from_c("");
+    append_cursor_parent(full_name, cursor, clang_getCursorSemanticParent(cursor));
+
+    switch (convert_cursor_kind(cursor)) {
+        case RESECT_DECL_KIND_FUNCTION:
+        case RESECT_DECL_KIND_METHOD:
+            append_function_proto(full_name, cursor);
+            break;
+        case RESECT_DECL_KIND_FIELD: {
+            CXType type = clang_getCursorType(cursor);
+            CXCursor type_decl_cursor = clang_getTypeDeclaration(type);
+            if (!is_cursor_anonymous(type_decl_cursor)) {
+                append_cursor_spelling(full_name, cursor);
+            }
+        }
+        break;
+        default: {
+            if (!is_cursor_anonymous(cursor)) {
+                append_cursor_spelling(full_name, cursor);
+            }
+        }
+    }
+
+    return full_name;
+}
+
+static void append_function_proto(resect_string name, CXCursor cursor) {
+    CXCursor parent = clang_getCursorSemanticParent(cursor);
+
+    resect_string proto;
+    switch (clang_getCursorKind(cursor)) {
+        case CXCursor_Constructor:
+        case CXCursor_Destructor:
+            if (is_cursor_anonymous(parent)) {
+                proto = resect_string_from_c(clang_getCursorKind(cursor) == CXCursor_Destructor ? "~" : "");
+            } else {
+                proto = resect_string_from_clang(clang_getCursorSpelling(cursor));
+            }
+            break;
+
+        case CXCursor_ConversionFunction:
+        case CXCursor_CXXMethod:
+        case CXCursor_FunctionDecl:
+        case CXCursor_FunctionTemplate:
+                proto = resect_string_from_clang(clang_getCursorSpelling(cursor));
+            break;
+
+        default:
+            assert(!"Unhandled function kind");
+    }
+
+    resect_string_append_c(proto, "(");
+
+    CXType type = clang_getCursorType(cursor);
+    int arg_count = clang_getNumArgTypes(type);
+    for (int i = 0; i < arg_count; ++i) {
+        CXType arg_type = clang_getArgType(type, i);
+        resect_string arg_type_name = extract_type_fqn(cursor, arg_type);
+        resect_string_append(proto, arg_type_name);
+        if (i < arg_count - 1) {
+            resect_string_append_c(proto, ", ");
+        }
+        resect_string_free(arg_type_name);
+    }
+    resect_string_append_c(proto, ")");
+
+    resect_string_append(name, proto);
+    resect_string_free(proto);
+}
+
+void append_cursor_namespace(resect_string name, CXCursor cursor) {
+    resect_string namespace = resect_format_cursor_namespace(cursor);
+    if (resect_string_length(namespace) > 0) {
+        resect_string_append_c(name, resect_string_to_c(namespace));
+        resect_string_append_c(name, "::");
+    }
+    resect_string_free(namespace);
+}
+
+void append_cursor_parent(resect_string name, CXCursor cursor, CXCursor parent) {
+    resect_string parent_full_name = resect_format_cursor_full_name(parent);
+    if (!resect_string_equal_c(parent_full_name, "")) {
+        resect_string_append(name, parent_full_name);
+        resect_string_append_c(name, "::");
+    } else {
+        append_cursor_namespace(name, cursor);
+    }
+    resect_string_free(parent_full_name);
+}
+
 resect_string resect_format_cursor_full_name(CXCursor cursor) {
     if (clang_Cursor_isNull(cursor) || clang_getCursorKind(cursor) == CXCursor_TranslationUnit) {
         return resect_string_from_c("");
     }
 
-    CXCursor parent = clang_getCursorSemanticParent(cursor);
-
-    if (clang_Cursor_isAnonymousRecordDecl(cursor) || clang_Cursor_isAnonymous(cursor)) {
-        return resect_format_cursor_full_name(parent);
+    if (is_cursor_anonymous(cursor)) {
+        return resect_format_cursor_full_name(clang_getCursorSemanticParent(cursor));
     }
 
-    resect_string fqn = get_type_fqn(cursor, clang_getCursorType(cursor));
     switch (convert_cursor_kind(cursor)) {
+        case RESECT_DECL_KIND_UNDECLARED:
         case RESECT_DECL_KIND_STRUCT:
         case RESECT_DECL_KIND_UNION:
         case RESECT_DECL_KIND_CLASS:
         case RESECT_DECL_KIND_ENUM:
-        case RESECT_DECL_KIND_TYPEDEF: {
-            if (!resect_string_equal_c(fqn, "")) {
-                return fqn;
-            }
+        case RESECT_DECL_KIND_TYPEDEF:
+            return extract_type_fqn(cursor, clang_getCursorType(cursor));
+
+        case RESECT_DECL_KIND_FUNCTION:
+        case RESECT_DECL_KIND_METHOD:
+        case RESECT_DECL_KIND_FIELD:
+        case RESECT_DECL_KIND_PARAMETER:
+        case RESECT_DECL_KIND_ENUM_CONSTANT:
+        case RESECT_DECL_KIND_VARIABLE:
+        case RESECT_DECL_KIND_TEMPLATE_PARAMETER:
+            return extract_full_name(cursor);
+
+        case RESECT_DECL_KIND_MACRO:
+        case RESECT_DECL_KIND_UNKNOWN: {
+            return resect_string_from_clang(clang_getCursorDisplayName(cursor));
         }
-        default: ;
+        default:
+            assert(!"All decl kinds shall be covered for full cursor name reconstruction");
     }
-            resect_string_free(fqn);
-
-    switch (convert_cursor_kind(parent)) {
-        case RESECT_DECL_KIND_STRUCT:
-        case RESECT_DECL_KIND_UNION:
-        case RESECT_DECL_KIND_CLASS: {
-            resect_string parent_full_name = resect_format_cursor_full_name(parent);
-            resect_string name;
-            CXType type = clang_getCursorType(cursor);
-            if (clang_Cursor_isAnonymous(clang_getTypeDeclaration(type))) {
-                name = resect_string_from_c("");
-            } else {
-                name = resect_string_from_clang(clang_getCursorDisplayName(cursor));
-            }
-
-            resect_string full_name =
-                    resect_string_format("%s::%s", resect_string_to_c(parent_full_name), resect_string_to_c(name));
-
-            resect_string_free(name);
-            resect_string_free(parent_full_name);
-
-            return full_name;
-        }
-            default:;
-    }
-
-    resect_string full_name = resect_string_from_c("");
-
-    {
-        resect_string namespace = resect_format_cursor_namespace(cursor);
-        if (resect_string_length(namespace) > 0) {
-            resect_string_append_c(full_name, resect_string_to_c(namespace));
-            resect_string_append_c(full_name, "::");
-        }
-        resect_string_free(namespace);
-    }
-
-    {
-        resect_string name = resect_string_from_clang(clang_getCursorDisplayName(cursor));
-        resect_string_append_c(full_name, resect_string_to_c(name));
-        resect_string_free(name);
-    }
-
-    return full_name;
 }
 
 static void append_anonymous_decl_id(resect_string id, const char *infix, CXCursor cursor) {
