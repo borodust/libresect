@@ -286,13 +286,19 @@ RESECT_API resect_collection resect_type_template_arguments(resect_type type);
 
 RESECT_API resect_bool resect_type_is_undeclared(resect_type type);
 
+RESECT_API const char *resect_type_field_get_id(resect_type_field field);
+
 RESECT_API const char *resect_type_field_get_name(resect_type_field field);
 
 RESECT_API resect_type resect_type_field_get_type(resect_type_field field);
 
 RESECT_API long long resect_type_field_get_offset(resect_type_field field);
 
+RESECT_API const char* resect_type_method_get_id(resect_type_method method);
+
 RESECT_API const char* resect_type_method_get_name(resect_type_method method);
+
+RESECT_API const char* resect_type_method_get_mangled_name(resect_type_method method);
 
 RESECT_API resect_type resect_type_method_get_type(resect_type_method method);
 

@@ -12,6 +12,7 @@
  * TYPE
  */
 struct P_resect_type_field {
+    resect_string id;
     resect_type type;
     resect_string name;
     long long offset;
@@ -39,20 +40,45 @@ struct P_resect_type {
 };
 
 typedef struct P_resect_type_method {
+    resect_string id;
     resect_string name;
+    resect_string mangling;
     resect_type type;
-}* resect_type_method;
+} *resect_type_method;
+
+resect_string extract_mangling(CXCursor cursor) {
+    resect_string result;
+    switch (clang_getCursorKind(cursor)) {
+        case CXCursor_Constructor:
+        case CXCursor_Destructor: {
+            CXStringSet *manglings = clang_Cursor_getCXXManglings(cursor);
+            result = manglings->Count > 0
+                         ? resect_string_from_c(clang_getCString(manglings->Strings[0]))
+                         : resect_string_from_clang(clang_Cursor_getMangling(cursor));
+            clang_disposeStringSet(manglings);
+        }
+        break;
+        default:
+            result = resect_string_from_clang(clang_Cursor_getMangling(cursor));
+    }
+    return result;
+}
 
 resect_type_method resect_method_create(resect_visit_context visit_context, resect_translation_context context,
-                                   CXCursor cursor) {
+                                        CXCursor cursor) {
     resect_type_method method = malloc(sizeof(struct P_resect_type_method));
+    method->id = resect_string_from_clang(clang_getCursorUSR(cursor));
     method->name = resect_string_from_clang(clang_getCursorSpelling(cursor));
+    method->mangling = extract_mangling(cursor);
     method->type = resect_type_create(visit_context, context, clang_getCursorType(cursor));
+
     return method;
 }
 
 void resect_method_free(resect_type_method method, resect_set deallocated) {
+    resect_string_free(method->id);
     resect_string_free(method->name);
+    resect_string_free(method->mangling);
     resect_type_free(method->type, deallocated);
     free(method);
 }
@@ -89,14 +115,18 @@ void resect_type_free(resect_type type, resect_set deallocated) {
     free(type);
 }
 
-resect_type_field resect_field_create(resect_visit_context visit_context, resect_translation_context context, CXType parent,
-                                 CXType clang_field, resect_string name) {
+resect_type_field resect_field_create(resect_visit_context visit_context, resect_translation_context context,
+                                      CXType parent,
+                                      CXCursor cursor) {
     resect_type_field field = malloc(sizeof(struct P_resect_type_field));
-    field->type = resect_type_create(visit_context, context, clang_field);
-    field->name = resect_string_copy(name);
-    field->offset = clang_Type_getOffsetOf(parent, resect_string_to_c(name));
+    field->id = resect_string_from_clang(clang_getCursorUSR(cursor));
+    field->type = resect_type_create(visit_context, context, clang_getCursorType(cursor));
+    field->name = resect_string_from_clang(clang_getCursorDisplayName(cursor));
+    field->offset = clang_Type_getOffsetOf(parent, resect_string_to_c(field->name));
     return field;
 }
+
+const char *resect_type_field_get_id(resect_type_field field) { return resect_string_to_c(field->id); }
 
 const char *resect_type_field_get_name(resect_type_field field) { return resect_string_to_c(field->name); }
 
@@ -104,8 +134,16 @@ resect_type resect_type_field_get_type(resect_type_field field) { return field->
 
 long long resect_type_field_get_offset(resect_type_field field) { return field->offset; }
 
-const char* resect_type_method_get_name(resect_type_method method) {
+const char *resect_type_method_get_id(resect_type_method method) {
+    return resect_string_to_c(method->id);
+}
+
+const char *resect_type_method_get_name(resect_type_method method) {
     return resect_string_to_c(method->name);
+}
+
+const char *resect_type_method_get_mangled_name(resect_type_method method) {
+    return resect_string_to_c(method->mangling);
 }
 
 resect_type resect_type_method_get_type(resect_type_method method) {
@@ -115,6 +153,7 @@ resect_type resect_type_method_get_type(resect_type_method method) {
 void resect_field_free(resect_type_field field, resect_set deallocated) {
     resect_type_free(field->type, deallocated);
     resect_string_free(field->name);
+    resect_string_free(field->id);
     free(field);
 }
 
@@ -157,12 +196,8 @@ typedef struct P_resect_type_visit_data {
 static enum CXVisitorResult visit_type_field(CXCursor cursor, CXClientData data) {
     resect_type_visit_data visit_data = data;
 
-    CXType clang_type = clang_getCursorType(cursor);
-
-    resect_string name = resect_string_from_clang(clang_getCursorDisplayName(cursor));
     resect_type_field field =
-            resect_field_create(visit_data->visit_context, visit_data->context, visit_data->parent, clang_type, name);
-    resect_string_free(name);
+            resect_field_create(visit_data->visit_context, visit_data->context, visit_data->parent, cursor);
 
     resect_collection_add(visit_data->type->fields, field);
 
@@ -183,7 +218,7 @@ static enum CXVisitorResult visit_type_method(CXCursor cursor, CXClientData data
     resect_type_visit_data visit_data = data;
 
     resect_collection_add(visit_data->type->methods,
-        resect_method_create(visit_data->visit_context, visit_data->context, cursor));
+                          resect_method_create(visit_data->visit_context, visit_data->context, cursor));
 
     return CXVisit_Continue;
 }
