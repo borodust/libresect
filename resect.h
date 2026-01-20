@@ -228,7 +228,8 @@ typedef struct P_resect_location *resect_location;
 typedef struct P_resect_decl *resect_decl;
 typedef struct P_resect_type *resect_type;
 typedef struct P_resect_template_argument *resect_template_argument;
-typedef struct P_resect_field* resect_field;
+typedef struct P_resect_type_field *resect_type_field;
+typedef struct P_resect_type_method *resect_type_method;
 
 /*
  * COLLECTION
@@ -271,6 +272,8 @@ RESECT_API resect_collection resect_type_base_classes(resect_type type);
 
 RESECT_API resect_collection resect_type_methods(resect_type type);
 
+RESECT_API resect_collection resect_method_type_parameters(resect_type method_type);
+
 RESECT_API resect_decl resect_type_get_declaration(resect_type type);
 
 RESECT_API resect_type_category resect_type_get_category(resect_type type);
@@ -283,11 +286,15 @@ RESECT_API resect_collection resect_type_template_arguments(resect_type type);
 
 RESECT_API resect_bool resect_type_is_undeclared(resect_type type);
 
-RESECT_API const char *resect_field_get_name(resect_field field);
+RESECT_API const char *resect_type_field_get_name(resect_type_field field);
 
-RESECT_API resect_type resect_field_get_type(resect_field field);
+RESECT_API resect_type resect_type_field_get_type(resect_type_field field);
 
-RESECT_API long long resect_field_get_offset(resect_field field);
+RESECT_API long long resect_type_field_get_offset(resect_type_field field);
+
+RESECT_API const char* resect_type_method_get_name(resect_type_method method);
+
+RESECT_API resect_type resect_type_method_get_type(resect_type_method method);
 
 /*
  * TEMPLATE ARGUMENT

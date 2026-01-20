@@ -221,7 +221,7 @@ void resect_type_free(resect_type type, resect_set deallocated);
 
 void resect_type_collection_free(resect_collection types, resect_set deallocated);
 
-resect_field resect_field_create(resect_visit_context visit_context, resect_translation_context context, CXType parent,
+resect_type_field resect_field_create(resect_visit_context visit_context, resect_translation_context context, CXType parent,
                                  CXType field, resect_string name);
 
 void resect_field_collection_free(resect_collection fields, resect_set deallocated);
