@@ -11,7 +11,7 @@
 /*
  * TYPE
  */
-struct P_resect_field {
+struct P_resect_type_field {
     resect_type type;
     resect_string name;
     long long offset;
@@ -38,6 +38,35 @@ struct P_resect_type {
     void *data;
 };
 
+typedef struct P_resect_type_method {
+    resect_string name;
+    resect_type type;
+}* resect_type_method;
+
+resect_type_method resect_method_create(resect_visit_context visit_context, resect_translation_context context,
+                                   CXCursor cursor) {
+    resect_type_method method = malloc(sizeof(struct P_resect_type_method));
+    method->name = resect_string_from_clang(clang_getCursorSpelling(cursor));
+    method->type = resect_type_create(visit_context, context, clang_getCursorType(cursor));
+    return method;
+}
+
+void resect_method_free(resect_type_method method, resect_set deallocated) {
+    resect_string_free(method->name);
+    resect_type_free(method->type, deallocated);
+    free(method);
+}
+
+void resect_method_collection_free(resect_type type, resect_set deallocated) {
+    resect_iterator method_iter = resect_collection_iterator(type->methods);
+    while (resect_iterator_next(method_iter)) {
+        resect_type_method method = resect_iterator_value(method_iter);
+        resect_method_free(method, deallocated);
+    }
+    resect_iterator_free(method_iter);
+    resect_collection_free(type->methods);
+}
+
 void resect_type_free(resect_type type, resect_set deallocated) {
     if (!resect_set_add(deallocated, type)) {
         return;
@@ -50,7 +79,7 @@ void resect_type_free(resect_type type, resect_set deallocated) {
     resect_string_free(type->name);
     resect_field_collection_free(type->fields, deallocated);
     resect_type_collection_free(type->base_classes, deallocated);
-    resect_type_collection_free(type->methods, deallocated);
+    resect_method_collection_free(type, deallocated);
     resect_template_argument_collection_free(type->template_arguments, deallocated);
 
     if (type->decl != NULL) {
@@ -60,22 +89,30 @@ void resect_type_free(resect_type type, resect_set deallocated) {
     free(type);
 }
 
-resect_field resect_field_create(resect_visit_context visit_context, resect_translation_context context, CXType parent,
+resect_type_field resect_field_create(resect_visit_context visit_context, resect_translation_context context, CXType parent,
                                  CXType clang_field, resect_string name) {
-    resect_field field = malloc(sizeof(struct P_resect_field));
+    resect_type_field field = malloc(sizeof(struct P_resect_type_field));
     field->type = resect_type_create(visit_context, context, clang_field);
     field->name = resect_string_copy(name);
     field->offset = clang_Type_getOffsetOf(parent, resect_string_to_c(name));
     return field;
 }
 
-const char *resect_field_get_name(resect_field field) { return resect_string_to_c(field->name); }
+const char *resect_type_field_get_name(resect_type_field field) { return resect_string_to_c(field->name); }
 
-resect_type resect_field_get_type(resect_field field) { return field->type; }
+resect_type resect_type_field_get_type(resect_type_field field) { return field->type; }
 
-long long resect_field_get_offset(resect_field field) { return field->offset; }
+long long resect_type_field_get_offset(resect_type_field field) { return field->offset; }
 
-void resect_field_free(resect_field field, resect_set deallocated) {
+const char* resect_type_method_get_name(resect_type_method method) {
+    return resect_string_to_c(method->name);
+}
+
+resect_type resect_type_method_get_type(resect_type_method method) {
+    return method->type;
+}
+
+void resect_field_free(resect_type_field field, resect_set deallocated) {
     resect_type_free(field->type, deallocated);
     resect_string_free(field->name);
     free(field);
@@ -84,7 +121,7 @@ void resect_field_free(resect_field field, resect_set deallocated) {
 void resect_field_collection_free(resect_collection fields, resect_set deallocated) {
     resect_iterator iter = resect_collection_iterator(fields);
     while (resect_iterator_next(iter)) {
-        resect_field field = resect_iterator_value(iter);
+        resect_type_field field = resect_iterator_value(iter);
         resect_field_free(field, deallocated);
     }
     resect_iterator_free(iter);
@@ -123,7 +160,7 @@ static enum CXVisitorResult visit_type_field(CXCursor cursor, CXClientData data)
     CXType clang_type = clang_getCursorType(cursor);
 
     resect_string name = resect_string_from_clang(clang_getCursorDisplayName(cursor));
-    resect_field field =
+    resect_type_field field =
             resect_field_create(visit_data->visit_context, visit_data->context, visit_data->parent, clang_type, name);
     resect_string_free(name);
 
@@ -145,9 +182,8 @@ static enum CXVisitorResult visit_type_base_class(CXCursor cursor, CXClientData 
 static enum CXVisitorResult visit_type_method(CXCursor cursor, CXClientData data) {
     resect_type_visit_data visit_data = data;
 
-    resect_type method_type =
-            resect_type_create(visit_data->visit_context, visit_data->context, clang_getCursorType(cursor));
-    resect_collection_add(visit_data->type->methods, method_type);
+    resect_collection_add(visit_data->type->methods,
+        resect_method_create(visit_data->visit_context, visit_data->context, cursor));
 
     return CXVisit_Continue;
 }
@@ -572,7 +608,7 @@ long long resect_type_offsetof(resect_type type, const char *field_name) {
     resect_iterator iterator = resect_collection_iterator(type->fields);
     long long result = -1;
     while (resect_iterator_next(iterator)) {
-        resect_field field = resect_iterator_value(iterator);
+        resect_type_field field = resect_iterator_value(iterator);
         if (resect_string_equal_c(field->name, field_name)) {
             result = field->offset;
             break;
