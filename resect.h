@@ -300,6 +300,10 @@ RESECT_API const char* resect_type_method_get_name(resect_type_method method);
 
 RESECT_API const char* resect_type_method_get_mangled_name(resect_type_method method);
 
+RESECT_API const char* resect_type_method_get_source(resect_type_method method);
+
+RESECT_API resect_bool resect_type_method_is_static(resect_type_method method);
+
 RESECT_API resect_type resect_type_method_get_type(resect_type_method method);
 
 /*
