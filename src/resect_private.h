@@ -175,7 +175,7 @@ void resect_context_free(resect_translation_context context, resect_set dealloca
 
 void resect_register_decl(resect_translation_context context, resect_string id, resect_decl decl);
 
-void resect_register_type(resect_translation_context context, resect_string id, resect_type type);
+bool resect_register_type(resect_translation_context context, CXType clang_type, resect_type resect_type);
 
 void resect_register_decl_language(resect_translation_context context, resect_language language);
 
@@ -187,7 +187,7 @@ void resect_export_decl(resect_translation_context context, resect_decl decl);
 
 resect_decl resect_find_decl(resect_translation_context context, resect_string decl_id);
 
-resect_type resect_find_type(resect_translation_context context, resect_string fqn);
+resect_type resect_find_type(resect_translation_context context, CXType clang_type);
 
 void resect_register_template_parameter(resect_translation_context context, resect_string name, resect_decl decl);
 
@@ -231,7 +231,7 @@ resect_type_category get_type_category(resect_type_kind kind);
 
 resect_string resect_type_pretty_print(resect_translation_context context, CXType type);
 
-static resect_string resect_string_fqn_from_type(resect_translation_context context, CXType clang_type);
+resect_string resect_string_fqn_from_type(resect_translation_context context, CXType clang_type);
 
 
 /*

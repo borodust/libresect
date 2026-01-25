@@ -6,12 +6,106 @@
 #include <assert.h>
 
 /*
- * TRANSLATION CONTEXT
+ * TYPE REGISTRY
  */
+
+typedef struct P_resect_type_stack_value {
+    CXType clang_type;
+    resect_type resect_type;
+} P_resect_type_stack_value;
+
+typedef struct P_resect_type_registry {
+    resect_table type_stack_table;
+} *resect_type_registry;
+
+
+resect_type_registry resect_type_registry_create() {
+    resect_type_registry registry = malloc(sizeof(struct P_resect_type_registry));
+    registry->type_stack_table = resect_table_create();
+    return registry;
+}
+
+void resect_type_registry_table_stack_destructor(void *context, void *value) {
+    resect_collection type_stack = value;
+    resect_iterator iter = resect_collection_iterator(type_stack);
+    while (resect_iterator_next(iter)) {
+        P_resect_type_stack_value *stack = resect_iterator_value(iter);
+        free(stack);
+    }
+    resect_iterator_free(iter);
+    resect_collection_free(type_stack);
+}
+
+/**
+ * This doesn't free registered resect types
+ * @param registry
+ */
+void resect_type_registry_free(resect_type_registry registry) {
+    resect_table_free(registry->type_stack_table, resect_type_registry_table_stack_destructor, NULL);
+    free(registry);
+}
+
+bool resect_type_registry_add(resect_type_registry registry, resect_string type_fqn,
+                              CXType clang_type,
+                              resect_type resect_type) {
+    bool result = false;
+    const char *key = resect_string_to_c(type_fqn);
+
+    resect_collection type_stack = resect_table_get(registry->type_stack_table, key);
+    if (type_stack == NULL) {
+        type_stack = resect_collection_create();
+        resect_table_put(registry->type_stack_table, key, type_stack);
+    }
+
+    resect_iterator iter = resect_collection_iterator(type_stack);
+    while (resect_iterator_next(iter)) {
+        P_resect_type_stack_value *stack = resect_iterator_value(iter);
+        if (clang_equalTypes(stack->clang_type, clang_type)) {
+            goto done;
+        }
+    }
+
+    P_resect_type_stack_value* new_value = malloc(sizeof(P_resect_type_stack_value));
+    new_value->clang_type = clang_type;
+    new_value->resect_type = resect_type;
+    resect_collection_add(type_stack, new_value);
+    result = true;
+
+done:
+    resect_iterator_free(iter);
+    return result;
+}
+
+resect_type resect_type_registry_find(resect_type_registry registry, resect_string type_fqn, CXType clang_type) {
+    resect_type result = NULL;
+    const char *key = resect_string_to_c(type_fqn);
+
+    resect_collection type_stack = resect_table_get(registry->type_stack_table, key);
+    if (type_stack == NULL) {
+        return NULL;
+    }
+
+    resect_iterator iter = resect_collection_iterator(type_stack);
+    while (resect_iterator_next(iter)) {
+        P_resect_type_stack_value *stack = resect_iterator_value(iter);
+        if (clang_equalTypes(stack->clang_type, clang_type)) {
+            result = stack->resect_type;
+            goto done;
+        }
+    }
+
+done:
+    resect_iterator_free(iter);
+    return result;
+}
+
+/*
+ * TRANSLATION CONTEXT
+*/
 struct P_resect_translation_context {
     resect_set exposed_decls;
     resect_table decl_table;
-    resect_table type_table;
+    resect_type_registry type_registry;
     resect_table template_parameter_table;
     resect_language language;
 
@@ -34,7 +128,7 @@ resect_translation_context resect_context_create(resect_parse_options opts,
     resect_translation_context context = malloc(sizeof(struct P_resect_translation_context));
     context->exposed_decls = resect_set_create();
     context->decl_table = resect_table_create();
-    context->type_table = resect_table_create();
+    context->type_registry = resect_type_registry_create();
     context->template_parameter_table = resect_table_create();
     context->language = RESECT_LANGUAGE_UNKNOWN;
 
@@ -91,7 +185,7 @@ void resect_context_free(resect_translation_context context, resect_set dealloca
     }
 
     resect_table_free(context->decl_table, resect_decl_table_free, deallocated);
-    resect_table_free(context->type_table, resect_type_table_free, deallocated);
+    resect_type_registry_free(context->type_registry);
     resect_table_free(context->template_parameter_table, NULL, NULL);
 
     resect_set_free(context->exposed_decls);
@@ -138,12 +232,18 @@ resect_decl resect_find_decl(resect_translation_context context, resect_string d
     return resect_table_get(context->decl_table, resect_string_to_c(decl_id));
 }
 
-void resect_register_type(resect_translation_context context, resect_string id, resect_type type) {
-    resect_table_put_if_absent(context->type_table, resect_string_to_c(id), type);
+bool resect_register_type(resect_translation_context context, CXType clang_type, resect_type resect_type) {
+    resect_string fqn = resect_string_fqn_from_type(context, clang_type);
+    bool result = resect_type_registry_add(context->type_registry, fqn, clang_type, resect_type);
+    resect_string_free(fqn);
+    return result;
 }
 
-resect_type resect_find_type(resect_translation_context context, resect_string fqn) {
-    return resect_table_get(context->type_table, resect_string_to_c(fqn));
+resect_type resect_find_type(resect_translation_context context, CXType clang_type) {
+    resect_string fqn = resect_string_fqn_from_type(context, clang_type);
+    resect_type result = resect_type_registry_find(context->type_registry, fqn, clang_type);
+    resect_string_free(fqn);
+    return result;
 }
 
 void resect_register_template_parameter(resect_translation_context context, resect_string name, resect_decl decl) {
@@ -194,8 +294,8 @@ void resect_register_garbage(resect_translation_context context, enum P_resect_g
 }
 
 bool resect_context_extract_valid_decl_name(resect_translation_context context,
-    resect_string name,
-    resect_string out) {
+                                            resect_string name,
+                                            resect_string out) {
     return resect_pattern_find(context->decl_name_pattern, name, out);
 }
 
