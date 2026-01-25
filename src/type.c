@@ -436,28 +436,11 @@ void resect_init_template_args_from_type(resect_visit_context visit_context, res
     }
 }
 
-static resect_string resect_string_fqn_from_type(resect_translation_context context, CXType clang_type) {
+resect_string resect_string_fqn_from_type(resect_translation_context context, CXType clang_type) {
     return resect_string_from_clang(clang_getFullyQualifiedName(clang_type,
                                                                 resect_context_get_printing_policy(
                                                                     context),
                                                                 0));
-}
-
-static resect_string resect_extract_type_id(resect_translation_context context, CXType clang_type) {
-    CXCursor cursor = clang_getTypeDeclaration(clang_type);
-    resect_string type_id;
-    if (!clang_Cursor_isNull(cursor) && clang_getCursorKind(cursor) != CXCursor_NoDeclFound) {
-        type_id = resect_extract_decl_id(cursor);
-        resect_string_append_c(type_id, "+");
-    } else {
-        type_id = resect_string_from_c("");
-    }
-
-    resect_string fqn = resect_string_fqn_from_type(context, clang_type);
-    resect_string_append(type_id, fqn);
-    resect_string_free(fqn);
-
-    return type_id;
 }
 
 resect_type_category get_type_category(resect_type_kind kind) {
@@ -540,10 +523,9 @@ resect_type resect_type_create(resect_visit_context visit_context, resect_transl
         default: ;
     }
 
-    resect_string type_id = resect_extract_type_id(context, clang_type);
-    resect_type type = resect_find_type(context, type_id);
+    resect_type type = resect_find_type(context, clang_type);
     if (type != NULL) {
-        goto done;
+        return type;
     }
 
     type = malloc(sizeof(struct P_resect_type));
@@ -572,7 +554,7 @@ resect_type resect_type_create(resect_visit_context visit_context, resect_transl
     type->data_deallocator = NULL;
     type->data = NULL;
 
-    resect_register_type(context, type_id, type);
+    resect_register_type(context, clang_type, type);
 
     CXCursor declaration_cursor = clang_getTypeDeclaration(clang_type);
     if (declaration_cursor.kind == CXCursor_NoDeclFound) {
@@ -637,8 +619,6 @@ resect_type resect_type_create(resect_visit_context visit_context, resect_transl
         clang_visitCXXMethods(clang_type, visit_type_method, &visit_data);
     }
 
-done:
-    resect_string_free(type_id);
     return type;
 }
 
