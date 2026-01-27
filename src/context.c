@@ -270,7 +270,16 @@ void resect_context_init_printing_policy(resect_translation_context context, CXC
     context->printing_policy = clang_getCursorPrintingPolicy(cursor);
     clang_PrintingPolicy_setProperty(context->printing_policy,
                                      CXPrintingPolicy_FullyQualifiedName,
-                                     resect_true);
+                                     true);
+    clang_PrintingPolicy_setProperty(context->printing_policy,
+                                     CXPrintingPolicy_SuppressUnwrittenScope,
+                                     true);
+    clang_PrintingPolicy_setProperty(context->printing_policy,
+                                     CXPrintingPolicy_AnonymousTagLocations,
+                                     false);
+    clang_PrintingPolicy_setProperty(context->printing_policy,
+                                     CXPrintingPolicy_PolishForDeclaration,
+                                     true);
 }
 
 void resect_context_release_printing_policy(resect_translation_context context) {
