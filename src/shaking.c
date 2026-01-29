@@ -303,6 +303,7 @@ void resect_investigate_decl(resect_visit_context visit_context, resect_shaking_
         case RESECT_DECL_KIND_PARAMETER:
         case RESECT_DECL_KIND_FIELD:
         case RESECT_DECL_KIND_TEMPLATE_PARAMETER:
+        case RESECT_DECL_KIND_VARIABLE:
             resect_investigate_type(visit_context, shaking_context, clang_getCursorType(cursor));
             break;
         default:;
