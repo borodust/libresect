@@ -74,6 +74,13 @@ void print_specializations(resect_decl decl) {
     while (resect_iterator_next(specialization_iter)) {
         resect_type template_specialization = resect_iterator_value(specialization_iter);
         printf("  TEMPLATE SPECIALIZATION: %s\n", resect_type_get_name(template_specialization));
+        resect_decl specialization_decl = resect_type_get_declaration(template_specialization);
+        if (specialization_decl != NULL) {
+            printf("    SPECIALIZATION_ID: %s\n", resect_decl_get_id(specialization_decl));
+        } else {
+            printf("    NO SPECIALIZATION DECL FOUND\n");
+        }
+
     }
     resect_iterator_free(specialization_iter);
 }
