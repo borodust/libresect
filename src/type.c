@@ -189,6 +189,17 @@ void resect_type_collection_free(resect_collection types, resect_set deallocated
     resect_collection_free(types);
 }
 
+static resect_bool resect_type_set_item_free(void* ctx, void* item) {
+    resect_set deallocated = ctx;
+    resect_type type = item;
+    resect_type_free(type, deallocated);
+    return true;
+}
+
+void resect_type_set_free(resect_set types, resect_set deallocated) {
+    resect_visit_set(types, resect_type_set_item_free, deallocated);
+}
+
 resect_type_kind convert_type_kind(enum CXTypeKind kind) {
     switch (kind) {
         case CXType_Invalid:

@@ -578,7 +578,7 @@ void resect_string_collection_free(resect_collection collection) {
     resect_collection_free(collection);
 }
 
-resect_string extract_type_fqn(CXCursor cursor, CXType type) {
+resect_string resect_string_fqn_from_type_by_cursor(CXCursor cursor, CXType type) {
     CXPrintingPolicy pp = clang_getCursorPrintingPolicy(cursor);
     clang_PrintingPolicy_setProperty(pp,
                                      CXPrintingPolicy_FullyQualifiedName,
@@ -656,7 +656,7 @@ static void append_function_proto(resect_string name, CXCursor cursor) {
     int arg_count = clang_getNumArgTypes(type);
     for (int i = 0; i < arg_count; ++i) {
         CXType arg_type = clang_getArgType(type, i);
-        resect_string arg_type_name = extract_type_fqn(cursor, arg_type);
+        resect_string arg_type_name = resect_string_fqn_from_type_by_cursor(cursor, arg_type);
         resect_string_append(proto, arg_type_name);
         if (i < arg_count - 1) {
             resect_string_append_c(proto, ", ");
@@ -705,7 +705,7 @@ resect_string resect_format_cursor_full_name(CXCursor cursor) {
         case RESECT_DECL_KIND_CLASS:
         case RESECT_DECL_KIND_ENUM:
         case RESECT_DECL_KIND_TYPEDEF:
-            return extract_type_fqn(cursor, clang_getCursorType(cursor));
+            return resect_string_fqn_from_type_by_cursor(cursor, clang_getCursorType(cursor));
 
         case RESECT_DECL_KIND_FUNCTION:
         case RESECT_DECL_KIND_METHOD:

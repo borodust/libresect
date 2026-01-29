@@ -178,6 +178,7 @@ struct P_resect_decl {
     resect_bool partial;
     resect_bool forward;
     resect_collection specializations;
+    resect_set specialization_set;
 
     resect_decl owner;
     resect_type type;
@@ -463,7 +464,8 @@ void resect_decl_init_rest_from_cursor(resect_decl decl, resect_translation_cont
     decl->template = NULL;
     decl->template_parameters = resect_collection_create();
     decl->template_arguments = resect_collection_create();
-    decl->specializations = resect_collection_create();
+    decl->specializations = NULL;
+    decl->specialization_set = resect_set_create();
     decl->partial = cursor.kind == CXCursor_ClassTemplatePartialSpecialization;
     decl->forward = resect_is_forward_declaration(cursor);
 
@@ -480,7 +482,7 @@ void resect_decl_init_rest_from_cursor(resect_decl decl, resect_translation_cont
 void resect_decl_register_specialization(resect_decl decl, resect_type specialization) {
     assert(decl != NULL && resect_decl_is_template(decl) && specialization != NULL);
 
-    resect_collection_add(decl->specializations, specialization);
+    resect_set_add(decl->specialization_set, specialization);
 }
 
 resect_decl resect_decl_get_root_template(resect_decl decl) {
@@ -677,7 +679,10 @@ void resect_decl_free(resect_decl decl, resect_set deallocated) {
 
     resect_decl_collection_free(decl->template_parameters, deallocated);
     resect_template_argument_collection_free(decl->template_arguments, deallocated);
-    resect_type_collection_free(decl->specializations, deallocated);
+    if (decl->specializations != NULL) {
+        resect_collection_free(decl->specializations);
+    }
+    resect_type_set_free(decl->specialization_set, deallocated);
 
     if (decl->template != NULL) {
         resect_decl_free(decl->template, deallocated);
@@ -721,7 +726,13 @@ resect_bool resect_decl_is_template(resect_decl decl) { return decl->is_template
 
 resect_collection resect_decl_template_parameters(resect_decl decl) { return decl->template_parameters; }
 
-resect_collection resect_decl_template_specializations(resect_decl decl) { return decl->specializations; }
+resect_collection resect_decl_template_specializations(resect_decl decl) {
+    if (decl->specializations == NULL) {
+        decl->specializations = resect_collection_create();
+        resect_set_add_to_collection(decl->specialization_set, decl->specializations);
+    }
+    return decl->specializations;
+}
 
 resect_collection resect_decl_template_arguments(resect_decl decl) { return decl->template_arguments; }
 

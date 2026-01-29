@@ -221,6 +221,8 @@ void resect_type_free(resect_type type, resect_set deallocated);
 
 void resect_type_collection_free(resect_collection types, resect_set deallocated);
 
+void resect_type_set_free(resect_set types, resect_set deallocated);
+
 resect_type_field resect_field_create(resect_visit_context visit_context, resect_translation_context context, CXType parent, CXCursor cursor);
 
 void resect_field_collection_free(resect_collection fields, resect_set deallocated);
@@ -233,6 +235,7 @@ resect_string resect_type_pretty_print(resect_translation_context context, CXTyp
 
 resect_string resect_string_fqn_from_type(resect_translation_context context, CXType clang_type);
 
+resect_string resect_string_fqn_from_type_by_cursor(CXCursor cursor, CXType type);
 
 /*
  * DECLARATION
