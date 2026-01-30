@@ -68,14 +68,29 @@ resect_string extract_mangling(CXCursor cursor) {
 
 resect_type_method resect_method_create(resect_visit_context visit_context, resect_translation_context context,
                                         CXCursor cursor) {
-    resect_type_method method = malloc(sizeof(struct P_resect_type_method));
-    method->id = resect_string_from_clang(clang_getCursorUSR(cursor));
+    resect_type_method method = NULL;
+    resect_string method_id = resect_string_from_clang(clang_getCursorUSR(cursor));
+    if (!resect_is_decl_included(context, method_id)) {
+        goto done;
+    }
+
+    resect_type method_type = resect_type_create(visit_context, context, clang_getCursorType(cursor));
+    if (resect_type_get_declaration(method_type) == NULL) {
+        resect_register_garbage(context, RESECT_GARBAGE_KIND_TYPE, method_type);
+        goto done;
+    }
+
+    method = malloc(sizeof(struct P_resect_type_method));
+    method->id = resect_string_copy(method_id);
     method->name = resect_string_from_clang(clang_getCursorSpelling(cursor));
     method->mangling = extract_mangling(cursor);
-    method->type = resect_type_create(visit_context, context, clang_getCursorType(cursor));
-    method->source = resect_string_from_clang(clang_getCursorPrettyPrinted(cursor, resect_context_get_printing_policy(context)));
+    method->type = method_type;
+    method->source = resect_string_from_clang(
+        clang_getCursorPrettyPrinted(cursor, resect_context_get_printing_policy(context)));
     method->is_static = convert_bool_from_uint(clang_CXXMethod_isStatic(cursor));
 
+done:
+    resect_string_free(method_id);
     return method;
 }
 
@@ -123,11 +138,25 @@ void resect_type_free(resect_type type, resect_set deallocated) {
 resect_type_field resect_field_create(resect_visit_context visit_context, resect_translation_context context,
                                       CXType parent,
                                       CXCursor cursor) {
-    resect_type_field field = malloc(sizeof(struct P_resect_type_field));
-    field->id = resect_string_from_clang(clang_getCursorUSR(cursor));
+    resect_type_field field = NULL;
+    resect_string field_id = resect_string_from_clang(clang_getCursorUSR(cursor));
+    if (!resect_is_decl_included(context, field_id)) {
+        goto done;
+    }
+    resect_type field_type = resect_type_create(visit_context, context, clang_getCursorType(cursor));
+    if (resect_type_get_declaration(field_type) == NULL) {
+        resect_register_garbage(context, RESECT_GARBAGE_KIND_TYPE, field_type);
+        goto done;
+    }
+
+    field = malloc(sizeof(struct P_resect_type_field));
+    field->id = resect_string_copy(field_id);
     field->type = resect_type_create(visit_context, context, clang_getCursorType(cursor));
     field->name = resect_string_from_clang(clang_getCursorDisplayName(cursor));
     field->offset = clang_Type_getOffsetOf(parent, resect_string_to_c(field->name));
+
+done:
+    resect_string_free(field_id);
     return field;
 }
 
@@ -222,8 +251,9 @@ static enum CXVisitorResult visit_type_field(CXCursor cursor, CXClientData data)
 
     resect_type_field field =
             resect_field_create(visit_data->visit_context, visit_data->context, visit_data->parent, cursor);
-
-    resect_collection_add(visit_data->type->fields, field);
+    if (field != NULL) {
+        resect_collection_add(visit_data->type->fields, field);
+    }
 
     return CXVisit_Continue;
 }
@@ -233,16 +263,23 @@ static enum CXVisitorResult visit_type_base_class(CXCursor cursor, CXClientData 
 
     resect_type class_type =
             resect_type_create(visit_data->visit_context, visit_data->context, clang_getCursorType(cursor));
-    resect_collection_add(visit_data->type->base_classes, class_type);
 
+    if (resect_type_get_declaration(class_type) == NULL) {
+        resect_register_garbage(visit_data->context, RESECT_GARBAGE_KIND_TYPE, class_type);
+        return CXVisit_Continue;
+    }
+
+    resect_collection_add(visit_data->type->base_classes, class_type);
     return CXVisit_Continue;
 }
 
 static enum CXVisitorResult visit_type_method(CXCursor cursor, CXClientData data) {
     resect_type_visit_data visit_data = data;
 
-    resect_collection_add(visit_data->type->methods,
-                          resect_method_create(visit_data->visit_context, visit_data->context, cursor));
+    resect_type_method type_method = resect_method_create(visit_data->visit_context, visit_data->context, cursor);
+    if (type_method != NULL) {
+        resect_collection_add(visit_data->type->methods, type_method);
+    }
 
     return CXVisit_Continue;
 }
