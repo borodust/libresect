@@ -326,7 +326,7 @@ resect_decl resect_find_owner(resect_visit_context visit_context, resect_transla
     return resect_decl_create(visit_context, context, owning_cursor).decl;
 }
 
-static bool is_kind_exportable(resect_decl_kind kind) {
+static bool is_kind_exposable(resect_decl_kind kind) {
     switch (kind) {
         case RESECT_DECL_KIND_STRUCT:
         case RESECT_DECL_KIND_CLASS:
@@ -652,8 +652,8 @@ void resect_decl__create(resect_visit_context visit_context, resect_translation_
 
     result->decl = decl;
 
-    if (is_kind_exportable(decl->kind)) {
-        resect_export_decl(context, decl);
+    if (is_kind_exposable(decl->kind)) {
+        resect_expose_decl(context, decl);
     }
 
 done:

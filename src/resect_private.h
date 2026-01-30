@@ -183,7 +183,7 @@ resect_language resect_get_assumed_language(resect_translation_context context);
 
 bool resect_is_decl_included(resect_translation_context context, resect_string decl_id);
 
-void resect_export_decl(resect_translation_context context, resect_decl decl);
+void resect_expose_decl(resect_translation_context context, resect_decl decl);
 
 resect_decl resect_find_decl(resect_translation_context context, resect_string decl_id);
 

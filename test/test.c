@@ -159,6 +159,9 @@ int main(int argc, char **argv) {
                 break;
             case RESECT_DECL_KIND_VARIABLE:
                 printf(" VARIABLE: %s::%s\n", resect_decl_get_namespace(decl), resect_decl_get_name(decl));
+                if (resect_type_is_const_qualified(resect_decl_get_type(decl))) {
+                    printf("   CONST\n");
+                }
                 break;
             case RESECT_DECL_KIND_TYPEDEF:
                 printf(" TYPEDEF: %s::%s (%d) {%lld}\n", resect_decl_get_namespace(decl), resect_decl_get_name(decl),

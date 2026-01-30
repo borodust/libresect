@@ -201,7 +201,7 @@ bool resect_is_decl_included(resect_translation_context context, resect_string d
     return resect_inclusion_registry_decl_included(context->inclusion_registry, resect_string_to_c(decl_id));
 }
 
-void resect_export_decl(resect_translation_context context, resect_decl decl) {
+void resect_expose_decl(resect_translation_context context, resect_decl decl) {
     resect_set_add(context->exposed_decls, decl);
 }
 
