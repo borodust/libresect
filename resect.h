@@ -329,6 +329,8 @@ RESECT_API resect_type resect_array_get_element_type(resect_type type);
  */
 RESECT_API resect_type resect_pointer_get_pointee_type(resect_type type);
 
+RESECT_API resect_type resect_member_pointer_get_owning_type(resect_type type);
+
 /*
  * REFERENCE
  */

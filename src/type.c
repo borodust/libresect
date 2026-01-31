@@ -329,6 +329,8 @@ resect_type resect_array_get_element_type(resect_type type) {
  */
 typedef struct P_resect_pointer_data {
     resect_type type;
+
+    resect_type member_owner; // NULL if not member pointer
 } *resect_pointer_data;
 
 void resect_pointer_data_free(void *data, resect_set deallocated) {
@@ -337,13 +339,24 @@ void resect_pointer_data_free(void *data, resect_set deallocated) {
     }
     resect_pointer_data pointer = data;
     resect_type_free(pointer->type, deallocated);
+    if (pointer->member_owner != NULL) {
+        resect_type_free(pointer->member_owner, deallocated);
+    }
     free(data);
 }
 
 void resect_pointer_init(resect_visit_context visit_context, resect_translation_context context, resect_type type,
-                         CXType clangType) {
+                         CXType clang_type) {
     resect_pointer_data data = malloc(sizeof(struct P_resect_pointer_data));
-    data->type = resect_type_create(visit_context, context, clang_getPointeeType(clangType));
+    data->type = resect_type_create(visit_context, context, clang_getPointeeType(clang_type));
+
+    // libclang cannot handle templated member-pointers
+    // sizeof check here helps to filter out dependent types
+    // while this workaround works, some member pointers are left without
+    // owning type information
+    data->member_owner = (clang_Type_getSizeOf(clang_type) > 0 && clang_type.kind == CXType_MemberPointer)
+                             ? resect_type_create(visit_context, context, clang_Type_getClassType(clang_type))
+                             : NULL;
 
     type->data_deallocator = resect_pointer_data_free;
     type->data = data;
@@ -355,6 +368,11 @@ resect_type resect_pointer_get_pointee_type(resect_type type) {
     return data->type;
 }
 
+resect_type resect_member_pointer_get_owning_type(resect_type type) {
+    assert(type->kind == RESECT_TYPE_KIND_MEMBERPOINTER);
+    resect_pointer_data data = type->data;
+    return data->member_owner;
+}
 
 /*
  * REFERENCE

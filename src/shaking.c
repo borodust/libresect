@@ -463,13 +463,19 @@ static void resect_investigate_function_type(resect_visit_context visit_context,
 }
 
 void resect_investigate_pointer_type(resect_visit_context visit_context, resect_shaking_context context, CXType type) {
-    resect_investigate_type(visit_context, context, clang_getPointeeType(type));
+    CXType pointee = clang_getPointeeType(type);
+    resect_investigate_type(visit_context, context, pointee);
+
+    // libclang cannot handle templated member-pointers
+    // sizeof check here helps to filter out dependent types
+    if (clang_Type_getSizeOf(type) > 0 && type.kind == CXType_MemberPointer) {
+        resect_investigate_type(visit_context, context, clang_Type_getClassType(type));
+    }
 }
 
 void resect_investigate_array_type(resect_visit_context visit_context, resect_shaking_context context, CXType type) {
     resect_investigate_type(visit_context, context, clang_getArrayElementType(type));
 }
-
 
 void resect_investigate_template_args(resect_visit_context visit_context, resect_shaking_context context, CXType type) {
     int arg_count = clang_Type_getNumTemplateArguments(type);
