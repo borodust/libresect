@@ -218,7 +218,7 @@ void resect_type_collection_free(resect_collection types, resect_set deallocated
     resect_collection_free(types);
 }
 
-static resect_bool resect_type_set_item_free(void* ctx, void* item) {
+static resect_bool resect_type_set_item_free(void *ctx, void *item) {
     resect_set deallocated = ctx;
     resect_type type = item;
     resect_type_free(type, deallocated);

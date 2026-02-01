@@ -10,7 +10,7 @@ typedef enum {
     RESECT_ACCESS_LEVEL_UNKNOWN = 0,
     RESECT_ACCESS_LEVEL_PUBLIC = 1,
     RESECT_ACCESS_LEVEL_PROTECTED = 2,
-    RESECT_ACCESS_LEVEL_PRIVATE = 3,
+    RESECT_ACCESS_LEVEL_INACCESSIBLE = 3,
 } resect_access_level;
 
 typedef struct P_resect_decl_graph_edge {
@@ -106,7 +106,7 @@ static void resect_decl_graph_free(resect_decl_graph graph) {
 }
 
 static bool resect_decl_graph_add_node(resect_decl_graph graph, resect_string id,
-    resect_filter_status filter_status, resect_access_level access_level) {
+                                       resect_filter_status filter_status, resect_access_level access_level) {
     const char *key = resect_string_to_c(id);
     // ReSharper disable once CppDFANullDereference
     if (resect_table_get(graph->node_table, key) != NULL) {
@@ -184,7 +184,7 @@ resect_shaking_context resect_shaking_context_create(resect_parse_options opts) 
     resect_collection_add(context->bound_parents, resect_string_copy(context->root_decl_id));
 
     resect_decl_graph_add_node(context->decl_graph, context->root_decl_id,
-        RESECT_FILTER_STATUS_INCLUDED,  RESECT_ACCESS_LEVEL_PUBLIC);
+                               RESECT_FILTER_STATUS_INCLUDED, RESECT_ACCESS_LEVEL_PUBLIC);
 
     context->diagnostics_level = resect_options_current_diagnostics_level(opts);
     return context;
@@ -267,6 +267,9 @@ static void resect_investigate_owner(resect_visit_context visit_context, resect_
                                      CXCursor cursor);
 
 static resect_access_level convert_access_level(CXCursor cursor) {
+    if (clang_getCursorKind(cursor) == CXCursor_CXXMethod && clang_CXXMethod_isDeleted(cursor)) {
+        return RESECT_ACCESS_LEVEL_INACCESSIBLE;
+    }
     switch (clang_getCXXAccessSpecifier(cursor)) {
         case CX_CXXInvalidAccessSpecifier:
             return RESECT_ACCESS_LEVEL_UNKNOWN;
@@ -275,7 +278,7 @@ static resect_access_level convert_access_level(CXCursor cursor) {
         case CX_CXXProtected:
             return RESECT_ACCESS_LEVEL_PROTECTED;
         default:
-            return  RESECT_ACCESS_LEVEL_PRIVATE;
+            return RESECT_ACCESS_LEVEL_INACCESSIBLE;
     }
 }
 
@@ -287,7 +290,7 @@ void resect_investigate_decl(resect_visit_context visit_context, resect_shaking_
     resect_string parent_id = resect_shaking_context_decl_parent_id(shaking_context);
 
     resect_access_level access_level = convert_access_level(cursor);
-    
+
     resect_filter_status filter_status = resect_cursor_filter_status(shaking_context->filtering, cursor);
 
     bool node_existed = resect_decl_graph_has_node(shaking_context->decl_graph, decl_id);
@@ -330,7 +333,7 @@ void resect_investigate_decl(resect_visit_context visit_context, resect_shaking_
         case RESECT_DECL_KIND_VARIABLE:
             resect_investigate_type(visit_context, shaking_context, clang_getCursorType(cursor));
             break;
-        default:;
+        default: ;
     }
 
 done:
@@ -404,7 +407,7 @@ enum CXChildVisitResult resect_investigate_function_child(CXCursor cursor, CXCur
         case RESECT_DECL_KIND_TEMPLATE_PARAMETER:
             resect_visit_cursor(visit_data->visit_context, cursor, visit_data->shaking_context);
             break;
-        default:;
+        default: ;
     }
     return CXChildVisit_Continue;
 }
@@ -438,7 +441,7 @@ void resect_investigate_template_arguments(resect_visit_context visit_context, r
             case RESECT_TEMPLATE_ARGUMENT_KIND_DECLARATION:
                 resect_investigate_type(visit_context, context, clang_Cursor_getTemplateArgumentType(cursor, i));
                 break;
-            default:;
+            default: ;
         }
     }
 }
@@ -519,7 +522,7 @@ static enum CXVisitorResult visit_type_item(CXCursor cursor, CXClientData data) 
         case CXCursor_Destructor:
             resect_visit_cursor(visit_data->visit_context, cursor, visit_data->shaking_context);
             return CXVisit_Continue;
-        default:;
+        default: ;
     }
 
     resect_shaking_context_push_root_link(visit_data->shaking_context);
@@ -538,12 +541,13 @@ void resect_investigate_type(resect_visit_context visit_context, resect_shaking_
             if (CXType_Unexposed != canonical_type.kind) {
                 resect_investigate_type(visit_context, context, canonical_type);
             }
-        } break;
+        }
+        break;
         case CXType_Attributed:
             // skip attributes
             resect_investigate_type(visit_context, context, clang_Type_getModifiedType(type));
             return;
-        default:;
+        default: ;
     }
 
     resect_type_kind kind = convert_type_kind(type.kind);
@@ -587,9 +591,10 @@ void resect_investigate_type(resect_visit_context visit_context, resect_shaking_
 
                 resect_shaking_context_pop_link(context);
                 resect_string_free(decl_id);
-            } break;
+            }
+            break;
 
-            default:;
+            default: ;
         }
     }
 }
@@ -701,7 +706,7 @@ static bool resect_shaking_context__follow_edge(resect_decl_graph graph, resect_
 
     bool recurse = true;
     bool enforced = target->filter_status == RESECT_FILTER_STATUS_ENFORCED || reinforced;
-    if (target->access_level == RESECT_ACCESS_LEVEL_PRIVATE) {
+    if (target->access_level == RESECT_ACCESS_LEVEL_INACCESSIBLE) {
         enforced = false;
         recurse = false;
         new_status = RESECT_INCLUSION_STATUS_REJECTED;
@@ -738,7 +743,8 @@ static bool resect_shaking_context__follow_edge(resect_decl_graph graph, resect_
     }
 
     struct P_resect_follow_next_edge_data visit_data = {
-            .graph = graph, .registry = registry, .enforced = enforced, .edge = edge, .result = false};
+        .graph = graph, .registry = registry, .enforced = enforced, .edge = edge, .result = false
+    };
     resect_visit_table(target->edges, follow_next_edge, &visit_data);
     if (visit_data.result) {
         update_registry_entry(registry, target->id, RESECT_INCLUSION_STATUS_EXCLUDED);
@@ -755,7 +761,7 @@ static resect_bool printf_registry(void *ctx, const char *key, void *data) {
         case RESECT_INCLUSION_STATUS_ENFORCED:
             fprintf(stderr, "ENF: %s\n", key);
             break;
-        default:;
+        default: ;
     }
     return true;
 }
@@ -801,7 +807,7 @@ static resect_bool revisit_affected_parent_nodes(void *ctx, const char *node_id,
     if (resect_string_equal_c(root_node_id, node_id)) {
         // node_id points to root
         resect_inclusion_status edge_target_inclusion_status = decode_inclusion_status(
-                resect_table_get(data->visit_edge_data->registry, resect_string_to_c(data->edge_id)));
+            resect_table_get(data->visit_edge_data->registry, resect_string_to_c(data->edge_id)));
         if (edge_target_inclusion_status != RESECT_INCLUSION_STATUS_ENFORCED) {
             resect_decl_graph_edge edge_to_revisit = resect_decl_graph_node_find_edge(node, data->edge_id);
             resect_set_add(data->affected_edges, edge_to_revisit);
@@ -860,19 +866,21 @@ static void resect_shaking_context__init_registry_table(resect_shaking_context s
     resect_set enforced_nodes = resect_set_create();
 
     struct P_resect_visit_edge_data visit_data = {
-            .context = shaking_context,
-            .graph = graph,
-            .registry = registry,
+        .context = shaking_context,
+        .graph = graph,
+        .registry = registry,
     };
 
     resect_visit_table(root->edges, visit_root_edge, &visit_data);
 
     resect_set affected_edges = resect_set_create();
     resect_set visited_nodes = resect_set_create();
-    struct P_resect_affected_parents_visit_data affected_visit_data = {.visit_edge_data = &visit_data,
-                                                                       .affected_edges = affected_edges,
-                                                                       .visited_nodes = visited_nodes,
-                                                                       .edge_id = NULL};
+    struct P_resect_affected_parents_visit_data affected_visit_data = {
+        .visit_edge_data = &visit_data,
+        .affected_edges = affected_edges,
+        .visited_nodes = visited_nodes,
+        .edge_id = NULL
+    };
     resect_visit_table(registry, visit_enforced_nodes, &affected_visit_data);
     resect_visit_set(visited_nodes, reset_excluded, &affected_visit_data);
     resect_visit_set(affected_edges, visit_affected_edge, &affected_visit_data);
