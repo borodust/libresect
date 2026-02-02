@@ -515,14 +515,6 @@ void resect_investigate_template_args(resect_visit_context visit_context, resect
 static enum CXVisitorResult visit_type_item(CXCursor cursor, CXClientData data) {
     resect_investigate_child_data *visit_data = data;
 
-    switch (clang_getCursorKind(cursor)) {
-        case CXCursor_Constructor:
-        case CXCursor_Destructor:
-            resect_visit_cursor(visit_data->visit_context, cursor, visit_data->shaking_context);
-            return CXVisit_Continue;
-        default: ;
-    }
-
     resect_shaking_context_push_root_link(visit_data->shaking_context);
     resect_visit_cursor(visit_data->visit_context, cursor, visit_data->shaking_context);
     resect_shaking_context_pop_link(visit_data->shaking_context);
