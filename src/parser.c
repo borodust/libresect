@@ -269,11 +269,21 @@ resect_translation_unit resect_parse(const char *filename, resect_parse_options 
     int clang_argc = (int) resect_collection_size(options->args);
     char **clang_argv = malloc(clang_argc * sizeof(char *));
 
+
+    if (options->diagnostics_level >= RESECT_DIAGNOSTICS_DEBUG) {
+            fprintf(stderr, "libclang args:");
+    }
     resect_iterator arg_iter = resect_collection_iterator(options->args);
     int i = 0;
     while (resect_iterator_next(arg_iter)) {
         resect_string arg = resect_iterator_value(arg_iter);
         clang_argv[i++] = (char *) resect_string_to_c(arg);
+        if (options->diagnostics_level >= RESECT_DIAGNOSTICS_DEBUG) {
+            fprintf(stderr, " %s", resect_string_to_c(arg));
+        }
+    }
+    if (options->diagnostics_level >= RESECT_DIAGNOSTICS_DEBUG) {
+        fprintf(stderr, "\n");
     }
     resect_iterator_free(arg_iter);
 
