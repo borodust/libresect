@@ -270,6 +270,14 @@ static resect_access_level convert_access_level(CXCursor cursor) {
     if (clang_getCursorKind(cursor) == CXCursor_CXXMethod && clang_CXXMethod_isDeleted(cursor)) {
         return RESECT_ACCESS_LEVEL_INACCESSIBLE;
     }
+    CXType cursor_type = clang_getCursorType(cursor);
+
+    // libclang cannot handle templated member-pointers
+    // sizeof check here helps to filter out dependent types
+    if (cursor_type.kind == CXType_MemberPointer && clang_Type_getSizeOf(cursor_type) <= 0) {
+        return RESECT_ACCESS_LEVEL_INACCESSIBLE;
+    }
+
     switch (clang_getCXXAccessSpecifier(cursor)) {
         case CX_CXXInvalidAccessSpecifier:
             return RESECT_ACCESS_LEVEL_UNKNOWN;
@@ -351,16 +359,6 @@ static enum CXChildVisitResult resect_investigate_record_child(CXCursor cursor, 
     enum CXCursorKind cursor_kind = clang_getCursorKind(cursor);
 
     switch (cursor_kind) {
-        case CXCursor_Constructor:
-        case CXCursor_Destructor:
-            if (clang_getCXXAccessSpecifier(cursor) != CX_CXXPublic) {
-                resect_shaking_context_push_root_link(visit_data->shaking_context);
-            }
-            resect_visit_cursor(visit_data->visit_context, cursor, visit_data->shaking_context);
-            if (clang_getCXXAccessSpecifier(cursor) != CX_CXXPublic) {
-                resect_shaking_context_pop_link(visit_data->shaking_context);
-            }
-            return CXChildVisit_Continue;
         case CXCursor_TemplateTemplateParameter:
         case CXCursor_NonTypeTemplateParameter:
         case CXCursor_TemplateTypeParameter:

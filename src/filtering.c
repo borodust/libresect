@@ -12,6 +12,8 @@ struct P_resect_filtering_context {
     resect_collection excluded_source_patterns;
     resect_collection enforced_definition_patterns;
     resect_collection enforced_source_patterns;
+    resect_collection ignored_definition_patterns;
+    resect_collection ignored_source_patterns;
 };
 
 static resect_collection compile_pattern_collection(resect_collection collection) {
@@ -49,6 +51,9 @@ resect_filtering_context resect_filtering_context_create(resect_parse_options op
     context->enforced_definition_patterns =
             compile_pattern_collection(resect_options_get_enforced_definitions(options));
     context->enforced_source_patterns = compile_pattern_collection(resect_options_get_enforced_sources(options));
+    context->ignored_definition_patterns =
+            compile_pattern_collection(resect_options_get_ignored_definitions(options));
+    context->ignored_source_patterns = compile_pattern_collection(resect_options_get_ignored_sources(options));
 
     return context;
 }
@@ -60,6 +65,8 @@ void resect_filtering_context_free(resect_filtering_context context) {
     free_pattern_collection(context->excluded_source_patterns);
     free_pattern_collection(context->enforced_definition_patterns);
     free_pattern_collection(context->enforced_source_patterns);
+    free_pattern_collection(context->ignored_definition_patterns);
+    free_pattern_collection(context->ignored_source_patterns);
 
     free(context);
 }
@@ -90,7 +97,12 @@ resect_filter_status resect_filtering_status(resect_filtering_context context, c
     if (match_pattern_collection(context->excluded_definition_patterns, declaration_name) ||
         match_pattern_collection(context->excluded_source_patterns, declaration_source)) {
         return RESECT_FILTER_STATUS_EXCLUDED;
-    }
+        }
+
+    if (match_pattern_collection(context->ignored_definition_patterns, declaration_name) ||
+        match_pattern_collection(context->ignored_source_patterns, declaration_source)) {
+        return RESECT_FILTER_STATUS_IGNORED;
+        }
 
     if (match_pattern_collection(context->included_definition_patterns, declaration_name) ||
         match_pattern_collection(context->included_source_patterns, declaration_source)) {

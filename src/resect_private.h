@@ -328,6 +328,10 @@ resect_collection resect_options_get_enforced_definitions(resect_parse_options o
 
 resect_collection resect_options_get_enforced_sources(resect_parse_options opts);
 
+resect_collection resect_options_get_ignored_definitions(resect_parse_options opts);
+
+resect_collection resect_options_get_ignored_sources(resect_parse_options opts);
+
 resect_diagnostics_level resect_options_current_diagnostics_level(resect_parse_options opts);
 
 resect_bool convert_bool_from_uint(unsigned int val);
