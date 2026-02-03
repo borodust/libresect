@@ -75,10 +75,6 @@ resect_type_method resect_method_create(resect_visit_context visit_context, rese
     }
 
     resect_type method_type = resect_type_create(visit_context, context, clang_getCursorType(cursor));
-    if (resect_type_get_declaration(method_type) == NULL) {
-        resect_register_garbage(context, RESECT_GARBAGE_KIND_TYPE, method_type);
-        goto done;
-    }
 
     method = malloc(sizeof(struct P_resect_type_method));
     method->id = resect_string_copy(method_id);
