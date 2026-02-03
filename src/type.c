@@ -45,6 +45,7 @@ typedef struct P_resect_type_method {
     resect_string mangling;
     resect_string source;
     resect_type type;
+    resect_decl decl;
     resect_bool is_static;
 } *resect_type_method;
 
@@ -74,13 +75,12 @@ resect_type_method resect_method_create(resect_visit_context visit_context, rese
         goto done;
     }
 
-    resect_type method_type = resect_type_create(visit_context, context, clang_getCursorType(cursor));
-
     method = malloc(sizeof(struct P_resect_type_method));
     method->id = resect_string_copy(method_id);
     method->name = resect_string_from_clang(clang_getCursorSpelling(cursor));
     method->mangling = extract_mangling(cursor);
-    method->type = method_type;
+    method->type = resect_type_create(visit_context, context, clang_getCursorType(cursor));
+    method->decl = resect_decl_create(visit_context, context, cursor).decl;
     method->source = resect_string_from_clang(
         clang_getCursorPrettyPrinted(cursor, resect_context_get_printing_policy(context)));
     method->is_static = convert_bool_from_uint(clang_CXXMethod_isStatic(cursor));
@@ -96,6 +96,9 @@ void resect_method_free(resect_type_method method, resect_set deallocated) {
     resect_string_free(method->mangling);
     resect_string_free(method->source);
     resect_type_free(method->type, deallocated);
+    if (method->decl != NULL) {
+        resect_decl_free(method->decl, deallocated);
+    }
     free(method);
 }
 
@@ -186,6 +189,10 @@ resect_bool resect_type_method_is_static(resect_type_method method) {
 
 resect_type resect_type_method_get_type(resect_type_method method) {
     return method->type;
+}
+
+resect_decl resect_type_method_get_decl(resect_type_method method) {
+    return method->decl;
 }
 
 void resect_field_free(resect_type_field field, resect_set deallocated) {
