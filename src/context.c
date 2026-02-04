@@ -116,6 +116,7 @@ struct P_resect_translation_context {
     CXPrintingPolicy printing_policy;
 
     resect_pattern decl_name_pattern;
+    resect_diagnostics_level diagnostics_level;
 };
 
 struct P_resect_garbage {
@@ -138,6 +139,8 @@ resect_translation_context resect_context_create(resect_parse_options opts,
     context->printing_policy = NULL;
 
     context->decl_name_pattern = resect_pattern_create_c("^operator.+|[~\\w]+");
+
+    context->diagnostics_level = resect_options_current_diagnostics_level(opts);
 
     return context;
 }
@@ -291,6 +294,10 @@ void resect_context_release_printing_policy(resect_translation_context context) 
 
 CXPrintingPolicy resect_context_get_printing_policy(resect_translation_context context) {
     return context->printing_policy;
+}
+
+resect_diagnostics_level resect_context_diagnostics_level(resect_translation_context context) {
+    return context->diagnostics_level;
 }
 
 void resect_register_garbage(resect_translation_context context, enum P_resect_garbage_kind kind, void *garbage) {

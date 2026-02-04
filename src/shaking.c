@@ -769,8 +769,10 @@ static resect_bool visit_root_edge(void *ctx, const char *key, void *value) {
     resect_table registry = visit_data->registry;
 
     resect_decl_graph_node node = resect_decl_graph__find_node(graph, edge->id);
-    if (node->filter_status == RESECT_FILTER_STATUS_INCLUDED ||
-        node->filter_status == RESECT_FILTER_STATUS_ENFORCED) {
+    if ((node->filter_status == RESECT_FILTER_STATUS_INCLUDED ||
+         node->filter_status == RESECT_FILTER_STATUS_ENFORCED) &&
+        (node->access_level == RESECT_ACCESS_LEVEL_PUBLIC ||
+         node->access_level == RESECT_ACCESS_LEVEL_UNKNOWN)) {
         bool excluded = resect_shaking_context__follow_edge(graph, edge, registry,
                                                             node->filter_status == RESECT_FILTER_STATUS_ENFORCED);
         if (excluded) {
@@ -878,6 +880,7 @@ static void resect_shaking_context__init_registry_table(resect_shaking_context s
     resect_set_free(affected_edges);
 
     if (shaking_context->diagnostics_level >= RESECT_DIAGNOSTICS_ALL) {
+        fprintf(stderr, "(libresect) Inclusion registry\n");
         resect_visit_table(registry, printf_registry, NULL);
     }
 

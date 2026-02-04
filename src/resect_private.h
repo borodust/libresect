@@ -171,6 +171,8 @@ void resect_context_release_printing_policy(resect_translation_context context);
 
 CXPrintingPolicy resect_context_get_printing_policy(resect_translation_context context);
 
+resect_diagnostics_level resect_context_diagnostics_level(resect_translation_context context);
+
 void resect_context_free(resect_translation_context context, resect_set deallocated);
 
 void resect_register_decl(resect_translation_context context, resect_string id, resect_decl decl);

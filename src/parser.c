@@ -271,7 +271,7 @@ resect_translation_unit resect_parse(const char *filename, resect_parse_options 
 
 
     if (options->diagnostics_level >= RESECT_DIAGNOSTICS_DEBUG) {
-            fprintf(stderr, "libclang args:");
+            fprintf(stderr, "(libresect) libclang args:");
     }
     resect_iterator arg_iter = resect_collection_iterator(options->args);
     int i = 0;

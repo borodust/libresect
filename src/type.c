@@ -187,7 +187,7 @@ resect_bool resect_type_method_is_static(resect_type_method method) {
     return method->is_static;
 }
 
-resect_type resect_type_method_get_type(resect_type_method method) {
+resect_type resect_type_method_get_proto(resect_type_method method) {
     return method->type;
 }
 
@@ -673,6 +673,13 @@ resect_type resect_type_create(resect_visit_context visit_context, resect_transl
     type->initialized = true;
 
     if (type->decl != NULL) {
+        if (resect_context_diagnostics_level(context) >= RESECT_DIAGNOSTICS_WARNING
+            && clang_isInvalidDeclaration(declaration_cursor)) {
+            resect_string decl_id = resect_extract_decl_id(declaration_cursor);
+            fprintf(stderr, "(libresect) Declaration [%s] for type %s is invalid\n",
+                resect_string_to_c(decl_id), resect_string_to_c(type->name));
+            resect_string_free(decl_id);
+        }
         resect_init_template_args_from_type(visit_context, context, type->template_arguments, clang_type);
         resect_decl root_template = resect_decl_get_root_template(type->decl);
         if (root_template != NULL) {

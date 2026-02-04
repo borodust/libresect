@@ -305,7 +305,7 @@ RESECT_API const char* resect_type_method_get_source(resect_type_method method);
 
 RESECT_API resect_bool resect_type_method_is_static(resect_type_method method);
 
-RESECT_API resect_type resect_type_method_get_type(resect_type_method method);
+RESECT_API resect_type resect_type_method_get_proto(resect_type_method method);
 
 RESECT_API resect_decl resect_type_method_get_decl(resect_type_method method);
 
