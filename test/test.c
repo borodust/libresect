@@ -46,16 +46,24 @@ void print_method_parameters(resect_decl decl) {
 }
 
 void print_methods(resect_decl decl) {
-    resect_collection methods = resect_record_methods(decl);
-    resect_iterator param_iter = resect_collection_iterator(methods);
-    while (resect_iterator_next(param_iter)) {
-        resect_decl method = resect_iterator_value(param_iter);
-        printf("  METHOD: %s -> (%d) %s [%s]\n", resect_decl_get_name(method),
-               resect_type_get_kind(resect_method_get_result_type(method)),
-               resect_type_get_name(resect_method_get_result_type(method)), resect_decl_get_mangled_name(method));
-        print_method_parameters(method);
+    resect_type method_type = resect_decl_get_type(decl);
+    resect_collection methods = resect_type_methods(method_type);
+    resect_iterator iter = resect_collection_iterator(methods);
+    while (resect_iterator_next(iter)) {
+        resect_type_method method = resect_iterator_value(iter);
+        resect_type method_proto = resect_type_method_get_proto(method);
+        resect_type result_type = resect_function_proto_get_result_type(method_proto);
+        resect_decl method_decl = resect_type_method_get_decl(method);
+        printf("  METHOD: %s -> (%d) %s [%s]\n", resect_type_method_get_name(method),
+               resect_type_get_kind(result_type),
+               resect_type_get_name(result_type),
+               method_decl != NULL ? resect_decl_get_mangled_name(method_decl) : "");
+        printf("    ID: %s\n", resect_type_method_get_id(method));
+        if (method_decl != NULL) {
+            print_method_parameters(method_decl);
+        }
     }
-    resect_iterator_free(param_iter);
+    resect_iterator_free(iter);
 }
 
 void print_template_parameters(resect_decl decl) {
