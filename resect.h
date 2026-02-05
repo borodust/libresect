@@ -222,6 +222,15 @@ typedef enum {
     RESECT_DIAGNOSTICS_ALL = 5
 } resect_diagnostics_level;
 
+typedef enum {
+    RESECT_CONSTRUCTOR_KIND_INVALID = 0,
+    RESECT_CONSTRUCTOR_KIND_DEFAULT = 1,
+    RESECT_CONSTRUCTOR_KIND_COPY = 2,
+    RESECT_CONSTRUCTOR_KIND_MOVE = 3,
+    RESECT_CONSTRUCTOR_KIND_CONVERTING = 4,
+    RESECT_CONSTRUCTOR_KIND_OTHER = 5,
+} resect_constructor_kind;
+
 typedef struct P_resect_translation_unit *resect_translation_unit;
 typedef struct P_resect_collection *resect_collection;
 typedef struct P_resect_iterator *resect_iterator;
@@ -304,6 +313,8 @@ RESECT_API const char* resect_type_method_get_mangled_name(resect_type_method me
 RESECT_API const char* resect_type_method_get_source(resect_type_method method);
 
 RESECT_API resect_bool resect_type_method_is_static(resect_type_method method);
+
+RESECT_API resect_bool resect_type_method_is_const(resect_type_method method);
 
 RESECT_API resect_type resect_type_method_get_proto(resect_type_method method);
 

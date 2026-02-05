@@ -16,6 +16,7 @@ struct P_resect_type_field {
     resect_type type;
     resect_string name;
     long long offset;
+    resect_bool is_mutable;
 };
 
 struct P_resect_type {
@@ -47,6 +48,8 @@ typedef struct P_resect_type_method {
     resect_type type;
     resect_decl decl;
     resect_bool is_static;
+    resect_bool is_const;
+    resect_constructor_kind constructor_kind;
 } *resect_type_method;
 
 resect_string extract_mangling(CXCursor cursor) {
@@ -67,6 +70,25 @@ resect_string extract_mangling(CXCursor cursor) {
     return result;
 }
 
+resect_constructor_kind convert_constructor_kind(CXCursor cursor) {
+    if (clang_getCursorKind(cursor) != CXCursor_Constructor) {
+        return RESECT_CONSTRUCTOR_KIND_INVALID;
+    }
+    if (clang_CXXConstructor_isDefaultConstructor(cursor)) {
+        return RESECT_CONSTRUCTOR_KIND_DEFAULT;
+    }
+    if (clang_CXXConstructor_isCopyConstructor(cursor)) {
+        return RESECT_CONSTRUCTOR_KIND_COPY;
+    }
+    if (clang_CXXConstructor_isMoveConstructor(cursor)) {
+        return RESECT_CONSTRUCTOR_KIND_MOVE;
+    }
+    if (clang_CXXConstructor_isConvertingConstructor(cursor)) {
+        return RESECT_CONSTRUCTOR_KIND_CONVERTING;
+    }
+    return RESECT_CONSTRUCTOR_KIND_OTHER;
+}
+
 resect_type_method resect_method_create(resect_visit_context visit_context, resect_translation_context context,
                                         CXCursor cursor) {
     resect_type_method method = NULL;
@@ -84,6 +106,8 @@ resect_type_method resect_method_create(resect_visit_context visit_context, rese
     method->source = resect_string_from_clang(
         clang_getCursorPrettyPrinted(cursor, resect_context_get_printing_policy(context)));
     method->is_static = convert_bool_from_uint(clang_CXXMethod_isStatic(cursor));
+    method->is_const = convert_bool_from_uint(clang_CXXMethod_isConst(cursor));
+    method->constructor_kind = convert_constructor_kind(cursor);
 
 done:
     resect_string_free(method_id);
@@ -142,17 +166,13 @@ resect_type_field resect_field_create(resect_visit_context visit_context, resect
     if (!resect_is_decl_included(context, field_id)) {
         goto done;
     }
-    resect_type field_type = resect_type_create(visit_context, context, clang_getCursorType(cursor));
-    if (resect_type_get_declaration(field_type) == NULL) {
-        resect_register_garbage(context, RESECT_GARBAGE_KIND_TYPE, field_type);
-        goto done;
-    }
 
     field = malloc(sizeof(struct P_resect_type_field));
     field->id = resect_string_copy(field_id);
     field->type = resect_type_create(visit_context, context, clang_getCursorType(cursor));
     field->name = resect_string_from_clang(clang_getCursorDisplayName(cursor));
     field->offset = clang_Type_getOffsetOf(parent, resect_string_to_c(field->name));
+    field->is_mutable = convert_bool_from_uint(clang_CXXField_isMutable(cursor));
 
 done:
     resect_string_free(field_id);
@@ -185,6 +205,10 @@ const char *resect_type_method_get_source(resect_type_method method) {
 
 resect_bool resect_type_method_is_static(resect_type_method method) {
     return method->is_static;
+}
+
+resect_bool resect_type_method_is_const(resect_type_method method) {
+    return method->is_const;
 }
 
 resect_type resect_type_method_get_proto(resect_type_method method) {
