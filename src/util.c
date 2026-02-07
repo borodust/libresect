@@ -578,11 +578,16 @@ void resect_string_collection_free(resect_collection collection) {
     resect_collection_free(collection);
 }
 
-resect_string resect_string_fqn_from_type_by_cursor(CXCursor cursor, CXType type) {
+resect_string resect_string_fqn_from_type_by_cursor(CXCursor cursor, CXType type, bool strip_elaborated) {
     CXPrintingPolicy pp = clang_getCursorPrintingPolicy(cursor);
     clang_PrintingPolicy_setProperty(pp,
                                      CXPrintingPolicy_FullyQualifiedName,
                                      resect_true);
+    if (strip_elaborated) {
+        clang_PrintingPolicy_setProperty(pp,
+                                         CXPrintingPolicy_SuppressTagKeyword,
+                                         resect_true);
+    }
     resect_string fqn = resect_string_from_clang(clang_getFullyQualifiedName(type, pp, 0));
     clang_PrintingPolicy_dispose(pp);
     return fqn;
@@ -608,9 +613,7 @@ static resect_string extract_full_name(CXCursor cursor) {
             append_function_proto(full_name, cursor);
             break;
         case RESECT_DECL_KIND_FIELD: {
-            CXType type = clang_getCursorType(cursor);
-            CXCursor type_decl_cursor = clang_getTypeDeclaration(type);
-            if (!is_cursor_anonymous(type_decl_cursor)) {
+            if (!is_cursor_anonymous(cursor)) {
                 append_cursor_spelling(full_name, cursor);
             }
         }
@@ -656,7 +659,7 @@ static void append_function_proto(resect_string name, CXCursor cursor) {
     int arg_count = clang_getNumArgTypes(type);
     for (int i = 0; i < arg_count; ++i) {
         CXType arg_type = clang_getArgType(type, i);
-        resect_string arg_type_name = resect_string_fqn_from_type_by_cursor(cursor, arg_type);
+        resect_string arg_type_name = resect_string_fqn_from_type_by_cursor(cursor, arg_type, false);
         resect_string_append(proto, arg_type_name);
         if (i < arg_count - 1) {
             resect_string_append_c(proto, ", ");

@@ -237,7 +237,7 @@ resect_string resect_type_pretty_print(resect_translation_context context, CXTyp
 
 resect_string resect_string_fqn_from_type(resect_translation_context context, CXType clang_type);
 
-resect_string resect_string_fqn_from_type_by_cursor(CXCursor cursor, CXType type);
+resect_string resect_string_fqn_from_type_by_cursor(CXCursor cursor, CXType type, bool strip_elaborated);
 
 /*
  * DECLARATION
