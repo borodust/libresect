@@ -708,7 +708,7 @@ resect_string resect_format_cursor_full_name(CXCursor cursor) {
         case RESECT_DECL_KIND_CLASS:
         case RESECT_DECL_KIND_ENUM:
         case RESECT_DECL_KIND_TYPEDEF:
-            return resect_string_fqn_from_type_by_cursor(cursor, clang_getCursorType(cursor));
+            return resect_string_fqn_from_type_by_cursor(cursor, clang_getCursorType(cursor), true);
 
         case RESECT_DECL_KIND_FUNCTION:
         case RESECT_DECL_KIND_METHOD:
