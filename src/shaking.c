@@ -547,6 +547,7 @@ void resect_investigate_type(resect_visit_context visit_context, resect_shaking_
     resect_visit_cursor(visit_context, decl_cursor, context);
 
     switch (kind) {
+        case RESECT_TYPE_KIND_FUNCTIONNOPROTO:
         case RESECT_TYPE_KIND_FUNCTIONPROTO:
             resect_investigate_function_type(visit_context, context, type);
             break;

@@ -479,21 +479,24 @@ void resect_function_proto_init(resect_visit_context visit_context, resect_trans
 }
 
 resect_type resect_function_proto_get_result_type(resect_type type) {
-    assert(type->kind == RESECT_TYPE_KIND_FUNCTIONPROTO);
+    assert(type->kind == RESECT_TYPE_KIND_FUNCTIONPROTO
+        || type->kind == RESECT_TYPE_KIND_FUNCTIONNOPROTO);
 
     resect_function_proto_data data = type->data;
     return data->result_type;
 }
 
 resect_bool resect_function_proto_is_variadic(resect_type type) {
-    assert(type->kind == RESECT_TYPE_KIND_FUNCTIONPROTO);
+    assert(type->kind == RESECT_TYPE_KIND_FUNCTIONPROTO
+        || type->kind == RESECT_TYPE_KIND_FUNCTIONNOPROTO);
 
     resect_function_proto_data data = type->data;
     return data->variadic;
 }
 
 resect_collection resect_function_proto_parameters(resect_type type) {
-    assert(type->kind == RESECT_TYPE_KIND_FUNCTIONPROTO);
+    assert(type->kind == RESECT_TYPE_KIND_FUNCTIONPROTO
+        || type->kind == RESECT_TYPE_KIND_FUNCTIONNOPROTO);
 
     resect_function_proto_data data = type->data;
     return data->parameters;
@@ -675,6 +678,7 @@ resect_type resect_type_create(resect_visit_context visit_context, resect_transl
     }
 
     switch (type->kind) {
+        case RESECT_TYPE_KIND_FUNCTIONNOPROTO:
         case RESECT_TYPE_KIND_FUNCTIONPROTO:
             resect_function_proto_init(visit_context, context, type, clang_type);
             break;
