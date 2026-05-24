@@ -286,6 +286,8 @@ resect_decl_visit_data resect_decl_visit_data_create(resect_translation_context 
 
 void resect_visit_decl_data_free(resect_decl_visit_data data);
 
+resect_ref_qualifier convert_ref_qualifier(enum CXRefQualifierKind qual);
+
 /*
  * TEMPLATE ARGUMENT
  */

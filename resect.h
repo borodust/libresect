@@ -231,6 +231,12 @@ typedef enum {
     RESECT_CONSTRUCTOR_KIND_OTHER = 5,
 } resect_constructor_kind;
 
+typedef enum {
+    RESECT_REF_QUALIFIER_NONE = 0,
+    RESECT_REF_QUALIFIER_LVALUE = 1,
+    RESECT_REF_QUALIFIER_RVALUE = 2
+} resect_ref_qualifier;
+
 typedef struct P_resect_translation_unit *resect_translation_unit;
 typedef struct P_resect_collection *resect_collection;
 typedef struct P_resect_iterator *resect_iterator;

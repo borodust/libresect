@@ -947,6 +947,7 @@ typedef struct P_resect_function_data {
     resect_function_calling_convention calling_convention;
     resect_type result_type;
     resect_bool inlined;
+    resect_ref_qualifier ref_qualifier;
 } *resect_function_data;
 
 resect_type resect_function_get_result_type(resect_decl decl) {
@@ -1097,8 +1098,20 @@ resect_function_data resect_function_data_create(resect_visit_context visit_cont
     data->variadic = clang_isFunctionTypeVariadic(functionType) != 0 ? resect_true : resect_false;
     data->result_type = resect_type_create(visit_context, context, clang_getResultType(functionType));
     data->inlined = convert_bool_from_uint(clang_Cursor_isFunctionInlined(cursor));
+    data->ref_qualifier = convert_ref_qualifier(clang_Type_getCXXRefQualifier(functionType));
 
     return data;
+}
+
+resect_ref_qualifier convert_ref_qualifier(enum CXRefQualifierKind qual) {
+    switch (qual) {
+        case CXRefQualifier_LValue:
+            return RESECT_REF_QUALIFIER_LVALUE;
+        case CXRefQualifier_RValue:
+            return RESECT_REF_QUALIFIER_RVALUE;
+        default:
+            return RESECT_REF_QUALIFIER_NONE;
+    }
 }
 
 void resect_function_init(resect_visit_context visit_context, resect_translation_context context, resect_decl decl,
@@ -1424,6 +1437,12 @@ resect_collection resect_method_parameters(resect_decl decl) {
     assert(decl->kind == RESECT_DECL_KIND_METHOD);
     resect_method_data data = decl->data;
     return data->function_data->parameters;
+}
+
+resect_ref_qualifier resect_method_get_ref_qualifier(resect_decl decl) {
+    assert(decl->kind == RESECT_DECL_KIND_METHOD);
+    resect_method_data data = decl->data;
+    return data->function_data->ref_qualifier;
 }
 
 enum CXChildVisitResult resect_visit_method_parameter(CXCursor cursor, CXCursor parent, CXClientData data) {
