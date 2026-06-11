@@ -603,9 +603,22 @@ resect_type_category get_type_category(resect_type_kind kind) {
  */
 resect_type resect_type_create(resect_visit_context visit_context, resect_translation_context context,
                                CXType clang_type) {
+    resect_type type = resect_find_type(context, clang_type);
+    if (type != NULL) {
+        return type;
+    }
+
+    CXType original_clang_type = clang_type;
+    resect_bool is_const = false;
+    // Not sure this can be true more than once -- but just in case, we loop
+    while (clang_type.kind == CXType_Elaborated) {
+        if (clang_isConstQualifiedType(clang_type)) {
+            is_const = true;
+        }
+        // Can unwrap to an Unexposed
+        clang_type = clang_Type_getNamedType(clang_type);
+    }
     switch (clang_type.kind) {
-        case CXType_Elaborated:
-            return resect_type_create(visit_context, context, clang_Type_getNamedType(clang_type));
         case CXType_Unexposed: {
             CXType canonical_type = clang_getCanonicalType(clang_type);
             if (CXType_Unexposed != canonical_type.kind) {
@@ -617,11 +630,6 @@ resect_type resect_type_create(resect_visit_context visit_context, resect_transl
             // skip attributes
             return resect_type_create(visit_context, context, clang_Type_getModifiedType(clang_type));
         default: ;
-    }
-
-    resect_type type = resect_find_type(context, clang_type);
-    if (type != NULL) {
-        return type;
     }
 
     type = malloc(sizeof(struct P_resect_type));
@@ -650,7 +658,7 @@ resect_type resect_type_create(resect_visit_context visit_context, resect_transl
     type->data_deallocator = NULL;
     type->data = NULL;
 
-    resect_register_type(context, clang_type, type);
+    resect_register_type(context, original_clang_type, type);
 
     CXCursor declaration_cursor = clang_getTypeDeclaration(clang_type);
     if (declaration_cursor.kind == CXCursor_NoDeclFound) {
@@ -699,6 +707,9 @@ resect_type resect_type_create(resect_visit_context visit_context, resect_transl
     }
 
     type->initialized = true;
+    if (is_const) {
+        type->const_qualified = true;
+    }
 
     if (type->decl != NULL) {
         if (resect_context_diagnostics_level(context) >= RESECT_DIAGNOSTICS_WARNING
