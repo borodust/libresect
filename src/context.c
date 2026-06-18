@@ -402,6 +402,18 @@ void resect_visit_cursor_for_declaration(resect_visit_context context, CXCursor 
         return;
     }
 
+    // Enables walking `using' declarations to look for inherited constructors
+    if (cursor_kind == CXCursor_UsingDeclaration) {
+        CXCursor definition = clang_getCursorDefinition(cursor);
+        int overload_count = clang_getNumOverloadedDecls(definition);
+        for (int i = 0; i < overload_count; ++i) {
+            CXCursor overload = clang_getOverloadedDecl(definition, i);
+            if (clang_getCursorKind(overload) == CXCursor_Constructor) {
+                resect_visit_cursor_for_declaration(context, overload, data);
+            }
+        }
+    }
+
     if (resect_is_forward_declaration(cursor)) {
         CXCursor definition = clang_getCursorDefinition(cursor);
         if ((clang_getCursorKind(definition) < CXCursor_FirstInvalid

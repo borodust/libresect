@@ -766,6 +766,7 @@ typedef struct P_resect_record_data {
     resect_collection methods;
     resect_collection parents;
     resect_bool abstract;
+    resect_bool has_inherited_constructor;
 } *resect_record_data;
 
 resect_bool resect_is_struct(resect_decl decl) {
@@ -789,6 +790,12 @@ resect_bool resect_record_is_abstract(resect_decl decl) {
     assert(resect_is_struct(decl));
     resect_record_data data = decl->data;
     return data->abstract;
+}
+
+resect_bool resect_record_has_inherited_constructor(resect_decl decl) {
+    assert(resect_is_struct(decl));
+    resect_record_data data = decl->data;
+    return data->has_inherited_constructor;
 }
 
 resect_collection resect_record_parents(resect_decl decl) {
@@ -835,6 +842,8 @@ void resect_field_init(resect_visit_context visit_context, resect_translation_co
     decl->data = data;
 }
 
+void resect_create_record_child(resect_decl_child_visit_data visit_data, CXCursor cursor);
+
 enum CXChildVisitResult resect_visit_record_child(CXCursor cursor, CXCursor parent, CXClientData data) {
     resect_decl_child_visit_data visit_data = data;
 
@@ -850,6 +859,28 @@ enum CXChildVisitResult resect_visit_record_child(CXCursor cursor, CXCursor pare
 
         return CXChildVisit_Continue;
     }
+
+    if (clang_getCursorKind(cursor) == CXCursor_UsingDeclaration) {
+        CXCursor definition = clang_getCursorDefinition(cursor);
+        // There's always more than one constructor; the copy and move constructors
+        // exist even if they're marked `= delete'.
+        int overload_count = clang_getNumOverloadedDecls(definition);
+        for (int i = 0; i < overload_count; ++i) {
+            CXCursor overload = clang_getOverloadedDecl(definition, i);
+            if (clang_getCursorKind(overload) == CXCursor_Constructor) {
+                record_data->has_inherited_constructor = resect_true;
+                resect_create_record_child(visit_data, overload);
+            }
+        }
+    } else {
+        resect_create_record_child(visit_data, cursor);
+    }
+
+    return CXChildVisit_Continue;
+}
+
+void resect_create_record_child(resect_decl_child_visit_data visit_data, CXCursor cursor) {
+    resect_record_data record_data = visit_data->parent->data;
 
     resect_decl_result decl_result =
             resect_decl_create(visit_data->visit_context, visit_data->translation_context, cursor);
@@ -869,8 +900,6 @@ enum CXChildVisitResult resect_visit_record_child(CXCursor cursor, CXCursor pare
             default:;
         }
     }
-
-    return CXChildVisit_Continue;
 }
 
 void resect_record_data_free(void *data, resect_set deallocated) {
@@ -893,6 +922,7 @@ void resect_record_init(resect_visit_context visit_context, resect_translation_c
     data->fields = resect_collection_create();
     data->parents = resect_collection_create();
     data->abstract = convert_bool_from_uint(clang_CXXRecord_isAbstract(cursor));
+    data->has_inherited_constructor = resect_false;
 
     decl->data_deallocator = resect_record_data_free;
     decl->data = data;
