@@ -267,9 +267,6 @@ static void resect_investigate_owner(resect_visit_context visit_context, resect_
                                      CXCursor cursor);
 
 static resect_access_level convert_access_level(CXCursor cursor) {
-    if (clang_getCursorKind(cursor) == CXCursor_CXXMethod && clang_CXXMethod_isDeleted(cursor)) {
-        return RESECT_ACCESS_LEVEL_INACCESSIBLE;
-    }
     CXType cursor_type = clang_getCursorType(cursor);
 
     // libclang cannot handle templated member-pointers

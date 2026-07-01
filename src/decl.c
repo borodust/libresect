@@ -189,12 +189,18 @@ struct P_resect_decl {
     resect_data_deallocator data_deallocator;
 };
 
-resect_decl_kind convert_cursor_kind(CXCursor cursor) {
+enum CXCursorKind get_cursor_kind(CXCursor cursor) {
     enum CXCursorKind clang_kind = clang_getTemplateCursorKind(cursor);
 
     if (clang_kind == CXCursor_NoDeclFound) {
         clang_kind = clang_getCursorKind(cursor);
     }
+
+    return clang_kind;
+}
+
+resect_decl_kind convert_cursor_kind(CXCursor cursor) {
+    enum CXCursorKind clang_kind = get_cursor_kind(cursor);
 
     switch (clang_kind) {
         case CXCursor_MacroDefinition:
@@ -947,6 +953,7 @@ typedef struct P_resect_function_data {
     resect_function_calling_convention calling_convention;
     resect_type result_type;
     resect_bool inlined;
+    resect_ref_qualifier ref_qualifier;
 } *resect_function_data;
 
 resect_type resect_function_get_result_type(resect_decl decl) {
@@ -1097,8 +1104,20 @@ resect_function_data resect_function_data_create(resect_visit_context visit_cont
     data->variadic = clang_isFunctionTypeVariadic(functionType) != 0 ? resect_true : resect_false;
     data->result_type = resect_type_create(visit_context, context, clang_getResultType(functionType));
     data->inlined = convert_bool_from_uint(clang_Cursor_isFunctionInlined(cursor));
+    data->ref_qualifier = convert_ref_qualifier(clang_Type_getCXXRefQualifier(functionType));
 
     return data;
+}
+
+resect_ref_qualifier convert_ref_qualifier(enum CXRefQualifierKind qual) {
+    switch (qual) {
+        case CXRefQualifier_LValue:
+            return RESECT_REF_QUALIFIER_LVALUE;
+        case CXRefQualifier_RValue:
+            return RESECT_REF_QUALIFIER_RVALUE;
+        default:
+            return RESECT_REF_QUALIFIER_NONE;
+    }
 }
 
 void resect_function_init(resect_visit_context visit_context, resect_translation_context context, resect_decl decl,
@@ -1376,6 +1395,9 @@ typedef struct P_resect_method_data {
     resect_bool virtual;
     resect_bool non_mutating;
     resect_bool deleted;
+    resect_bool constructor;
+    resect_bool copy_constructor;
+    resect_bool copy_assign;
 } *resect_method_data;
 
 resect_type resect_method_get_result_type(resect_decl decl) {
@@ -1420,10 +1442,38 @@ resect_bool resect_method_is_deleted(resect_decl decl) {
     return data->deleted;
 }
 
+resect_bool resect_method_is_constructor(resect_decl decl) {
+    assert(decl->kind == RESECT_DECL_KIND_METHOD);
+    resect_method_data data = decl->data;
+    return data->constructor;
+}
+
+resect_bool resect_method_is_copy_constructor(resect_decl decl) {
+    if (decl->kind != RESECT_DECL_KIND_METHOD || decl->data == NULL) {
+        return resect_false;
+    }
+    resect_method_data data = decl->data;
+    return data->copy_constructor;
+}
+
+resect_bool resect_method_is_copy_assignment(resect_decl decl) {
+    if (decl->kind != RESECT_DECL_KIND_METHOD || decl->data == NULL) {
+        return resect_false;
+    }
+    resect_method_data data = decl->data;
+    return data->copy_assign;
+}
+
 resect_collection resect_method_parameters(resect_decl decl) {
     assert(decl->kind == RESECT_DECL_KIND_METHOD);
     resect_method_data data = decl->data;
     return data->function_data->parameters;
+}
+
+resect_ref_qualifier resect_method_get_ref_qualifier(resect_decl decl) {
+    assert(decl->kind == RESECT_DECL_KIND_METHOD);
+    resect_method_data data = decl->data;
+    return data->function_data->ref_qualifier;
 }
 
 enum CXChildVisitResult resect_visit_method_parameter(CXCursor cursor, CXCursor parent, CXClientData data) {
@@ -1454,6 +1504,9 @@ void resect_method_init(resect_visit_context visit_context, resect_translation_c
     data->pure_virtual = clang_CXXMethod_isPureVirtual(cursor) > 0;
     data->non_mutating = clang_CXXMethod_isConst(cursor) > 0;
     data->deleted = clang_CXXMethod_isDeleted(cursor) > 0;
+    data->constructor = get_cursor_kind(cursor) == CXCursor_Constructor;
+    data->copy_constructor = (data->constructor && clang_CXXConstructor_isCopyConstructor(cursor));
+    data->copy_assign = clang_CXXMethod_isCopyAssignmentOperator(cursor);
 
     decl->data_deallocator = resect_method_data_free;
     decl->data = data;

@@ -276,6 +276,8 @@ resect_bool resect_is_forward_declaration(CXCursor cursor);
 
 resect_bool resect_is_specialized(CXCursor cursor);
 
+enum CXCursorKind get_cursor_kind(CXCursor cursor);
+
 resect_decl_kind convert_cursor_kind(CXCursor cursor);
 
 bool is_cursor_anonymous(CXCursor cursor);
@@ -285,6 +287,12 @@ void resect_decl_parse(resect_visit_context visit_context, CXCursor cursor, void
 resect_decl_visit_data resect_decl_visit_data_create(resect_translation_context context);
 
 void resect_visit_decl_data_free(resect_decl_visit_data data);
+
+resect_ref_qualifier convert_ref_qualifier(enum CXRefQualifierKind qual);
+
+resect_bool resect_method_is_copy_assignment(resect_decl decl);
+
+resect_bool resect_method_is_copy_constructor(resect_decl decl);
 
 /*
  * TEMPLATE ARGUMENT
