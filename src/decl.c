@@ -1095,7 +1095,11 @@ resect_function_data resect_function_data_create(resect_visit_context visit_cont
     data->storage_class = convert_storage_class(clang_Cursor_getStorageClass(cursor));
     data->calling_convention = convert_calling_convention(clang_getFunctionTypeCallingConv(functionType));
     data->variadic = clang_isFunctionTypeVariadic(functionType) != 0 ? resect_true : resect_false;
-    data->result_type = resect_type_create(visit_context, context, clang_getResultType(functionType));
+    CXType result_type = clang_getResultType(functionType);
+    if (result_type.kind == CXType_Auto) {
+        result_type = clang_getCanonicalType(result_type);
+    }
+    data->result_type = resect_type_create(visit_context, context, result_type);
     data->inlined = convert_bool_from_uint(clang_Cursor_isFunctionInlined(cursor));
 
     return data;
