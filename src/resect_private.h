@@ -119,6 +119,8 @@ typedef struct P_resect_filtering_context *resect_filtering_context;
 
 resect_filtering_context resect_filtering_context_create(resect_parse_options options);
 
+resect_diagnostics_level resect_filtering_context_diagnostics_level(resect_filtering_context context);
+
 void resect_filtering_context_free(resect_filtering_context context);
 
 resect_filter_status resect_filtering_status(resect_filtering_context context,

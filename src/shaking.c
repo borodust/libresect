@@ -239,6 +239,28 @@ static resect_filter_status resect_cursor_filter_status(resect_filtering_context
     resect_filter_status result =
             resect_filtering_status(filtering, resect_string_to_c(full_name), resect_string_to_c(source));
 
+    // Auto-exclude hidden classes and functions, which we can't link to.
+    resect_decl_kind decl_kind = convert_cursor_kind(cursor);
+    if (result == RESECT_FILTER_STATUS_INCLUDED) {
+        switch (convert_cursor_kind(cursor)) {
+            case RESECT_DECL_KIND_STRUCT:
+            case RESECT_DECL_KIND_UNION:
+            case RESECT_DECL_KIND_CLASS:
+            case RESECT_DECL_KIND_FUNCTION:
+            case RESECT_DECL_KIND_VARIABLE:
+            case RESECT_DECL_KIND_METHOD:
+                enum CXVisibilityKind visibility = clang_getCursorVisibility(cursor);
+                if (visibility == CXVisibility_Hidden) {
+                    if (resect_filtering_context_diagnostics_level(filtering) >= RESECT_DIAGNOSTICS_DEBUG) {
+                        fprintf(stderr, "(libresect) Excluding hidden symbol: %s\n",
+                                resect_string_to_c(full_name));
+                    }
+                    result = RESECT_FILTER_STATUS_EXCLUDED;
+                }
+            default: ;
+        }
+    }
+
     resect_string_free(full_name);
     resect_string_free(source);
 
@@ -299,10 +321,9 @@ void resect_investigate_decl(resect_visit_context visit_context, resect_shaking_
 
     resect_access_level access_level = convert_access_level(cursor);
 
-    resect_filter_status filter_status = resect_cursor_filter_status(shaking_context->filtering, cursor);
-
     bool node_existed = resect_decl_graph_has_node(shaking_context->decl_graph, decl_id);
     if (!node_existed) {
+        resect_filter_status filter_status = resect_cursor_filter_status(shaking_context->filtering, cursor);
         resect_decl_graph_add_node(shaking_context->decl_graph, decl_id, filter_status, access_level);
 
         resect_decl_graph_adopt(shaking_context->decl_graph, resect_shaking_context_root_id(shaking_context), decl_id);

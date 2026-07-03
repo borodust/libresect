@@ -249,6 +249,10 @@ void resect_options_diagnostics_level(resect_parse_options opts, resect_diagnost
     opts->diagnostics_level = level;
 }
 
+void resect_options_visibility(resect_parse_options opts, const char *visibility) {
+    resect_options_add_concat(opts, "-fvisibility=", visibility);
+}
+
 /*
  * UNIT
  */

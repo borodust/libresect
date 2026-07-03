@@ -14,6 +14,8 @@ struct P_resect_filtering_context {
     resect_collection enforced_source_patterns;
     resect_collection ignored_definition_patterns;
     resect_collection ignored_source_patterns;
+
+    resect_diagnostics_level diagnostics_level;
 };
 
 static resect_collection compile_pattern_collection(resect_collection collection) {
@@ -55,7 +57,13 @@ resect_filtering_context resect_filtering_context_create(resect_parse_options op
             compile_pattern_collection(resect_options_get_ignored_definitions(options));
     context->ignored_source_patterns = compile_pattern_collection(resect_options_get_ignored_sources(options));
 
+    context->diagnostics_level = resect_options_current_diagnostics_level(options);
+
     return context;
+}
+
+resect_diagnostics_level resect_filtering_context_diagnostics_level(resect_filtering_context context) {
+    return context->diagnostics_level;
 }
 
 void resect_filtering_context_free(resect_filtering_context context) {
@@ -111,4 +119,5 @@ resect_filter_status resect_filtering_status(resect_filtering_context context, c
 
     return RESECT_FILTER_STATUS_IGNORED;
 }
+
 #endif // RESECT_FILTERING_H
