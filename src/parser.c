@@ -12,6 +12,7 @@
 struct P_resect_parse_options {
     resect_collection args;
     resect_bool single;
+    resect_language language;
     resect_diagnostics_level diagnostics_level;
 
     resect_collection included_definition_patterns;
@@ -45,6 +46,7 @@ resect_parse_options resect_options_create() {
     resect_parse_options opts = malloc(sizeof(struct P_resect_parse_options));
     opts->args = resect_collection_create();
     opts->single = resect_false;
+    opts->language = RESECT_LANGUAGE_UNKNOWN;
     opts->diagnostics_level = RESECT_DIAGNOSTICS_NONE;
 
     opts->included_definition_patterns = resect_collection_create();
@@ -114,6 +116,10 @@ void resect_options_ignore_definition(resect_parse_options opts, const char *nam
 
 void resect_options_ignore_source(resect_parse_options opts, const char *name) {
     resect_collection_add(opts->ignored_source_patterns, resect_string_from_c(name));
+}
+
+resect_language resect_options_get_language(resect_parse_options opts) {
+    return opts->language;
 }
 
 resect_collection resect_options_get_included_definitions(resect_parse_options opts) {
@@ -187,6 +193,11 @@ void resect_options_add_language(resect_parse_options opts, const char *lang) {
         resect_options_add_string_c(opts, "-stdlib=libc++");
     }
     resect_string_free(str);
+    if (strcmp(lang, "c") == 0) {
+	opts->language = RESECT_LANGUAGE_C;
+    } else if (strcmp(lang, "c++") == 0) {
+	opts->language = RESECT_LANGUAGE_CXX;
+    }
 }
 
 void resect_options_add_define(resect_parse_options opts, const char *name, const char *value) {
@@ -262,7 +273,7 @@ resect_collection resect_unit_declarations(resect_translation_unit unit) {
 }
 
 resect_language resect_unit_get_language(resect_translation_unit unit) {
-    return resect_get_assumed_language(unit->context);
+    return resect_get_language(unit->context);
 }
 
 resect_translation_unit resect_parse(const char *filename, resect_parse_options options) {

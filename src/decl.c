@@ -609,7 +609,6 @@ void resect_decl__create(resect_visit_context visit_context, resect_translation_
     decl->kind = result->kind;
 
     resect_register_decl(context, decl->id, decl);
-    resect_register_decl_language(context, convert_language(clang_getCursorLanguage(cursor)));
 
     resect_decl_init_rest_from_cursor(decl, context, cursor);
 
