@@ -450,6 +450,7 @@ void resect_visit_table(resect_table table, resect_bool (*entry_visitor)(void *,
 
 static resect_bool printf_table_entry(void *ctx, const char *key, void *value) {
     fprintf(stderr, "  \"%s\": %p\n", key, value);
+    return resect_true;
 }
 
 void resect_print_table(resect_table table) {

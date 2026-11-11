@@ -355,16 +355,33 @@ bool is_cursor_anonymous(CXCursor cursor) {
             return false;
     }
 
-    if (clang_Cursor_isAnonymousRecordDecl(cursor) || clang_Cursor_isAnonymous(cursor)) {
+    // `clang_Cursor_isAnonymous` asks whether a declaration has no name.
+    // `clang_Cursor_isAnonymousRecordDecl` asks whether it’s a C11 anonymous struct or union,
+    // meaning its members get injected into the enclosing scope.
+    if (clang_Cursor_isAnonymous(cursor)) {
         return true;
     }
 
     bool result = false;
-    resect_string name = resect_string_from_clang(clang_getCursorSpelling(cursor));
-    if (resect_string_length(name) == 0) {
-        result = true;
+    // It appears that the only fully reliable way to tell whether a struct decl has a tag is
+    // by grovelling over the USR.  This is because `clang_Cursor_isAnonymous' returns false
+    // for a struct (or class, union, or enum) decl that receives its name from a containing
+    // typedef, and also because `clang_getFullyQualifiedName' arguably has a bug, that it
+    // doesn't include the keyword (`struct' etc.) if the declaration is in a namespace, even
+    // when the policy requests the keyword (by setting `CXPrintingPolicy_SuppressTagKeyword'
+    // to false).
+    //
+    // This is a disgusting hack, but short of patching Clang, there doesn't seem to be an
+    // alternative.  (Approach suggested by LLM.)  The equivalent regexp would be, I think,
+    // "@(S|U|E)A@[^@]*$".
+    CXString usr = clang_getCursorUSR(cursor);
+    const char *c_usr = clang_getCString(usr);
+    const char *last = strrchr(c_usr, '@');
+    if (last && last - c_usr >= 3 && last[-3] == '@' && last[-1] == 'A' &&
+	(last[-2] == 'S' || last[-2] == 'U' || last[-2] == 'E')) {
+	result = true;
     }
-    resect_string_free(name);
+    clang_disposeString(usr);
     return result;
 }
 
@@ -592,7 +609,6 @@ void resect_decl__create(resect_visit_context visit_context, resect_translation_
     decl->kind = result->kind;
 
     resect_register_decl(context, decl->id, decl);
-    resect_register_decl_language(context, convert_language(clang_getCursorLanguage(cursor)));
 
     resect_decl_init_rest_from_cursor(decl, context, cursor);
 
@@ -766,6 +782,20 @@ typedef struct P_resect_record_data {
     resect_collection methods;
     resect_collection parents;
     resect_bool abstract;
+<<<<<<< HEAD
+=======
+    resect_bool has_inherited_constructor;
+    // C11 added anonymous structs and unions.  These are nested within other structs
+    // or unions, have no tag, and declare no fields:
+    // union foo {
+    //   struct {
+    //      int a, b;
+    //   };
+    //   ...
+    // } f;
+    // The field names are lifted to the outer scope, so you can reference `f.a` and `f.b`.
+    resect_bool is_anonymous_subrecord;
+>>>>>>> 1489a7b (Fix detection of anonymous structs/unions/enums)
 } *resect_record_data;
 
 resect_bool resect_is_struct(resect_decl decl) {
@@ -789,6 +819,18 @@ resect_bool resect_record_is_abstract(resect_decl decl) {
     assert(resect_is_struct(decl));
     resect_record_data data = decl->data;
     return data->abstract;
+}
+
+resect_bool resect_record_has_inherited_constructor(resect_decl decl) {
+    assert(resect_is_struct(decl));
+    resect_record_data data = decl->data;
+    return data->has_inherited_constructor;
+}
+
+resect_bool resect_record_is_anonymous_subrecord(resect_decl decl) {
+    assert(resect_is_struct(decl));
+    resect_record_data data = decl->data;
+    return data->is_anonymous_subrecord;
 }
 
 resect_collection resect_record_parents(resect_decl decl) {
@@ -893,6 +935,8 @@ void resect_record_init(resect_visit_context visit_context, resect_translation_c
     data->fields = resect_collection_create();
     data->parents = resect_collection_create();
     data->abstract = convert_bool_from_uint(clang_CXXRecord_isAbstract(cursor));
+    data->has_inherited_constructor = resect_false;
+    data->is_anonymous_subrecord = clang_Cursor_isAnonymousRecordDecl(cursor);
 
     decl->data_deallocator = resect_record_data_free;
     decl->data = data;

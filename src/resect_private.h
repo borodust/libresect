@@ -179,9 +179,7 @@ void resect_register_decl(resect_translation_context context, resect_string id, 
 
 bool resect_register_type(resect_translation_context context, CXType clang_type, resect_type resect_type);
 
-void resect_register_decl_language(resect_translation_context context, resect_language language);
-
-resect_language resect_get_assumed_language(resect_translation_context context);
+resect_language resect_get_language(resect_translation_context context);
 
 bool resect_is_decl_included(resect_translation_context context, resect_string decl_id);
 
@@ -318,6 +316,8 @@ unsigned long resect_hash(const char *str);
 /*
  * OPTIONS
  */
+resect_language resect_options_get_language(resect_parse_options opts);
+
 resect_collection resect_options_get_included_definitions(resect_parse_options opts);
 
 resect_collection resect_options_get_included_sources(resect_parse_options opts);

@@ -131,7 +131,7 @@ resect_translation_context resect_context_create(resect_parse_options opts,
     context->decl_table = resect_table_create();
     context->type_registry = resect_type_registry_create();
     context->template_parameter_table = resect_table_create();
-    context->language = RESECT_LANGUAGE_UNKNOWN;
+    context->language = resect_options_get_language(opts);
 
     context->inclusion_registry = registry;
 
@@ -208,14 +208,7 @@ void resect_expose_decl(resect_translation_context context, resect_decl decl) {
     resect_set_add(context->exposed_decls, decl);
 }
 
-void resect_register_decl_language(resect_translation_context context, resect_language language) {
-    if (context->language == RESECT_LANGUAGE_UNKNOWN
-        || context->language == RESECT_LANGUAGE_C && language != RESECT_LANGUAGE_C) {
-        context->language = language;
-    }
-}
-
-resect_language resect_get_assumed_language(resect_translation_context context) {
+resect_language resect_get_language(resect_translation_context context) {
     return context->language;
 }
 
