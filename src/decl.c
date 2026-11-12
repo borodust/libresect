@@ -373,7 +373,7 @@ bool is_cursor_anonymous(CXCursor cursor) {
     //
     // This is a disgusting hack, but short of patching Clang, there doesn't seem to be an
     // alternative.  (Approach suggested by LLM.)  The equivalent regexp would be, I think,
-    // "@(S|U|E)A@[^@]*$".
+    // "@[SUE]A@[^@]*$".
     CXString usr = clang_getCursorUSR(cursor);
     const char *c_usr = clang_getCString(usr);
     const char *last = strrchr(c_usr, '@');
@@ -782,8 +782,6 @@ typedef struct P_resect_record_data {
     resect_collection methods;
     resect_collection parents;
     resect_bool abstract;
-<<<<<<< HEAD
-=======
     resect_bool has_inherited_constructor;
     // C11 added anonymous structs and unions.  These are nested within other structs
     // or unions, have no tag, and declare no fields:
@@ -795,7 +793,6 @@ typedef struct P_resect_record_data {
     // } f;
     // The field names are lifted to the outer scope, so you can reference `f.a` and `f.b`.
     resect_bool is_anonymous_subrecord;
->>>>>>> 1489a7b (Fix detection of anonymous structs/unions/enums)
 } *resect_record_data;
 
 resect_bool resect_is_struct(resect_decl decl) {
